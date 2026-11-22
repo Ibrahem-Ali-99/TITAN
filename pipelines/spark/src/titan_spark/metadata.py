@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from titan_spark.config import Settings
+from titan_spark.policy import pipeline_finished_at
 
 SILVER_LOCK_KEY = 740001
 WAREHOUSE_LOCK_KEY = 740002
@@ -53,7 +54,7 @@ def record_job(
                 job_name, state, started_at, finished_at, detail, error_detail
             ) values (%s, %s, %s, %s, %s, %s)
             """,
-            (job_name, state, now, now, detail, error_detail),
+            (job_name, state, now, pipeline_finished_at(state, now), detail, error_detail),
         )
         connection.commit()
 

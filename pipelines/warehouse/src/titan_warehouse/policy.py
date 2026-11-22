@@ -17,6 +17,23 @@ def can_promote(
     return candidate_silver_finished_at >= active_silver_finished_at
 
 
+def recorded_run(
+    state: str,
+    now: datetime,
+    started_at: datetime | None,
+) -> tuple[datetime, datetime | None, int | None]:
+    """A running attempt has no finish time. Terminal states close at ``now``."""
+    started = started_at or now
+    if state == "running":
+        return started, None, None
+    duration_ms = None
+    if started_at is not None:
+        elapsed = int((now - started).total_seconds() * 1000)
+        if elapsed > 0:
+            duration_ms = elapsed
+    return started, now, duration_ms
+
+
 def warehouse_is_aligned(
     postgres_publication_id: str | None,
     clickhouse_publication_id: str | None,

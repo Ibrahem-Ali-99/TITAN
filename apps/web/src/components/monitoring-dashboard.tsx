@@ -117,9 +117,13 @@ export function MonitoringDashboard() {
 
   const open = runs.find((run) => run.id === openId) ?? null;
   const warehouseFresh = overview.freshness.find((stage) => stage.stage.toLowerCase().includes("warehouse"));
+  const latestUnresolved =
+    jobs === null ||
+    jobs.some((job) => classifyIncident(job, [], job, now).kind !== "succeeded");
   const health = platformHealth({
     warehouseReady: warehouse === null ? null : warehouse.ready,
     activeFailures: summary.active.length,
+    latestUnresolved,
   });
   const stages = [
     {

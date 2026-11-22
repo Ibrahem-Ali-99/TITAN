@@ -152,6 +152,7 @@ export function summarizeIncidents(
 export function platformHealth(input: {
   warehouseReady: boolean | null;
   activeFailures: number;
+  latestUnresolved: boolean;
 }): { label: string; tone: IncidentTone } {
   if (input.activeFailures > 0) {
     return { label: "Degraded", tone: "bad" };
@@ -159,8 +160,11 @@ export function platformHealth(input: {
   if (input.warehouseReady === null) {
     return { label: "Unknown", tone: "neutral" };
   }
-  if (input.warehouseReady) {
-    return { label: "Ready", tone: "ok" };
+  if (!input.warehouseReady) {
+    return { label: "Not ready", tone: "warn" };
   }
-  return { label: "Not ready", tone: "warn" };
+  if (input.latestUnresolved) {
+    return { label: "Warehouse ready", tone: "ok" };
+  }
+  return { label: "Ready", tone: "ok" };
 }

@@ -53,6 +53,13 @@ def current_publication(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(published, key=lambda row: row["finished_at"])
 
 
+def pipeline_finished_at(state: str, now: datetime) -> datetime | None:
+    """An open running report is not a completed execution."""
+    if state == "running":
+        return None
+    return now
+
+
 def display_state(
     state: str | None,
     updated_at: datetime | None,

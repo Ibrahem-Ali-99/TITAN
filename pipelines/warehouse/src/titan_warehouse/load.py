@@ -20,7 +20,7 @@ import psycopg
 import pyarrow.fs as pafs
 import pyarrow.parquet as pq
 
-from titan_warehouse.policy import can_promote
+from titan_warehouse.policy import can_promote, recorded_run
 
 WAREHOUSE_LOCK_KEY = 740002
 ROOT = Path(__file__).resolve().parents[4]
@@ -261,13 +261,7 @@ def _record(
     metadata: dict[str, object] | None = None,
     started_at: datetime | None = None,
 ) -> None:
-    finished = datetime.now(UTC)
-    started = started_at or finished
-    duration_ms = None
-    if started_at is not None:
-        elapsed = int((finished - started).total_seconds() * 1000)
-        if elapsed > 0:
-            duration_ms = elapsed
+    started, finished, duration_ms = recorded_run(state, datetime.now(UTC), started_at)
     with psycopg.connect(_database_url()) as connection:
         connection.execute(
             """

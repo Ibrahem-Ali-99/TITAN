@@ -62,9 +62,7 @@ def decide_recovery(
         return RecoveryDecision(
             action="refuse",
             publication_id=clickhouse_publication_id,
-            reason=(
-                "no verified publication is recoverable; the pointer was left unchanged"
-            ),
+            reason=("no verified publication is recoverable; the pointer was left unchanged"),
         )
     newest = verified[0]
     if clickhouse_publication_id == newest.publication_id:

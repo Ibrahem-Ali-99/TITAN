@@ -296,9 +296,7 @@ def load_products(
     )
 
 
-def _serving_gap(
-    session: Session, settings: ApiSettings, published: WarehouseLoad
-) -> str | None:
+def _serving_gap(session: Session, settings: ApiSettings, published: WarehouseLoad) -> str | None:
     """Refuse to call a publication ready when its checks or fact counts are incomplete."""
     quality = session.scalar(
         select(QualityRun.status)

@@ -51,9 +51,7 @@ def main() -> None:
     elapsed = time.perf_counter() - started
     after_orders = _orders(base)
     if before_orders is not None and after_orders is not None and after_orders != before_orders:
-        raise SystemExit(
-            f"benchmark changed logical_orders from {before_orders} to {after_orders}"
-        )
+        raise SystemExit(f"benchmark changed logical_orders from {before_orders} to {after_orders}")
     ordered = sorted(samples)
     result = {
         "measured_at": datetime.now(UTC).isoformat(),

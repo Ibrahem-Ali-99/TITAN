@@ -165,7 +165,11 @@ describe("incident classification", () => {
     const summary = summarizeIncidents([failure], null, NOW);
     assert.equal(summary.recoveryUnknown, 1);
     assert.equal(summary.active.length, 0);
-    const health = platformHealth({ warehouseReady: null, activeFailures: summary.active.length });
+    const health = platformHealth({
+      warehouseReady: null,
+      activeFailures: summary.active.length,
+      latestUnresolved: true,
+    });
     assert.equal(health.label, "Unknown");
     assert.notEqual(health.label, "Ready");
     assert.notEqual(health.tone, "bad");
@@ -178,7 +182,10 @@ describe("incident classification", () => {
     const summary = summarizeIncidents([old, success], [success], NOW);
     assert.equal(summary.recoveryUnknown, 1);
     assert.equal(summary.active.length, 0);
-    const health = platformHealth({ warehouseReady: true, activeFailures: 0 });
+    const partial = platformHealth({ warehouseReady: true, activeFailures: 0, latestUnresolved: true });
+    assert.equal(partial.label, "Warehouse ready");
+    assert.notEqual(partial.label, "Ready");
+    const health = platformHealth({ warehouseReady: true, activeFailures: 0, latestUnresolved: false });
     assert.equal(health.label, "Ready");
     assert.equal(health.tone, "ok");
   });

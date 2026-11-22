@@ -1,5 +1,6 @@
 """Read quality, forecast, and monitoring rows. These routes do not train or publish."""
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -332,10 +333,7 @@ def monitoring_runs(session: Session, limit: int) -> RunsResponse:
     rows = session.scalars(select(PipelineRun).order_by(PipelineRun.id.desc()).limit(limit)).all()
     return RunsResponse(
         returned=len(rows),
-        runs=[
-            _run_view(row)
-            for row in rows
-        ],
+        runs=[_run_view(row) for row in rows],
     )
 
 
@@ -464,14 +462,19 @@ def _publication_scope(metadata_json: str | None) -> str | None:
     try:
         parsed = json.loads(metadata_json)
     except json.JSONDecodeError:
-        return None
+        return _invalid_scope(metadata_json)
     if not isinstance(parsed, dict):
-        return None
+        return _invalid_scope(metadata_json)
     for key in ("warehouse_publication_id", "publication_id"):
         value = parsed.get(key)
         if isinstance(value, str) and value.strip():
             return value
     return None
+
+
+def _invalid_scope(metadata_json: str) -> str:
+    digest = hashlib.sha256(metadata_json.encode()).hexdigest()[:12]
+    return f"invalid-metadata-{digest}"
 
 
 def _failure(session: Session) -> str | None:
