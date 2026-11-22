@@ -2,7 +2,7 @@
 
 Executed 2026-11-22 from commit `56a5e439fd5309b5b753bb12adccb0131fae618d`, then the fixes below. The development project `titan` was left running. Its accepted `order_created` count was 362 before the run and 362 after it.
 
-**Verdict: CONDITIONAL.** The isolated path, replay, consumer restart, Spark availableNow resume, dbt, Dagster, and publication recovery ran and the two defects they exposed are fixed. This is not a release-ready claim. A forced Spark `kill -9`, a clean clone, hosted GitHub Actions, and the earlier unverified browser widths remain **NOT VERIFIED**. Delivery is at-least-once with idempotent persistence. It is not exactly-once.
+**Verdict: CONDITIONAL.** The isolated path, replay, consumer restart, Spark availableNow resume, dbt, Dagster, and publication recovery ran and the two defects they exposed are fixed. This is not a release-ready claim. A clean clone, hosted GitHub Actions, and the earlier unverified browser widths remain **NOT VERIFIED**. The later Spark `kill -9` is recorded in `docs/audits/spark-crash-recovery.md`. Delivery is at-least-once with idempotent persistence. It is not exactly-once.
 
 ## Isolation
 

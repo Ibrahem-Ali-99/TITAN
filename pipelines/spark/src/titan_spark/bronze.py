@@ -25,6 +25,7 @@ from titan_spark.metadata import (
     record_job,
 )
 from titan_spark.parse import parse_kafka_batch
+from titan_spark.policy import maybe_kill_driver
 from titan_spark.session import build_session, copy_tree
 from titan_spark.topics import COMMERCE_TOPIC_NAMES
 
@@ -81,6 +82,7 @@ def run_bronze(settings: Settings, trigger: str) -> None:
         destination = write_bronze_batch(
             spark, parsed, int(batch_id), staging, settings.bronze_uri, attempt
         )
+        maybe_kill_driver("bronze_staged")
         commit_bronze_batch(
             settings,
             int(batch_id),

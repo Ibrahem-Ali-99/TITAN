@@ -1,7 +1,10 @@
+import os
 from datetime import UTC, datetime
 
+import pytest
+
 from titan_api.platform import _publication_scope
-from titan_spark.policy import pipeline_finished_at
+from titan_spark.policy import maybe_kill_driver, pipeline_finished_at
 from titan_warehouse.policy import recorded_run
 
 
@@ -20,6 +23,44 @@ def test_a_terminal_warehouse_attempt_keeps_its_duration() -> None:
     assert started == started_at
     assert finished == now
     assert duration_ms == 1000
+
+
+def test_the_driver_kill_hook_matches_only_its_stage(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[int, int]] = []
+    monkeypatch.delenv("TITAN_SPARK_KILL_AFTER", raising=False)
+    monkeypatch.delenv("TITAN_SPARK_KILL_MARKER", raising=False)
+    monkeypatch.delenv("TITAN_SPARK_KILL_HOLD_SECONDS", raising=False)
+    monkeypatch.setattr(
+        "titan_spark.policy.os.kill",
+        lambda pid, sig: calls.append((pid, sig)),
+    )
+    maybe_kill_driver("bronze_staged")
+    monkeypatch.setenv("TITAN_SPARK_KILL_AFTER", "silver_publish")
+    maybe_kill_driver("bronze_staged")
+    assert calls == []
+    monkeypatch.setenv("TITAN_SPARK_KILL_AFTER", "bronze_staged")
+    maybe_kill_driver("bronze_staged")
+    assert calls == [(os.getpid(), policy_sigkill())]
+
+
+def test_a_kill_hold_does_not_return_into_the_commit(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[int, int]] = []
+    monkeypatch.setenv("TITAN_SPARK_KILL_AFTER", "bronze_staged")
+    monkeypatch.setenv("TITAN_SPARK_KILL_HOLD_SECONDS", "30")
+    monkeypatch.setattr("titan_spark.policy.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        "titan_spark.policy.os.kill",
+        lambda pid, sig: calls.append((pid, sig)),
+    )
+    with pytest.raises(RuntimeError, match="bronze_staged"):
+        maybe_kill_driver("bronze_staged")
+    assert calls == []
+
+
+def policy_sigkill() -> int:
+    from titan_spark.policy import DRIVER_SIGKILL
+
+    return DRIVER_SIGKILL
 
 
 def test_a_running_spark_report_has_no_finish_time() -> None:

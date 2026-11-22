@@ -181,7 +181,8 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 | Data flow matches the live snapshot | Passed for the read-only reconciliation above |
 | No unresolved Critical, Major, or Minor in the executed slice | Passed for AUD-001, AUD-002, AUD-003, AUD-006. Historical rows were left in place on purpose. |
 | Financial reconciliation | Passed, currencies separate |
-| Replay and restart | Passed on the disposable `titan-e2e` project. See `docs/audits/end-to-end-reliability.md`. A forced Spark `kill -9` remains **NOT VERIFIED**. |
+| Replay and restart | Passed on the disposable `titan-e2e` project. See `docs/audits/end-to-end-reliability.md`. |
+| Spark hard-kill recovery | **PASSED.** `docker kill --signal=KILL` during a Bronze microbatch on project `titan-sparkkill`, then a consistent restart. See `docs/audits/spark-crash-recovery.md`. |
 | Automated suites that were executed | Passed. Isolated integration pytest 1 passed. Spark image tests 11 passed. dbt tests ran inside publication (22 tests, the injected `promotion_gate` failure was the expected 1 error). Dagster materialize and `definitions validate` passed. |
 | Eight pages | Passed at 1440 and 390. 1024 and 768: **NOT VERIFIED** |
 | Accessibility | **NOT VERIFIED** beyond console, overflow, and nav presence |
@@ -195,6 +196,8 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 ## Reliability follow-up
 
 `docs/audits/end-to-end-reliability.md` records the isolated execution. Two publication defects found there are fixed: a direct warehouse command now records `warehouse_models`, and recovery treats a missing ClickHouse fact group as zero rows. The live development database stayed at 362 accepted orders. Verdict remains **CONDITIONAL** because a clean clone, hosted GitHub Actions, viewport widths 1024 and 768, and an accessibility scan were not part of that run.
+
+`docs/audits/spark-crash-recovery.md` records the later hard-kill. The driver container was SIGKILLed after the Bronze Parquet copy and before the batch commit. Restart on the same checkpoint republished the same 5 orders, 10 line items, and currency-separated revenue. The live accepted-order count stayed 362.
 
 ## Git
 

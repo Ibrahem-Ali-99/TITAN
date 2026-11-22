@@ -5,10 +5,16 @@ fact. A streaming watermark can drop a row from a preliminary window. It is
 not a reason to leave an accepted order out of a historical recomputation.
 """
 
+import os
+import signal
+import sys
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 STALE_AFTER_SECONDS = 90
+DRIVER_SIGKILL = getattr(signal, "SIGKILL", 9)
 
 
 def logical_order(event_type: str, disposition: str) -> bool:
@@ -51,6 +57,31 @@ def current_publication(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not published:
         return None
     return max(published, key=lambda row: row["finished_at"])
+
+
+def maybe_kill_driver(stage: str) -> None:
+    """SIGKILL the driver when a crash test names this stage.
+
+    A streaming microbatch commits its checkpoint only after foreachBatch
+    returns. Killing after the Parquet copy and before that return leaves the
+    checkpoint commit unwritten. Runs without ``TITAN_SPARK_KILL_AFTER`` continue.
+    """
+    if os.environ.get("TITAN_SPARK_KILL_AFTER") != stage:
+        return
+    marker = os.environ.get("TITAN_SPARK_KILL_MARKER")
+    if marker:
+        path = Path(marker)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+        os.write(fd, stage.encode())
+        os.fsync(fd)
+        os.close(fd)
+    print(f"spark kill stage={stage}", file=sys.stderr, flush=True)
+    hold = int(os.environ.get("TITAN_SPARK_KILL_HOLD_SECONDS", "0"))
+    if hold > 0:
+        time.sleep(hold)
+        raise RuntimeError(f"{stage} stayed alive for {hold}s; the driver was not killed")
+    os.kill(os.getpid(), DRIVER_SIGKILL)
 
 
 def pipeline_finished_at(state: str, now: datetime) -> datetime | None:
