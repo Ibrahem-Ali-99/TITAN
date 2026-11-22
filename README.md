@@ -169,7 +169,7 @@ $env:TITAN_WEB_BASE_URL = "http://localhost:3000"
 uv run --with playwright python scripts/audit_a11y.py
 ```
 
-`audit_a11y.py` opens the eight console routes at 1440×900 and 390×844. Point `TITAN_WEB_BASE_URL` at the console you started. The clone console is `http://localhost:23000`. The first run needs Playwright Chromium (`uvx --from playwright playwright install chromium`).
+`audit_a11y.py` opens the eight console routes at 1440×900, 1024×768, 768×1024, and 390×844 after the page has finished loading. Point `TITAN_WEB_BASE_URL` at the console you started. The clone console is `http://localhost:23000`. The first run needs Playwright Chromium (`uvx --from playwright playwright install chromium`).
 
 `verify_day7.py` stops Kafka, checks that the warehouse status stays ready, starts Kafka, and runs reconcile. Day 2 through Day 6 scripts remain in `scripts/` for the earlier milestones.
 

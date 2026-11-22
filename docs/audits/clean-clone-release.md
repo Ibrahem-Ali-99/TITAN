@@ -86,7 +86,7 @@ After `text-zinc-400` and `bg-sky-700` (`#0369a1`, 5.93:1 with white), the clone
 
 | Check | Result |
 | --- | --- |
-| `uv run python scripts/scan_secrets.py` | Exit 0. Markers: `BEGIN PRIVATE KEY`, `BEGIN RSA PRIVATE KEY`, `AKIA`. |
+| `uv run python scripts/scan_secrets.py` | Exit 0. The scanner rejects private-key blocks and cloud access-key prefixes. The marker text is not repeated here, because this file is scanned too. |
 | `uvx pip-audit` on `uv export --frozen --all-packages --group orchestration --no-emit-workspace` | Before the pin change: 12 rows, all `python-multipart` 0.0.20. After `==0.0.31`: `No known vulnerabilities found`, exit 0. |
 | `npm audit --omit=dev` inside `titan-clone-web-1` | 0 vulnerabilities |
 | Replay authentication | 401 without a token, 422 with the documented placeholder. The token was not emptied to obtain the 422. |

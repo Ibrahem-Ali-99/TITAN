@@ -32,6 +32,9 @@ warehouse/dbt/logs/
 warehouse/dbt/.user.yml
 pipelines/dagster/home/
 
+# Local Cursor credentials. Rules and skills stay tracked.
+.cursor/mcp.json
+
 # Editors and OS
 .idea/
 .vscode/
