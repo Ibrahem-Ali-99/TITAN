@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { EvaluationChart, MetricCompareChart } from "@/components/ui/charts";
+import { EvaluationChart } from "@/components/ui/charts";
 import {
   CopyId,
   DataTable,
@@ -10,9 +10,12 @@ import {
   ErrorState,
   Kpi,
   LoadingState,
+  MetaList,
   PageHeader,
+  Panel,
   SectionTitle,
-  StatusBadge,
+  ScopeBar,
+  StatusPill,
   Td,
   TechnicalDetails,
   Th,
@@ -129,13 +132,6 @@ export function MlDashboard() {
   const maeModel = serving ? metricNumber(serving.metrics, "mae_model") : null;
   const wapeBaseline = serving ? metricNumber(serving.metrics, "wape_seasonal_naive") : null;
   const wapeModel = serving ? metricNumber(serving.metrics, "wape_model") : null;
-  const comparison = [
-    maeBaseline !== null && maeModel !== null ? { metric: "MAE", baseline: maeBaseline, candidate: maeModel } : null,
-    wapeBaseline !== null && wapeModel !== null
-      ? { metric: "WAPE", baseline: wapeBaseline, candidate: wapeModel }
-      : null,
-  ].filter((row): row is { metric: string; baseline: number; candidate: number } => row !== null);
-
   if (loading) {
     return <LoadingState label="Loading stored model runs…" />;
   }
@@ -143,47 +139,79 @@ export function MlDashboard() {
     return <ErrorState title="Models unavailable" detail={error} />;
   }
 
+  const strategy = serving?.serving_strategy ?? null;
+  const servingMae = strategy?.includes("naive") ? maeBaseline : strategy ? maeModel : null;
+  const servingWape = strategy?.includes("naive") ? wapeBaseline : strategy ? wapeModel : null;
+  const baselineWins = maeBaseline !== null && maeModel !== null && maeBaseline < maeModel;
+  const maeGap =
+    baselineWins && maeModel
+      ? `${(((maeModel - (maeBaseline ?? 0)) / maeModel) * 100).toFixed(1)}% lower MAE`
+      : null;
+  const maeMax = Math.max(maeBaseline ?? 0, maeModel ?? 0, 0.001);
+
   return (
     <div>
       <PageHeader
         title="Demand intelligence"
         description="Product-level demand forecasts. Held-out one-step rows are an evaluation, not a future forecast."
+        aside={strategy ? <StatusPill tone="info">{strategy}</StatusPill> : undefined}
       />
       {serving === null ? (
         <Empty>{reason ?? "Training has not produced a serving run."}</Empty>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <StatusBadge tone="info">Serving {serving.serving_strategy ?? "unlabeled"}</StatusBadge>
-            <StatusBadge tone="neutral">Candidate {serving.algorithm}</StatusBadge>
-          </div>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Serving method" value={serving.serving_strategy ?? "Not recorded"} hint={serving.decision_rationale ?? "No rationale was stored."} />
-            <Kpi label="Naive MAE" value={maeBaseline?.toFixed(3) ?? "—"} footnote="Held-out seasonal naive" />
+            <Kpi label="Serving MAE" value={servingMae?.toFixed(3) ?? "—"} footnote={strategy ?? "Strategy not recorded"} />
             <Kpi label="Candidate MAE" value={maeModel?.toFixed(3) ?? "—"} footnote={serving.algorithm} />
-            <Kpi
-              label="Evaluation rows"
-              value={formatCount(metricNumber(serving.metrics, "test_rows"))}
-              footnote={`Train ${formatCount(metricNumber(serving.metrics, "train_rows"))} · ${serving.test_start ?? "—"} to ${serving.test_end ?? "—"}`}
-            />
+            <Kpi label="Serving WAPE" value={servingWape?.toFixed(3) ?? "—"} footnote="Held-out" />
+            <Kpi label="Evaluation rows" value={formatCount(metricNumber(serving.metrics, "test_rows"))} footnote={`Train ${formatCount(metricNumber(serving.metrics, "train_rows"))}`} />
           </div>
-          {serving.decision_rationale ? (
-            <p className="mb-4 max-w-3xl text-sm leading-6 text-zinc-300">{serving.decision_rationale}</p>
-          ) : null}
-          <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <SectionTitle title="Held-out error" detail="Lower is better. WAPE is omitted by the API when the actual sum is zero." />
-            {comparison.length === 0 ? (
-              <Empty>The serving run did not include comparable MAE or WAPE values.</Empty>
-            ) : (
-              <MetricCompareChart rows={comparison} candidateName={serving.algorithm} />
-            )}
-          </section>
-          <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <SectionTitle
-                title="One-step evaluation"
-                detail="Actual quantity uses the observed day. The prediction uses only earlier information. This chart is not the recursive forward week."
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+            <Panel
+              title={baselineWins ? "Baseline wins" : "Held-out MAE"}
+              detail="Lower is better. Values come from the stored model run."
+              action={baselineWins ? <StatusPill tone="ok">Serve baseline</StatusPill> : undefined}
+            >
+              {maeBaseline === null && maeModel === null ? (
+                <Empty>The serving run did not include MAE values.</Empty>
+              ) : (
+                <div className="space-y-4">
+                  {maeBaseline !== null ? <MetricBar label="Seasonal naive" value={maeBaseline} max={maeMax} color="var(--teal)" /> : null}
+                  {maeModel !== null ? (
+                    <MetricBar
+                      label={serving.algorithm === "HistGradientBoostingRegressor" ? "Gradient boosting" : serving.algorithm}
+                      value={maeModel}
+                      max={maeMax}
+                      color="var(--warn)"
+                    />
+                  ) : null}
+                  {maeGap ? <p className="text-xs text-[var(--ok)]">{maeGap}</p> : null}
+                  {wapeBaseline !== null && wapeModel !== null ? (
+                    <p className="text-xs text-[var(--muted)]">
+                      WAPE naive {wapeBaseline.toFixed(3)} · candidate {wapeModel.toFixed(3)}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </Panel>
+            <Panel title="Why this model?">
+              <MetaList
+                rows={[
+                  { label: "Winner", value: strategy ?? "Not recorded" },
+                  { label: "Candidate", value: baselineWins ? "Did not beat baseline" : maeModel !== null && maeBaseline !== null && maeModel < maeBaseline ? "Beat baseline" : "Comparison incomplete" },
+                  { label: "Train rows", value: formatCount(metricNumber(serving.metrics, "train_rows")) },
+                  { label: "Target", value: "Daily quantity / product" },
+                ]}
               />
+            </Panel>
+          </div>
+          <section className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-medium">Actual vs predicted demand</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">One-step evaluation · daily product units</p>
+              </div>
+              <StatusPill tone="info">{products.length} products</StatusPill>
               <label className="text-xs text-zinc-400">
                 Product
                 <select
@@ -201,6 +229,8 @@ export function MlDashboard() {
             </div>
             {series.length === 0 ? <Empty>No one-step rows are stored for this product.</Empty> : <EvaluationChart points={series} />}
           </section>
+          <ScopeBar>Synthetic training history limits how far these scores generalize. {serving.decision_rationale ?? ""}</ScopeBar>
+          <div className="mt-4">
           <TechnicalDetails summary="Lineage">
             <p>Run <CopyId value={serving.run_id} /></p>
             <p>Training publication <CopyId value={serving.warehouse_publication_id} /></p>
@@ -212,6 +242,7 @@ export function MlDashboard() {
               {models.map((model) => `${model.status}`).join(", ")}.
             </p>
           </TechnicalDetails>
+          </div>
         </>
       )}
       <section className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -246,6 +277,18 @@ export function MlDashboard() {
           </DataTable>
         )}
       </section>
+    </div>
+  );
+}
+
+function MetricBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-3">
+      <span className="text-xs text-[var(--muted)]">{label}</span>
+      <div className="h-2 rounded-full bg-[var(--surface-2)]">
+        <div className="h-2 rounded-full" style={{ width: `${Math.max(6, (value / max) * 100)}%`, background: color }} />
+      </div>
+      <span className="font-mono text-xs">{value.toFixed(3)}</span>
     </div>
   );
 }

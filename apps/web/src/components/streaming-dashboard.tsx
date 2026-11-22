@@ -8,10 +8,14 @@ import {
   ErrorState,
   Kpi,
   LoadingState,
+  MetaList,
   Notice,
   PageHeader,
-  SectionTitle,
+  Panel,
+  ScopeBar,
+  StatusPill,
   Td,
+  TechnicalDetails,
   Th,
 } from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
@@ -73,26 +77,31 @@ export function StreamingDashboard() {
     return <ErrorState title="Streaming unavailable" detail={error} />;
   }
 
+  const inbox = visible.slice(0, 6);
   return (
     <div>
       <PageHeader
         title="Event streaming"
         description="Delivery, deduplication and quarantine"
+        aside={<StatusPill tone="info">At least once</StatusPill>}
       />
       {error ? <Notice>The latest refresh failed. Figures below are the previous response. {error}</Notice> : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Logical orders" value={formatCount(stats.logical_orders)} hint={stats.metric_definitions.logical_orders} />
-        <Kpi label="Duplicate deliveries" value={formatCount(stats.duplicate_deliveries)} hint={stats.metric_definitions.duplicate_deliveries} />
-        <Kpi label="Order conflicts" value={formatCount(stats.order_conflicts)} hint={stats.metric_definitions.order_conflicts} />
-        <Kpi label="Quarantined" value={formatCount(stats.quarantined_records)} hint={stats.metric_definitions.quarantined_records} />
+        <Kpi label="Events" value={formatCount(stats.persisted_events)} footnote="Durably stored" />
+        <Kpi label="Logical orders" value={formatCount(stats.logical_orders)} footnote="Accepted" />
+        <Kpi label="Quarantined" value={formatCount(stats.quarantined_records)} footnote="Rejected payloads" />
+        <Kpi label="Topics" value="3" footnote="Commerce streams" />
       </div>
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <SectionTitle title="Quarantine" detail="Filter applies to the returned page. Malformed payloads stay here with topic, partition, and offset." />
-          <label className="text-xs text-zinc-400">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+        <Panel
+          title="Quarantine inbox"
+          detail="Durable rejected-event evidence"
+          action={<StatusPill tone={stats.quarantined_records > 0 ? "warn" : "ok"}>{formatCount(stats.quarantined_records)} records</StatusPill>}
+        >
+          <label className="mb-3 block text-xs text-[var(--muted)]">
             Reason
             <select
-              className="ml-2 rounded border border-white/10 bg-[#0e1116] px-2 py-1"
+              className="ml-2 rounded border border-[var(--line)] bg-[var(--background)] px-2 py-1"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
             >
@@ -103,8 +112,41 @@ export function StreamingDashboard() {
               ))}
             </select>
           </label>
-        </div>
-        {visible.length === 0 ? (
+          {inbox.length === 0 ? (
+            <Empty>No quarantined records match this filter.</Empty>
+          ) : (
+            <div>
+              <div className="grid grid-cols-[1.2fr_1fr_auto] gap-3 pb-2 text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase">
+                <span>Reason</span>
+                <span>Stream</span>
+                <span>Replay</span>
+              </div>
+              {inbox.map((item) => (
+                <div key={item.id} className="grid grid-cols-[1.2fr_1fr_auto] gap-3 border-t border-[var(--line)] py-3">
+                  <span className="text-sm font-medium">{item.reason_code}</span>
+                  <span className="text-sm text-[var(--muted)]">{streamLabel(item.kafka_topic)}</span>
+                  <span className="text-xs text-[var(--warn)]">{item.replay_status}</span>
+                </div>
+              ))}
+              <p className="mt-2 text-xs text-[var(--muted)]">Inspect payload, topic, and offset in record details.</p>
+            </div>
+          )}
+        </Panel>
+        <Panel title="Delivery contract">
+          <MetaList
+            rows={[
+              { label: "Offset commit", value: "After durable storage" },
+              { label: "Duplicate event id", value: "Idempotent" },
+              { label: "Conflicting business key", value: "Not counted in revenue" },
+              { label: "Replay", value: "Audited and protected" },
+            ]}
+          />
+        </Panel>
+      </div>
+      <ScopeBar>Rejected payloads remain traceable. Replay requires authorization. Duplicates {formatCount(stats.duplicate_deliveries)}. Conflicts {formatCount(stats.order_conflicts)}.</ScopeBar>
+      <div className="mt-4">
+        <TechnicalDetails summary="Record details and replay history">
+          {visible.length === 0 ? (
           <Empty>No quarantined records match this filter.</Empty>
         ) : (
           <DataTable label="Quarantined records">
@@ -135,12 +177,7 @@ export function StreamingDashboard() {
             </tbody>
           </DataTable>
         )}
-      </section>
-      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle
-          title="Replay history"
-          detail="This page lists attempts. Creating a replay requires the admin token and returns 401 when that token is missing or wrong."
-        />
+          <h3 className="mt-4 mb-2 text-sm font-medium">Replay history</h3>
         {replays.items.length === 0 ? (
           <Empty>No replay attempts have been recorded.</Empty>
         ) : (
@@ -167,10 +204,25 @@ export function StreamingDashboard() {
             </tbody>
           </DataTable>
         )}
-        <p className="mt-3 text-xs text-zinc-500">
-          Consumed outcomes {formatCount(stats.kafka_consumed_events)}. {stats.metric_definitions.kafka_consumed_events}
-        </p>
-      </section>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            Consumed outcomes {formatCount(stats.kafka_consumed_events)}. {stats.metric_definitions.kafka_consumed_events}
+          </p>
+        </TechnicalDetails>
+      </div>
     </div>
   );
+}
+
+function streamLabel(topic: string) {
+  const name = topic.toLowerCase();
+  if (name.includes("order")) {
+    return "Order events";
+  }
+  if (name.includes("payment")) {
+    return "Payment events";
+  }
+  if (name.includes("inventory")) {
+    return "Inventory events";
+  }
+  return topic;
 }

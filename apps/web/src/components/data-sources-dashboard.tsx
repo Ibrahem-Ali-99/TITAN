@@ -9,19 +9,24 @@ import {
   ErrorState,
   Kpi,
   LoadingState,
+  MetaList,
   PageHeader,
+  Panel,
+  ScopeBar,
   SectionTitle,
   StatusBadge,
+  StatusPill,
   Td,
   Th,
 } from "@/components/ui/ops";
 import { API_BASE_URL, ApiError, getJson } from "@/lib/api";
-import type { CsvImportList, SourceSubmissionList } from "@/lib/types";
+import type { CsvImportList, IngestionStats, SourceSubmissionList } from "@/lib/types";
 import { formatCount, formatUtc } from "@/lib/utils";
 
 export function DataSourcesDashboard() {
   const [submissions, setSubmissions] = useState<SourceSubmissionList | null>(null);
   const [imports, setImports] = useState<CsvImportList | null>(null);
+  const [stats, setStats] = useState<IngestionStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
@@ -32,12 +37,14 @@ export function DataSourcesDashboard() {
   const [importError, setImportError] = useState<string | null>(null);
 
   async function refresh() {
-    const [nextSubmissions, nextImports] = await Promise.all([
+    const [nextSubmissions, nextImports, nextStats] = await Promise.all([
       getJson<SourceSubmissionList>("/api/v1/ingestion/submissions?limit=20"),
       getJson<CsvImportList>("/api/v1/ingestion/imports?limit=20"),
+      getJson<IngestionStats>("/api/v1/ingestion/stats"),
     ]);
     setSubmissions(nextSubmissions);
     setImports(nextImports);
+    setStats(nextStats);
   }
 
   useEffect(() => {
@@ -131,28 +138,40 @@ export function DataSourcesDashboard() {
     return <ErrorState title="Data sources unavailable" detail={error} />;
   }
 
-  const accepted = imports?.items.reduce((sum, item) => sum + item.accepted_rows, 0) ?? 0;
-  const rejected = imports?.items.reduce((sum, item) => sum + item.rejected_rows, 0) ?? 0;
-
   return (
     <div>
       <PageHeader
         title="Data sources"
         description="Unified event entry points"
+        aside={<StatusPill tone="info">3 sources</StatusPill>}
       />
       {error && submissions ? <p className="mb-3 text-sm text-amber-100">The latest refresh failed. {error}</p> : null}
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <Kpi label="REST submissions returned" value={formatCount(submissions?.returned)} footnote="synthetic.event-generator is the CLI source name" />
-        <Kpi label="CSV rows published" value={formatCount(accepted)} footnote="Sum of accepted_rows on the returned imports" />
-        <Kpi label="CSV rows rejected" value={formatCount(rejected)} footnote="Validation failures stay on the import" />
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi label="REST" value={formatCount(stats?.rest_events_published)} footnote="Broker acknowledgement" />
+        <Kpi label="CSV limit" value="500 rows" footnote="Maximum 1 MiB" />
+        <Kpi label="Generator" value="Ready" footnote="Reproducible events" />
+        <Kpi label="Persisted" value={formatCount(stats?.persisted_events)} footnote="Operational records" />
       </div>
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <SourceCard title="Synthetic generator" body="On-demand CLI. Events are labeled synthetic and are not store traffic." />
-        <SourceCard title="REST" body="POST /api/v1/ingestion/events. Validation and broker failures are stored as submissions." />
-        <SourceCard title="CSV" body="Invalid rows stay in the import. Valid rows are published to Kafka asynchronously." />
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+        <Panel title="Ingestion sources" detail="Event publishing routes" action={<StatusPill tone="info">3 sources</StatusPill>}>
+          <SourceRow title="REST API" body="JSON event ingestion" status={`${formatCount(stats?.rest_events_published)} acknowledged`} />
+          <SourceRow title="CSV imports" body="Bounded upload · 500 rows" status={imports?.items.length ? "Imports recorded" : "No imports yet"} />
+          <SourceRow title="Synthetic producer" body="Deterministic business events" status="CLI available" />
+        </Panel>
+        <Panel title="Submission lifecycle">
+          <MetaList
+            rows={[
+              { label: "Accepted", value: "Acknowledged by Kafka" },
+              { label: "Persistence", value: "Asynchronous consumer" },
+              { label: "Rejected rows", value: "Retain validation errors" },
+              { label: "Administrative actions", value: "Bearer token required" },
+            ]}
+          />
+        </Panel>
       </div>
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle title="CSV upload" />
+      <ScopeBar>A Kafka acknowledgement is not a PostgreSQL persistence guarantee.</ScopeBar>
+      <section className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <h2 className="mb-3 text-sm font-medium">CSV upload</h2>
         <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
           <input
             className="text-sm text-zinc-200 file:mr-3 file:rounded-md file:border-0 file:bg-sky-900 file:px-3 file:py-2 file:text-sky-50"
@@ -290,11 +309,14 @@ export function DataSourcesDashboard() {
   );
 }
 
-function SourceCard({ title, body }: { title: string; body: string }) {
+function SourceRow({ title, body, status }: { title: string; body: string; status: string }) {
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <h2 className="text-sm font-medium text-zinc-100">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
-    </section>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] py-3 first:border-t-0">
+      <div>
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-xs text-[var(--muted)]">{body}</p>
+      </div>
+      <StatusPill tone="info">{status}</StatusPill>
+    </div>
   );
 }

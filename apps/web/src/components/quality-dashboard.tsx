@@ -9,9 +9,12 @@ import {
   ErrorState,
   Kpi,
   LoadingState,
+  MetaList,
   PageHeader,
-  SectionTitle,
+  Panel,
+  ScopeBar,
   StatusBadge,
+  StatusPill,
   Td,
   TechnicalDetails,
   Th,
@@ -127,39 +130,61 @@ export function QualityDashboard() {
   }
 
   const currentPassed = current?.status === "passed";
+  const historicalFailures = runs.filter((run) => run.status !== "passed").length;
   return (
     <div>
       <PageHeader
         title="Data quality"
         description="Current validation separated from audit history"
+        aside={currentPassed ? <StatusPill tone="ok">Current passed</StatusPill> : current ? <StatusPill tone="bad">Current failed</StatusPill> : <StatusPill tone="warn">No evidence</StatusPill>}
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Serving publication"
-          value={warehouse?.ready ? (currentPassed ? "Validated" : current ? "Failed" : "No evidence") : "Not serving"}
-          hint="Looks up a quality run whose publication id equals the ready warehouse. The newest run overall can belong to a candidate that was not exchanged."
-        />
-        <Kpi
-          label="Current result"
-          value={current?.status ?? "—"}
-          footnote={current?.injected ? `Injected: ${current.injected}` : "Not an injected run"}
-        />
-        <Kpi label="Current failures" value={formatCount(current?.failure_count ?? null)} />
-        <Kpi label="Evaluated" value={current?.finished_at ? formatUtc(current.finished_at) : "—"} footnote="UTC" />
+        <Kpi label="Current checks" value={currentPassed ? "Passed" : current ? "Failed" : "No evidence"} footnote="Serving publication" />
+        <Kpi label="Active failures" value={formatCount(current?.failure_count ?? null)} footnote="Blocking incidents" />
+        <Kpi label="History" value={historicalFailures > 0 ? "Retained" : "None"} footnote="Test injections" />
+        <Kpi label="Reconciliation" value={currentPassed ? "Passed" : current ? "Failed" : "No evidence"} footnote="Currency totals" />
       </div>
-      <div className="mb-4">
-        <StatusBadge tone={!warehouse?.ready ? "warn" : currentPassed ? "ok" : current ? "bad" : "neutral"}>
-          {!warehouse?.ready
-            ? "No ready warehouse"
-            : currentPassed
-              ? "Current snapshot passed blocking checks"
-              : current
-                ? "Current snapshot has a failed check"
-                : "Serving publication has no stored quality run"}
-        </StatusBadge>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+        <Panel
+          title="Historical incidents"
+          detail={`${groups.length} ${groups.length === 1 ? "record" : "records"} shown · previous candidate runs`}
+          action={currentPassed ? <StatusPill tone="warn">Not active</StatusPill> : undefined}
+        >
+          {groups.length === 0 ? (
+            <Empty>No failed findings are stored in the returned page.</Empty>
+          ) : (
+            <ul>
+              {groups.map((group) => (
+                <li key={`${group.check_id}-${group.dataset}`} className="border-t border-[var(--line)] py-3 first:border-t-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{group.check_id}</p>
+                    <StatusBadge tone={group.severity === "critical" ? "bad" : group.severity === "major" ? "warn" : "neutral"}>{group.severity}</StatusBadge>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--muted)]">{group.sample}</p>
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    {group.count} occurrences · {group.injected} injected · {group.publications.size} publications
+                    {currentPassed ? " · not active" : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <Panel title="Publication integrity">
+          <MetaList
+            rows={[
+              { label: "Current candidate", value: currentPassed ? "Validated" : current ? "Failed" : "No evidence" },
+              { label: "Source reconciliation", value: currentPassed ? "Matched" : current ? "Failed" : "No evidence" },
+              { label: "Failed candidates", value: historicalFailures > 0 && currentPassed ? "Blocked before serving" : `${historicalFailures} retained` },
+              { label: "Incident visibility", value: currentPassed ? "Historical only" : "See current run" },
+            ]}
+          />
+          {currentPassed ? <StatusPill tone="ok">Active publication passed</StatusPill> : null}
+        </Panel>
       </div>
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle title="Execution history" detail="Newest first. Injected rows are test faults, not the serving defect list." />
+      <ScopeBar>Failed historical candidates are not active incidents. Individual findings stay in the execution record.</ScopeBar>
+      <div className="mt-4">
+        <TechnicalDetails summary="Execution history and individual findings">
         {runs.length === 0 ? (
           <Empty>No quality run has been recorded.</Empty>
         ) : (
@@ -210,48 +235,8 @@ export function QualityDashboard() {
             </TechnicalDetails>
           </div>
         ) : null}
-      </section>
-      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle
-          title="Failed checks, grouped"
-          detail="Each row is one rule across the returned failed findings. Occurrence count includes historical and injected runs."
-        />
-        {groups.length === 0 ? (
-          <Empty>No failed findings are stored in the returned page.</Empty>
-        ) : (
-          <DataTable label="Grouped quality findings">
-            <thead>
-              <tr>
-                <Th>Rule</Th>
-                <Th>Severity</Th>
-                <Th>Dataset</Th>
-                <Th>Occurrences</Th>
-                <Th>Injected</Th>
-                <Th>Publications</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((group) => (
-                <tr key={`${group.check_id}-${group.dataset}`}>
-                  <Td>
-                    <div>{group.check_id}</div>
-                    <div className="mt-1 max-w-md text-xs text-zinc-500">{group.sample}</div>
-                  </Td>
-                  <Td>
-                    <StatusBadge tone={group.severity === "critical" ? "bad" : group.severity === "major" ? "warn" : "neutral"}>
-                      {group.severity}
-                    </StatusBadge>
-                  </Td>
-                  <Td>{group.dataset}</Td>
-                  <Td>{group.count}</Td>
-                  <Td>{group.injected}</Td>
-                  <Td>{group.publications.size}</Td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        )}
-      </section>
+        </TechnicalDetails>
+      </div>
     </div>
   );
 }

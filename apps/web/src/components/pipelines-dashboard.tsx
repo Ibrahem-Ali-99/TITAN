@@ -9,25 +9,19 @@ import {
   ErrorState,
   Kpi,
   LoadingState,
+  MetaList,
   PageHeader,
-  SectionTitle,
+  Panel,
+  ScopeBar,
   StatusBadge,
+  StatusPill,
   Td,
+  TechnicalDetails,
   Th,
 } from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
 import type { LakeStatus, WarehouseStatus } from "@/lib/types";
-import { classifyRun, formatCount, formatDuration, formatMoney, formatUtc, hasLaterSuccess } from "@/lib/utils";
-
-const STAGES = [
-  "Ingestion",
-  "Bronze evidence",
-  "Silver",
-  "Warehouse load",
-  "dbt",
-  "Quality gate",
-  "Published analytics",
-];
+import { classifyRun, formatCount, formatDuration, formatUtc, hasLaterSuccess } from "@/lib/utils";
 
 export function PipelinesDashboard() {
   const [status, setStatus] = useState<LakeStatus | null>(null);
@@ -79,59 +73,97 @@ export function PipelinesDashboard() {
   const current = status.current_publication;
   const runs = warehouse?.recent_runs ?? [];
   const latest = (name: string) => runs.find((run) => run.job_name === name);
-  const stageNote: Record<string, string> = {
-    Ingestion: "PostgreSQL classifications. Not shown as a percentage.",
-    "Bronze evidence": status.spark_jobs.find((job) => job.job_name.toLowerCase().includes("bronze"))?.display_state ?? "No bronze job row",
-    Silver: current ? "Published Silver version stored" : "No Silver publication",
-    "Warehouse load": warehouse?.recent_loads[0]?.status ?? "No load row",
-    dbt: latest("warehouse_models")?.state ?? "No dbt run in the returned page",
-    "Quality gate": latest("quality_gate")?.state ?? "No quality run in the returned page",
-    "Published analytics": warehouse?.ready ? "Serving" : warehouse?.reason ?? "Not serving",
-  };
+  const bronze = status.spark_jobs.find((job) => job.job_name.toLowerCase().includes("bronze"));
+  const dbt = latest("warehouse_models");
+  const gate = latest("quality_gate");
+  const dbtView = dbt ? classifyRun({ ...dbt, recovered: hasLaterSuccess(dbt, runs) }) : null;
+  const gateView = gate ? classifyRun({ ...gate, recovered: hasLaterSuccess(gate, runs) }) : null;
+  const graph = [
+    { id: "01", name: "Kafka", detail: "Event transport", tone: "info" as const },
+    { id: "02", name: "Bronze", detail: "Raw event evidence", tone: bronze ? "info" as const : "neutral" as const },
+    { id: "03", name: "Silver", detail: "Accepted commerce", tone: current ? "ok" as const : "warn" as const },
+    { id: "04", name: "ClickHouse", detail: "Versioned warehouse", tone: warehouse?.ready ? "ok" as const : "warn" as const },
+    { id: "05", name: "dbt", detail: "Serving models", tone: dbtView?.tone === "ok" ? "ok" as const : "neutral" as const },
+    { id: "06", name: "Quality gate", detail: "Blocking tests", tone: gateView?.tone === "ok" ? "ok" as const : "neutral" as const },
+    { id: "07", name: "Published", detail: "Validated snapshot", tone: warehouse?.ready ? "ok" as const : "warn" as const },
+  ];
+  const load = latest("warehouse_load");
+  const loadView = load ? classifyRun({ ...load, recovered: hasLaterSuccess(load, runs) }) : null;
+  const linked = Boolean(current && warehouse?.ready && warehouse.warehouse_publication_id);
 
   return (
     <div>
       <PageHeader
         title="Pipeline orchestration"
-        description="Versioned materializations and recovery history. Silver is authoritative from PostgreSQL. Bronze is an independent evidence path."
+        description="Versioned materializations and recovery history"
+        aside={warehouse?.ready ? <StatusPill tone="ok">Published</StatusPill> : <StatusPill tone="warn">Not serving</StatusPill>}
       />
       {error ? <p className="mb-3 text-sm text-amber-100">The latest refresh failed. {error}</p> : null}
-      <ol className="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-        {STAGES.map((stage, index) => (
-          <li key={stage} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
-            <p className="text-xs text-zinc-500">{index + 1}</p>
-            <p className="mt-1 text-sm font-medium text-zinc-100">{stage}</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">{stageNote[stage]}</p>
-          </li>
-        ))}
-      </ol>
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Silver orders" value={formatCount(current?.silver_order_count)} hint="Orders in the latest published Silver version." />
-        <Kpi label="Pending Bronze events" value={formatCount(current?.pending_event_count)} hint={status.metric_definitions.pending_event_count ?? "Events still waiting on the Bronze side of that Silver run."} />
-        <Kpi label="Failed publications" value={formatCount(status.failed_publications)} hint="Stored failed publication attempts. A later success does not delete them." />
-        <Kpi
-          label="Warehouse"
-          value={warehouse?.ready ? "Ready" : "Not ready"}
-          footnote={warehouse?.ready ? `${formatCount(warehouse.order_count)} published orders` : warehouse?.reason ?? "Status was not returned"}
-        />
+        <Kpi label="Accepted orders" value={formatCount(current?.silver_order_count)} footnote="Silver" />
+        <Kpi label="Pipeline health" value={warehouse?.ready ? "Ready" : "Not ready"} footnote={warehouse ? "Last verified state" : "Status was not returned"} />
+        <Kpi label="dbt quality" value={gateView?.tone === "ok" ? "Passed" : gateView?.label ?? "No evidence"} footnote="Published candidate" />
+        <Kpi label="Lineage" value={linked ? "Complete" : "Incomplete"} footnote="Silver and warehouse" />
       </div>
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle title="Accepted revenue on the Silver version" detail="Currencies are not added together. This is the Silver publication revenue, which can differ from the serving warehouse until the next exchange." />
-        {current && Object.keys(current.accepted_revenue).length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {Object.entries(current.accepted_revenue).map(([currency, amount]) => (
-              <Kpi key={currency} label={currency} value={formatMoney(amount, currency)} />
-            ))}
+      <Panel
+        title="Data pipeline"
+        detail="Execution and publication graph"
+        action={warehouse?.ready ? <StatusPill tone="ok">Published</StatusPill> : undefined}
+      >
+        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {graph.slice(0, 4).map((stage) => (
+            <StageCard key={stage.id} stage={stage} />
+          ))}
+        </ol>
+        <ol className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {graph.slice(4).map((stage) => (
+            <StageCard key={stage.id} stage={stage} />
+          ))}
+        </ol>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[var(--teal)]">Silver authoritative from PostgreSQL</span>
+          <span className="px-1 py-1 text-[var(--muted)]">Bronze is an independent evidence path</span>
+        </div>
+      </Panel>
+      <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+        <Panel title="Latest asset runs">
+          <div className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-3 pb-2 text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase">
+            <span>Asset</span>
+            <span>State</span>
+            <span>Detail</span>
           </div>
-        ) : (
-          <Empty>No published Silver revenue is stored.</Empty>
-        )}
-        <p className="mt-3 text-xs text-zinc-500">
-          Identifier conflicts on that Silver run: {formatCount(current?.identifier_conflict_count)}. Bronze rows {formatCount(current?.bronze_record_count)}. Distinct offsets {formatCount(current?.bronze_distinct_offsets)}.
-        </p>
-      </section>
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <SectionTitle title="Recorded attempts" />
+          {[
+            { asset: "Analytics publication", state: warehouse?.ready ? "Succeeded" : "Not ready", detail: warehouse?.ready ? "Ready" : warehouse?.reason ?? "No status", ok: Boolean(warehouse?.ready) },
+            { asset: "Quality gate", state: gateView?.label ?? "No evidence", detail: gateView?.tone === "ok" ? "Blocked failures" : "See attempt history", ok: gateView?.tone === "ok" },
+            { asset: "dbt models", state: dbtView?.label ?? "No evidence", detail: dbt ? formatDuration(dbt.duration_ms) : "No dbt run", ok: dbtView?.tone === "ok" },
+            {
+              asset: "ClickHouse load",
+              state: warehouse?.recent_loads[0]?.status === "published" ? "Succeeded" : loadView?.label ?? "No evidence",
+              detail: warehouse?.recent_loads[0]?.status ?? "No load row",
+              ok: warehouse?.recent_loads[0]?.status === "published" || loadView?.tone === "ok",
+            },
+          ].map((row) => (
+            <div key={row.asset} className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-3 border-t border-[var(--line)] py-3 text-sm">
+              <span>{row.asset}</span>
+              <span className={row.ok ? "text-[var(--ok)]" : "text-[var(--warn)]"}>{row.state}</span>
+              <span className="text-[var(--muted)]">{row.detail}</span>
+            </div>
+          ))}
+        </Panel>
+        <Panel title="Publication lineage">
+          <MetaList
+            rows={[
+              { label: "Warehouse", value: warehouse?.warehouse_publication_id ? <CopyId value={warehouse.warehouse_publication_id} /> : "None" },
+              { label: "Silver", value: current ? <CopyId value={current.publication_id} /> : "None" },
+              { label: "dbt refs", value: "Audit history preserved" },
+              { label: "Recovery", value: warehouse?.ready ? "Verified publication only" : warehouse?.reason ?? "Not verified" },
+            ]}
+          />
+        </Panel>
+      </div>
+      <ScopeBar>Earlier failures stay available without replacing the active publication.</ScopeBar>
+      <div className="mt-4">
+        <TechnicalDetails summary="Full attempt history">
         {runs.length === 0 ? (
           <Empty>No warehouse or Dagster attempt is in the returned page.</Empty>
         ) : (
@@ -163,19 +195,20 @@ export function PipelinesDashboard() {
             </tbody>
           </DataTable>
         )}
-      </section>
-      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-zinc-300">
-        <SectionTitle title="Lineage" />
-        <p>Silver <CopyId value={current?.publication_id ?? null} /></p>
-        <p className="mt-2">Warehouse <CopyId value={warehouse?.warehouse_publication_id ?? null} /></p>
-        <p className="mt-2 text-xs text-zinc-500">
-          Silver finished {current ? formatUtc(current.finished_at) : "—"} UTC. Spark jobs reporting:{" "}
-          {status.spark_jobs.length === 0
-            ? "none"
-            : status.spark_jobs.map((job) => `${job.job_name} ${job.display_state}`).join(", ")}
-          .
-        </p>
-      </section>
+        </TechnicalDetails>
+      </div>
     </div>
+  );
+}
+
+function StageCard({ stage }: { stage: { id: string; name: string; detail: string; tone: "info" | "ok" | "warn" | "neutral" } }) {
+  const bar = stage.tone === "ok" ? "bg-[var(--ok)]" : stage.tone === "warn" ? "bg-[var(--warn)]" : "bg-[var(--accent)]";
+  return (
+    <li className="rounded-xl border border-[var(--line)] bg-[var(--background)] px-3 py-3">
+      <p className="text-[11px] text-[var(--muted)]">{stage.id}</p>
+      <p className="mt-1 text-sm font-medium">{stage.name}</p>
+      <p className="mt-1 text-xs text-[var(--muted)]">{stage.detail}</p>
+      <div className={`mt-3 h-0.5 rounded-full ${bar}`} />
+    </li>
   );
 }
