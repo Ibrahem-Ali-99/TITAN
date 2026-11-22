@@ -1,14 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ActivityChart } from "@/components/ui/charts";
+import {
+  CopyId,
+  DataTable,
+  Empty,
+  ErrorState,
+  Kpi,
+  LoadingState,
+  Notice,
+  PageHeader,
+  SectionTitle,
+  StatusBadge,
+  Td,
+  TechnicalDetails,
+  Th,
+} from "@/components/ui/ops";
 import { ApiError, fetchOverview, getJson } from "@/lib/api";
-import type { HealthReady, IngestionStats, RecentEventsResponse, WarehouseStatus } from "@/lib/types";
-import { formatUtc } from "@/lib/utils";
+import type { HealthReady, IngestionStats, RecentEvent, RecentEventsResponse, WarehouseStatus } from "@/lib/types";
+import { formatAge, formatCount, formatMoney, formatUtc } from "@/lib/utils";
 
 const REFRESH_MS = 5000;
+
+type QualityRun = {
+  run_id: string;
+  status: string;
+  warehouse_publication_id: string;
+  failure_count: number;
+  injected: string | null;
+  finished_at: string | null;
+};
 
 type Snapshot = {
   ready: HealthReady;
@@ -16,6 +39,7 @@ type Snapshot = {
   recent: RecentEventsResponse;
   warehouse: WarehouseStatus | null;
   warehouseError: string | null;
+  quality: QualityRun | null;
   fetchedAt: string;
 };
 
@@ -24,31 +48,34 @@ export function OverviewDashboard() {
   const [initialError, setInitialError] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<"ingested" | "disposition">("ingested");
 
   useEffect(() => {
     let cancelled = false;
-
     async function load(isInitial: boolean) {
       try {
         const [ready, stats, recent] = await fetchOverview();
         let warehouse: WarehouseStatus | null = null;
         let warehouseError: string | null = null;
+        let quality: QualityRun | null = null;
         try {
           warehouse = await getJson<WarehouseStatus>("/api/v1/warehouse/status");
         } catch (error) {
           warehouseError = error instanceof ApiError ? error.message : "Warehouse status failed.";
         }
+        try {
+          const runs = await getJson<{ runs: QualityRun[] }>("/api/v1/quality/runs?limit=30");
+          const publication = warehouse?.warehouse_publication_id;
+          quality =
+            runs.runs.find((run) => publication && run.warehouse_publication_id === publication) ??
+            null;
+        } catch {
+          quality = null;
+        }
         if (cancelled) {
           return;
         }
-        setSnapshot({
-          ready,
-          stats,
-          recent,
-          warehouse,
-          warehouseError,
-          fetchedAt: new Date().toISOString(),
-        });
+        setSnapshot({ ready, stats, recent, warehouse, warehouseError, quality, fetchedAt: new Date().toISOString() });
         setInitialError(null);
         setRefreshError(null);
       } catch (error) {
@@ -67,7 +94,6 @@ export function OverviewDashboard() {
         }
       }
     }
-
     void load(true);
     const timer = window.setInterval(() => void load(false), REFRESH_MS);
     return () => {
@@ -76,213 +102,179 @@ export function OverviewDashboard() {
     };
   }, []);
 
+  const events = useMemo(() => {
+    const items = [...(snapshot?.recent.items ?? [])];
+    items.sort((left, right) => {
+      if (sort === "disposition") {
+        return left.disposition.localeCompare(right.disposition);
+      }
+      return right.ingested_at.localeCompare(left.ingested_at);
+    });
+    return items;
+  }, [snapshot, sort]);
+
   if (loading) {
-    return <p className="text-sm text-zinc-400">Loading persisted ingestion state…</p>;
+    return <LoadingState label="Loading persisted ingestion state…" />;
   }
-
   if (!snapshot) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>API unavailable</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-zinc-300">
-          <p>No counts are shown because the overview could not read the API.</p>
-          <pre className="overflow-x-auto rounded-md bg-zinc-950 p-3 text-xs text-red-300">
-            {initialError}
-          </pre>
-        </CardContent>
-      </Card>
-    );
+    return <ErrorState title="Overview unavailable" detail={initialError} />;
   }
 
-  const { stats, recent, ready } = snapshot;
-  const maxActivity = Math.max(1, ...stats.recent_activity.map((point) => point.persisted_events));
+  const { stats, warehouse, quality } = snapshot;
+  const activity = stats.recent_activity.map((point) => ({
+    label: formatUtc(point.minute).slice(11, 16),
+    persisted: point.persisted_events,
+  }));
+  const qualityTone = !warehouse?.ready ? "warn" : quality?.status === "passed" ? "ok" : quality ? "bad" : "neutral";
+  const qualityLabel = !warehouse?.ready
+    ? "Warehouse not ready"
+    : quality?.status === "passed"
+      ? "Publication validated"
+      : quality
+        ? "Publication check failed"
+        : "No quality evidence";
 
   return (
-    <div className={refreshError ? "opacity-80" : undefined}>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            Ingestion counts are PostgreSQL rows. The analytical card is the last published
-            ClickHouse snapshot, and it is not the live ingest stream. Commerce data is synthetic.
-          </p>
-        </div>
-        <p className="text-xs text-zinc-500">
-          {refreshError ? "Last successful read" : "Updated"} {formatUtc(snapshot.fetchedAt)} UTC
-        </p>
-      </div>
-
+    <div>
+      <PageHeader
+        title="Overview"
+        description="Accepted orders and published revenue come from the warehouse snapshot. Ingestion counts are PostgreSQL rows, not Kafka throughput. Commerce events are synthetic."
+        aside={
+          <>
+            {refreshError ? "Last successful read" : "Updated"} {formatUtc(snapshot.fetchedAt)} UTC
+          </>
+        }
+      />
       {refreshError ? (
-        <Card className="mb-4 border-red-900/80">
-          <CardContent className="py-3 text-sm text-red-200">
-            The latest refresh failed. The figures below are the previous successful response, not
-            a live zero. {refreshError}
-          </CardContent>
-        </Card>
+        <Notice>The latest refresh failed. Figures below are the previous response. {refreshError}</Notice>
       ) : null}
-
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
+        <Kpi
+          label="Accepted orders"
+          value={warehouse?.ready ? formatCount(warehouse.order_count) : "Unavailable"}
+          hint="Orders in the published ClickHouse snapshot. This is not the live ingest count."
+          footnote={warehouse?.ready ? `Freshness ${formatAge(warehouse.freshness_seconds)}` : warehouse?.reason ?? "Warehouse status was not ready."}
+        />
+        <Kpi
+          label="Logical orders"
+          value={formatCount(stats.logical_orders)}
+          hint={stats.metric_definitions.logical_orders}
+          footnote="PostgreSQL accepted orders"
+        />
+        <Kpi
           label="Persisted events"
-          value={stats.persisted_events}
-          detail={stats.metric_definitions.persisted_events}
+          value={formatCount(stats.persisted_events)}
+          hint={stats.metric_definitions.persisted_events}
+          footnote={stats.most_recent_ingested_at ? `Latest ${formatUtc(stats.most_recent_ingested_at)} UTC` : "No ingest timestamp"}
         />
-        <Stat
-          label="Order events"
-          value={stats.persisted_order_created_events}
-          detail={stats.metric_definitions.persisted_order_created_events}
+        <Kpi
+          label="Quality"
+          value={qualityLabel}
+          hint="Matched to the serving publication when one exists. A later injected failure on another candidate is not this status."
+          footnote={
+            quality
+              ? `${quality.failure_count} failing checks · ${quality.injected ? `injected ${quality.injected}` : "not injected"}`
+              : `Postgres ${snapshot.ready.checks.postgres === "ok" ? "ready" : "not ready"}`
+          }
         />
-        <Stat
-          label="Quarantined records"
-          value={stats.quarantined_records}
-          detail={stats.metric_definitions.quarantined_records}
-        />
-        <Card>
-          <CardHeader>
-            <CardTitle>Latest ingestion</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-mono text-sm text-zinc-100">
-              {formatUtc(stats.most_recent_ingested_at)}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              {stats.metric_definitions.most_recent_ingested_at}
-            </p>
-            <p className="mt-3 text-xs text-zinc-400">
-              PostgreSQL {ready.checks.postgres === "ok" ? "ready" : "not ready"}
-            </p>
-          </CardContent>
-        </Card>
       </div>
-
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle>Published analytical snapshot</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-zinc-300">
-          {snapshot.warehouseError ? (
-            <p>The warehouse status request failed. Ingestion figures above are unchanged.</p>
-          ) : snapshot.warehouse?.ready ? (
-            <>
-              <p className="font-mono text-xs">{snapshot.warehouse.warehouse_publication_id}</p>
-              <p className="mt-2">
-                {snapshot.warehouse.order_count ?? "—"} accepted orders · freshness{" "}
-                {snapshot.warehouse.freshness_seconds ?? "—"} seconds
-              </p>
-              {Object.entries(snapshot.warehouse.accepted_revenue).map(([currency, amount]) => (
-                <p key={currency}>
-                  {currency} {amount}
-                </p>
-              ))}
-              <p className="mt-2 text-xs text-zinc-500">
-                Silver {snapshot.warehouse.silver_publication_id}. This is not the live ingestion
-                count.
-              </p>
-            </>
+      <div className="mb-3 flex items-center gap-2">
+        <StatusBadge tone={qualityTone}>{qualityLabel}</StatusBadge>
+        <StatusBadge tone={warehouse?.ready ? "info" : "warn"}>
+          {warehouse?.ready ? "Warehouse ready" : "Warehouse not serving"}
+        </StatusBadge>
+      </div>
+      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+        <SectionTitle
+          title="Published revenue"
+          detail="One amount per currency. These figures are the snapshot, not a live broker rate."
+        />
+        {warehouse?.ready && Object.keys(warehouse.accepted_revenue).length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {Object.entries(warehouse.accepted_revenue).map(([currency, amount]) => (
+              <Kpi key={currency} label={currency} value={formatMoney(amount, currency)} />
+            ))}
+          </div>
+        ) : (
+          <Empty>{snapshot.warehouseError ?? warehouse?.reason ?? "No published revenue is available."}</Empty>
+        )}
+      </section>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+          <SectionTitle
+            title="Ingestion activity"
+            detail={stats.metric_definitions.recent_activity}
+          />
+          {activity.length === 0 ? (
+            <Empty>No events were persisted in the last {stats.activity_window_minutes} minutes.</Empty>
           ) : (
-            <p>
-              {snapshot.warehouse?.reason ??
-                "No validated warehouse publication is available. Ingestion can still be running."}
-            </p>
+            <ActivityChart points={activity} />
           )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Ingest activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs leading-5 text-zinc-500">{stats.metric_definitions.recent_activity}</p>
-            {stats.recent_activity.length === 0 ? (
-              <p className="text-sm text-zinc-400">
-                No events were persisted in the last {stats.activity_window_minutes} minutes.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {stats.recent_activity.map((point) => (
-                  <li key={point.minute} className="grid grid-cols-[88px_1fr_auto] items-center gap-2">
-                    <span className="font-mono text-[11px] text-zinc-500">
-                      {formatUtc(point.minute).slice(11, 16)}
-                    </span>
-                    <span className="h-2 rounded-full bg-zinc-800">
-                      <span
-                        className="block h-2 rounded-full bg-sky-700"
-                        style={{ width: `${(point.persisted_events / maxActivity) * 100}%` }}
-                      />
-                    </span>
-                    <span className="font-mono text-xs text-zinc-300">{point.persisted_events}</span>
-                  </li>
+        </section>
+        <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <SectionTitle title="Recent persisted events" detail="Sorted within the returned page." />
+            <label className="text-xs text-zinc-400">
+              Sort
+              <select
+                className="ml-2 rounded border border-white/10 bg-[#0e1116] px-2 py-1"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as "ingested" | "disposition")}
+              >
+                <option value="ingested">Ingested time</option>
+                <option value="disposition">Disposition</option>
+              </select>
+            </label>
+          </div>
+          {events.length === 0 ? (
+            <Empty>No events have been persisted yet.</Empty>
+          ) : (
+            <DataTable label="Recent persisted events">
+              <thead>
+                <tr>
+                  <Th>Ingested UTC</Th>
+                  <Th>Order</Th>
+                  <Th>Disposition</Th>
+                  <Th>Amount</Th>
+                  <Th>Offset</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <EventRow key={event.event_id} event={event} />
                 ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent persisted events</CardTitle>
-            <Badge>{recent.returned} returned</Badge>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            {recent.items.length === 0 ? (
-              <p className="text-sm text-zinc-400">No events have been persisted yet.</p>
-            ) : (
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="text-xs tracking-wide text-zinc-500 uppercase">
-                  <tr>
-                    <th className="py-2 pr-3 font-medium">Ingested (UTC)</th>
-                    <th className="py-2 pr-3 font-medium">Order</th>
-                    <th className="py-2 pr-3 font-medium">Total</th>
-                    <th className="py-2 pr-3 font-medium">Source</th>
-                    <th className="py-2 font-medium">Offset</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.items.map((event) => (
-                    <tr key={event.event_id} className="border-t border-zinc-800">
-                      <td className="py-2 pr-3 font-mono text-xs text-zinc-300">
-                        {formatUtc(event.ingested_at)}
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div className="font-mono text-xs">{event.order_id ?? "—"}</div>
-                        <div className="text-xs text-zinc-500">{event.disposition}</div>
-                        <div className="text-xs text-zinc-500">{event.event_type}</div>
-                      </td>
-                      <td className="py-2 pr-3 font-mono text-xs">
-                        {event.total_amount ?? "—"} {event.currency ?? ""}
-                      </td>
-                      <td className="py-2 pr-3 text-xs text-zinc-400">
-                        {event.synthetic ? "synthetic" : event.source}
-                      </td>
-                      <td className="py-2 font-mono text-xs text-zinc-500">
-                        {event.kafka_partition}:{event.kafka_offset}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
+              </tbody>
+            </DataTable>
+          )}
+        </section>
+      </div>
+      <div className="mt-4">
+        <TechnicalDetails summary="Publication identifiers">
+          <p>
+            Warehouse <CopyId value={warehouse?.warehouse_publication_id ?? null} />
+          </p>
+          <p>
+            Silver <CopyId value={warehouse?.silver_publication_id ?? null} />
+          </p>
+          <p className="text-xs text-zinc-500">Quarantined records {formatCount(stats.quarantined_records)}. {stats.metric_definitions.quarantined_records}</p>
+        </TechnicalDetails>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, detail }: { label: string; value: number; detail: string }) {
+function EventRow({ event }: { event: RecentEvent }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold tracking-tight text-zinc-50">{value}</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
-      </CardContent>
-    </Card>
+    <tr>
+      <Td className="font-mono text-xs">{formatUtc(event.ingested_at)}</Td>
+      <Td className="font-mono text-xs">{event.order_id ?? "—"}</Td>
+      <Td>{event.disposition}</Td>
+      <Td className="font-mono text-xs">
+        {event.currency && event.total_amount ? formatMoney(event.total_amount, event.currency) : "—"}
+      </Td>
+      <Td className="font-mono text-xs text-zinc-500">
+        {event.kafka_partition}:{event.kafka_offset}
+      </Td>
+    </tr>
   );
 }

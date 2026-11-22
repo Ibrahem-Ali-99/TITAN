@@ -11,14 +11,14 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto grid min-h-screen max-w-[1440px] md:grid-cols-[240px_1fr]">
-        <aside className="border-b border-zinc-800 md:border-r md:border-b-0">
+    <div className="min-h-screen bg-[#0e1116] text-zinc-100">
+      <div className="mx-auto grid min-h-screen max-w-[1440px] md:grid-cols-[232px_1fr]">
+        <aside className="border-b border-white/8 bg-[#12151c] md:border-r md:border-b-0">
           <div className="px-4 py-5">
-            <p className="text-xs tracking-[0.18em] text-zinc-500 uppercase">TITAN</p>
-            <p className="mt-1 text-sm text-zinc-300">Data operations</p>
+            <p className="text-xs tracking-[0.2em] text-sky-300/80 uppercase">TITAN</p>
+            <p className="mt-1 text-sm text-zinc-300">Operations</p>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:px-2">
+          <nav className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:px-2" aria-label="Primary">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -26,9 +26,10 @@ export function Shell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100",
-                    active && "bg-zinc-900 text-zinc-50",
+                    "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100",
+                    active && "bg-sky-950/70 text-sky-50",
                   )}
                 >
                   <Icon className="size-4" aria-hidden />

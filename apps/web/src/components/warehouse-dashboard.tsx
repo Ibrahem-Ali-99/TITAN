@@ -2,20 +2,32 @@
 
 import { useEffect, useState } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProductChart, RevenueChart } from "@/components/ui/charts";
+import {
+  CopyId,
+  Empty,
+  ErrorState,
+  Kpi,
+  LoadingState,
+  Notice,
+  PageHeader,
+  SectionTitle,
+  Segmented,
+  StatusBadge,
+  TechnicalDetails,
+} from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
-import type { AnalyticsOverview, ProductsResponse, RevenueResponse, WarehouseStatus } from "@/lib/types";
-import { formatUtc } from "@/lib/utils";
+import type { ProductsResponse, RevenueResponse, WarehouseStatus } from "@/lib/types";
+import { formatAge, formatCount, formatMoney, formatUtc } from "@/lib/utils";
 
-type ReadyData = {
-  overview: AnalyticsOverview;
-  revenue: RevenueResponse;
-  products: ProductsResponse;
-};
+const CURRENCIES = ["EUR", "GBP", "USD"] as const;
 
 export function WarehouseDashboard() {
   const [status, setStatus] = useState<WarehouseStatus | null>(null);
-  const [data, setData] = useState<ReadyData | null>(null);
+  const [revenue, setRevenue] = useState<RevenueResponse | null>(null);
+  const [products, setProducts] = useState<ProductsResponse | null>(null);
+  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("EUR");
+  const [grain, setGrain] = useState<"hour" | "day">("day");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,21 +42,25 @@ export function WarehouseDashboard() {
         setStatus(next);
         setError(null);
         if (!next.ready) {
-          setData(null);
+          setRevenue(null);
+          setProducts(null);
           return;
         }
-        const [overview, revenue, products] = await Promise.all([
-          getJson<AnalyticsOverview>("/api/v1/analytics/overview"),
-          getJson<RevenueResponse>("/api/v1/analytics/revenue?grain=hour&limit=168"),
-          getJson<ProductsResponse>("/api/v1/analytics/products?limit=20"),
+        const [nextRevenue, nextProducts] = await Promise.all([
+          getJson<RevenueResponse>(
+            `/api/v1/analytics/revenue?grain=${grain}&currency=${currency}&limit=${grain === "day" ? 60 : 168}`,
+          ),
+          getJson<ProductsResponse>(`/api/v1/analytics/products?currency=${currency}&limit=12`),
         ]);
         if (!cancelled) {
-          setData({ overview, revenue, products });
+          setRevenue(nextRevenue);
+          setProducts(nextProducts);
         }
       } catch (caught) {
         if (!cancelled) {
           setError(caught instanceof ApiError ? caught.message : "The API request failed.");
-          setData(null);
+          setRevenue(null);
+          setProducts(null);
         }
       } finally {
         if (!cancelled) {
@@ -58,152 +74,102 @@ export function WarehouseDashboard() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [currency, grain]);
 
-  if (loading) {
-    return <p className="text-sm text-zinc-400">Loading the published warehouse…</p>;
+  if (loading && !status) {
+    return <LoadingState label="Loading the published warehouse…" />;
   }
   if (!status) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Warehouse unavailable</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-zinc-300">
-          <p>No analytical figures are shown because the status request failed.</p>
-          <pre className="mt-3 overflow-x-auto text-xs text-red-300">{error}</pre>
-        </CardContent>
-      </Card>
-    );
+    return <ErrorState title="Warehouse unavailable" detail={error} />;
   }
 
-  const maxOrders = Math.max(1, ...(data?.revenue.points.map((point) => point.order_count) ?? [1]));
+  const points =
+    revenue?.points.map((point) => ({
+      label: grain === "day" ? formatUtc(point.window_start).slice(0, 10) : formatUtc(point.window_start).slice(5, 16),
+      orders: point.order_count,
+      revenue: formatMoney(point.accepted_revenue, point.currency),
+    })) ?? [];
+  const productPoints =
+    products?.products.map((product) => ({
+      product: product.product_id.replace("prd_", ""),
+      quantity: product.quantity,
+      revenue: formatMoney(product.revenue, product.currency),
+    })) ?? [];
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Warehouse</h1>
-        <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-          Figures are the active ClickHouse publication. Commerce rows are synthetic. Currencies
-          are not added together. A failed load does not replace this snapshot.
-        </p>
+    <div>
+      <PageHeader
+        title="Warehouse"
+        description="Figures are the active ClickHouse publication. Currencies stay separate. A failed load does not replace this snapshot. Commerce rows are synthetic."
+        aside={status.ready ? `Published ${formatUtc(status.published_at)} UTC` : undefined}
+      />
+      {error ? <Notice>The latest refresh failed. {error}</Notice> : null}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <StatusBadge tone={status.ready ? "ok" : "bad"}>{status.ready ? "Ready" : "Not ready"}</StatusBadge>
+        <StatusBadge tone="neutral">Freshness {formatAge(status.freshness_seconds)}</StatusBadge>
       </div>
-      {error ? (
-        <Card className="border-red-900/80">
-          <CardContent className="py-3 text-sm text-red-200">
-            The latest refresh failed.
-            <pre className="mt-3 overflow-x-auto text-xs">{error}</pre>
-          </CardContent>
-        </Card>
-      ) : null}
       {!status.ready ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No published warehouse dataset</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-zinc-300">
-            <p>{status.reason ?? "The warehouse is not ready."}</p>
-            <p className="mt-2 text-xs text-zinc-500">
-              Staging tables are not shown as current. Postgres publication{" "}
-              {status.warehouse_publication_id ?? "none"} · ClickHouse pointer{" "}
-              {status.clickhouse_publication_id ?? "none"}.
-            </p>
-          </CardContent>
-        </Card>
+        <section className="rounded-lg border border-white/8 bg-[#151922] p-4 text-sm text-zinc-300">
+          <SectionTitle title="No serving snapshot" />
+          <p>{status.reason ?? "The warehouse is not ready."}</p>
+          <p className="mt-2 text-xs text-zinc-500">Staging rows are not shown as current.</p>
+        </section>
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Published dataset</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-zinc-300">
-                <p className="font-mono text-xs">{status.warehouse_publication_id}</p>
-                <p className="mt-2">Silver {status.silver_publication_id}</p>
-                <p>Published {formatUtc(status.published_at)} UTC</p>
-                <p>Freshness {status.freshness_seconds ?? "—"} seconds</p>
-                <p>Orders {status.order_count ?? "—"}</p>
-                <p>Items {status.item_count ?? "—"}</p>
-                <p>Payments {status.payment_count ?? "—"}</p>
-                <p>Inventory events {status.inventory_count ?? "—"}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Accepted revenue</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-zinc-300">
-                {Object.entries(status.accepted_revenue).map(([currency, amount]) => (
-                  <p key={currency}>
-                    {currency} {amount}
-                  </p>
-                ))}
-                <p className="mt-2 text-xs text-zinc-500">Synthetic order totals, by currency.</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Query health</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-zinc-300">
-                <p>{data ? "Serving views answered." : "Serving views were not read."}</p>
-                <p className="mt-2 text-xs text-zinc-500">
-                  ClickHouse pointer {status.clickhouse_publication_id}
-                </p>
-              </CardContent>
-            </Card>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi label="Accepted orders" value={formatCount(status.order_count)} hint="Accepted orders in this publication." />
+            <Kpi label="Line items" value={formatCount(status.item_count)} hint="Order line items in this publication." />
+            {CURRENCIES.map((code) => (
+              <Kpi
+                key={code}
+                label={`${code} revenue`}
+                value={formatMoney(status.accepted_revenue[code], code)}
+                hint="Accepted order total for this currency only."
+              />
+            ))}
           </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Event-time order activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-zinc-300">
-              {data && data.revenue.points.length > 0 ? (
-                data.revenue.points.map((point) => (
-                  <div
-                    key={`${point.window_start}-${point.currency}`}
-                    className="grid grid-cols-[148px_48px_1fr_auto] items-center gap-2"
-                  >
-                    <span className="font-mono text-[11px] text-zinc-500">
-                      {formatUtc(point.window_start)}
-                    </span>
-                    <span>{point.currency}</span>
-                    <span className="h-2 rounded-full bg-zinc-800">
-                      <span
-                        className="block h-2 rounded-full bg-sky-700"
-                        style={{ width: `${(point.order_count / maxOrders) * 100}%` }}
-                      />
-                    </span>
-                    <span className="font-mono text-xs">
-                      {point.order_count} · {point.accepted_revenue}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p>The published snapshot has no hourly order rows.</p>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Products in the snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-zinc-300">
-              {data && data.products.products.length > 0 ? (
-                <ul className="space-y-1">
-                  {data.products.products.map((product) => (
-                    <li key={`${product.product_id}-${product.currency}`}>
-                      {product.product_id} · {product.quantity} units · {product.currency}{" "}
-                      {product.revenue}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No product lines are in the published snapshot.</p>
-              )}
-            </CardContent>
-          </Card>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <Segmented
+              label="Currency"
+              value={currency}
+              onChange={setCurrency}
+              options={CURRENCIES.map((code) => ({ id: code, label: code }))}
+            />
+            <Segmented
+              label="Time grain"
+              value={grain}
+              onChange={setGrain}
+              options={[
+                { id: "day", label: "Day" },
+                { id: "hour", label: "Hour" },
+              ]}
+            />
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+              <SectionTitle
+                title={`${currency} order activity`}
+                detail={`Event time, ${grain} grain, from the published snapshot.`}
+              />
+              {points.length === 0 ? <Empty>This currency has no rows in the selected grain.</Empty> : <RevenueChart points={points} />}
+            </section>
+            <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+              <SectionTitle title={`${currency} product quantity`} detail="Returned product rows for the selected currency." />
+              {productPoints.length === 0 ? <Empty>No product lines for this currency.</Empty> : <ProductChart points={productPoints} />}
+            </section>
+          </div>
         </>
       )}
+      <div className="mt-4">
+        <TechnicalDetails summary="Publication lineage">
+          <p>Warehouse <CopyId value={status.warehouse_publication_id} /></p>
+          <p>Silver source <CopyId value={status.silver_publication_id} /></p>
+          <p>ClickHouse pointer <CopyId value={status.clickhouse_publication_id} /></p>
+          <p className="text-xs text-zinc-500">
+            Payments {formatCount(status.payment_count)} · inventory events {formatCount(status.inventory_count)}
+          </p>
+        </TechnicalDetails>
+      </div>
     </div>
   );
 }

@@ -2,12 +2,22 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DataTable,
+  Empty,
+  ErrorState,
+  Kpi,
+  LoadingState,
+  PageHeader,
+  SectionTitle,
+  StatusBadge,
+  Td,
+  Th,
+} from "@/components/ui/ops";
 import { API_BASE_URL, ApiError, getJson } from "@/lib/api";
 import type { CsvImportList, SourceSubmissionList } from "@/lib/types";
-import { formatUtc } from "@/lib/utils";
+import { formatCount, formatUtc } from "@/lib/utils";
 
 export function DataSourcesDashboard() {
   const [submissions, setSubmissions] = useState<SourceSubmissionList | null>(null);
@@ -15,6 +25,11 @@ export function DataSourcesDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
+  const [openImport, setOpenImport] = useState<string | null>(null);
+  const [importErrors, setImportErrors] = useState<{ row_number: number; status: string; error_detail: string | null }[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
 
   async function refresh() {
     const [nextSubmissions, nextImports] = await Promise.all([
@@ -53,16 +68,18 @@ export function DataSourcesDashboard() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setUploadMessage(null);
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports`, {
-      method: "POST",
-      body: form,
-    });
+    const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports`, { method: "POST", body: form });
     const text = await response.text();
-    setUploadMessage(response.ok ? text : `Import rejected: ${text}`);
+    if (response.status === 401) {
+      setUploadMessage("The import was rejected with 401. CSV upload itself does not use the admin token.");
+      return;
+    }
+    setUploadMessage(response.ok ? "Upload accepted. Kafka publication continues after this response. Downstream persistence is separate." : `Import rejected (${response.status}): ${text}`);
     if (response.ok) {
-      event.currentTarget.reset();
+      formElement.reset();
       try {
         await refresh();
       } catch (caught) {
@@ -71,145 +88,213 @@ export function DataSourcesDashboard() {
     }
   }
 
-  if (loading) {
-    return <p className="text-sm text-zinc-400">Loading source submissions…</p>;
-  }
-  if (error && !submissions) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>API unavailable</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-zinc-300">
-          <p>No source counts are shown because the API could not be read.</p>
-          <pre className="mt-3 overflow-x-auto text-xs text-red-300">{error}</pre>
-        </CardContent>
-      </Card>
-    );
+  async function showErrors(importId: string) {
+    if (openImport === importId) {
+      setOpenImport(null);
+      return;
+    }
+    setOpenImport(importId);
+    setImportErrors([]);
+    setImportError(null);
+    try {
+      const body = await getJson<{
+        rows: { row_number: number; status: string; error_detail: string | null }[];
+      }>(`/api/v1/ingestion/imports/${importId}`);
+      setImportErrors(body.rows.filter((row) => row.status !== "published" && row.status !== "publishing"));
+    } catch (caught) {
+      setImportError(caught instanceof ApiError ? caught.message : "The import detail request failed.");
+    }
   }
 
+  async function resume(importId: string) {
+    setResumeMessage(null);
+    if (!token.trim()) {
+      setResumeMessage("Enter the admin token. Resume stays closed without it and was not sent.");
+      return;
+    }
+    const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports/${importId}/publish`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token.trim()}` },
+    });
+    const text = await response.text();
+    if (response.status === 401) {
+      setResumeMessage("Resume returned 401. The admin token is missing on the API or does not match.");
+      return;
+    }
+    setResumeMessage(response.ok ? "Resume accepted. Rows still marked publishing will be sent to Kafka." : `Resume failed (${response.status}): ${text}`);
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading source submissions…" />;
+  }
+  if (error && !submissions) {
+    return <ErrorState title="Data sources unavailable" detail={error} />;
+  }
+
+  const accepted = imports?.items.reduce((sum, item) => sum + item.accepted_rows, 0) ?? 0;
+  const rejected = imports?.items.reduce((sum, item) => sum + item.rejected_rows, 0) ?? 0;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Data sources</h1>
-        <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-          REST and CSV submissions are tracked separately from PostgreSQL persistence. A published
-          submission means Kafka acknowledged it. Accepted orders and warehouse revenue are on the
-          Overview and Warehouse pages. CSV upload is the local ingestion surface. Resume of a
-          stalled import is an admin action and requires the API token.
-        </p>
+    <div>
+      <PageHeader
+        title="Data sources"
+        description="A submission status means the API accepted the request and Kafka acknowledged publication. It does not mean the row is already an accepted order in PostgreSQL. CSV is limited to 500 data rows and 1 MiB."
+      />
+      {error && submissions ? <p className="mb-3 text-sm text-amber-100">The latest refresh failed. {error}</p> : null}
+      <div className="mb-4 grid gap-3 md:grid-cols-3">
+        <Kpi label="REST submissions returned" value={formatCount(submissions?.returned)} footnote="synthetic.event-generator is the CLI source name" />
+        <Kpi label="CSV rows published" value={formatCount(accepted)} footnote="Sum of accepted_rows on the returned imports" />
+        <Kpi label="CSV rows rejected" value={formatCount(rejected)} footnote="Validation failures stay on the import" />
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Synthetic generator</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-zinc-400">
-            On-demand CLI. Source name <span className="font-mono">synthetic.event-generator</span>.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>REST</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-zinc-400">
-            <span className="font-mono">POST /api/v1/ingestion/events</span>. Validation failures and
-            broker failures are stored as submissions.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>CSV</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-zinc-400">
-            Bounded to 500 data rows and 1 MiB. Invalid rows stay in the import. Valid rows are
-            published to Kafka.
-          </CardContent>
-        </Card>
+      <div className="mb-4 grid gap-3 md:grid-cols-3">
+        <SourceCard title="Synthetic generator" body="On-demand CLI. Events are labeled synthetic and are not store traffic." />
+        <SourceCard title="REST" body="POST /api/v1/ingestion/events. Validation and broker failures are stored as submissions." />
+        <SourceCard title="CSV" body="Invalid rows stay in the import. Valid rows are published to Kafka asynchronously." />
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>CSV import</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
-            <input
-              className="text-sm text-zinc-200 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-zinc-100"
-              name="file"
-              type="file"
-              accept=".csv,text/csv"
-              required
-            />
-            <Button type="submit">Upload</Button>
-          </form>
-          {uploadMessage ? (
-            <pre className="mt-3 overflow-x-auto text-xs text-zinc-400">{uploadMessage}</pre>
-          ) : null}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent REST submissions</CardTitle>
-          <Badge>{submissions?.returned ?? 0} returned</Badge>
-        </CardHeader>
-        <CardContent>
-          {submissions && submissions.items.length > 0 ? (
-            <SubmissionTable items={submissions.items} />
-          ) : (
-            <p className="text-sm text-zinc-400">No REST submissions have been recorded.</p>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>CSV imports</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {imports && imports.items.length > 0 ? (
-            <ul className="space-y-2 text-sm">
-              {imports.items.map((item) => (
-                <li key={item.import_id} className="flex flex-wrap justify-between gap-2 border-t border-zinc-800 py-2">
-                  <span>
-                    <span className="font-mono text-xs">{item.filename}</span>
-                    <span className="ml-2 text-zinc-500">{item.status}</span>
-                  </span>
-                  <span className="text-xs text-zinc-400">
-                    published {item.accepted_rows} · rejected {item.rejected_rows} · broker failures{" "}
-                    {item.publish_failed_rows} · {formatUtc(item.received_at)}
-                  </span>
-                </li>
+      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+        <SectionTitle title="CSV upload" />
+        <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
+          <input
+            className="text-sm text-zinc-200 file:mr-3 file:rounded-md file:border-0 file:bg-sky-900 file:px-3 file:py-2 file:text-sky-50"
+            name="file"
+            type="file"
+            accept=".csv,text/csv"
+            required
+            aria-label="CSV file"
+          />
+          <Button type="submit">Upload</Button>
+        </form>
+        {uploadMessage ? <p className="mt-3 text-xs text-zinc-300">{uploadMessage}</p> : null}
+      </section>
+      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+        <SectionTitle title="Recent submissions" />
+        {submissions && submissions.items.length > 0 ? (
+          <DataTable label="Source submissions">
+            <thead>
+              <tr>
+                <Th>Received UTC</Th>
+                <Th>Channel</Th>
+                <Th>Status</Th>
+                <Th>Event</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {submissions.items.map((item) => (
+                <tr key={item.id}>
+                  <Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td>
+                  <Td>{item.channel}</Td>
+                  <Td>
+                    <StatusBadge tone={item.status === "published" || item.status === "published_to_kafka" ? "ok" : item.status.includes("fail") || item.status === "rejected" ? "bad" : "neutral"}>
+                      {item.status}
+                    </StatusBadge>
+                  </Td>
+                  <Td className="font-mono text-xs">
+                    {item.event_type ?? "—"}
+                    {item.detail ? <div className="mt-1 font-sans text-xs text-zinc-500">{item.detail}</div> : null}
+                  </Td>
+                </tr>
               ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-zinc-400">No CSV imports have been recorded.</p>
-          )}
-        </CardContent>
-      </Card>
+            </tbody>
+          </DataTable>
+        ) : (
+          <Empty>No REST submissions have been recorded.</Empty>
+        )}
+      </section>
+      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+        <SectionTitle
+          title="CSV imports"
+          detail="Resume sends rows still marked publishing. It is an admin call. A missing token is reported as 401 and does not pretend to succeed."
+        />
+        <label className="mb-3 block text-xs text-zinc-400">
+          Admin token
+          <input
+            className="mt-1 block w-full max-w-sm rounded border border-white/10 bg-[#0e1116] px-2 py-1 text-sm text-zinc-100"
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+          />
+        </label>
+        {resumeMessage ? <p className="mb-3 text-xs text-amber-100">{resumeMessage}</p> : null}
+        {imports && imports.items.length > 0 ? (
+          <DataTable label="CSV imports">
+            <thead>
+              <tr>
+                <Th>Received UTC</Th>
+                <Th>File</Th>
+                <Th>Status</Th>
+                <Th>Published</Th>
+                <Th>Rejected</Th>
+                <Th>Broker failures</Th>
+                <Th>Rows</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {imports.items.map((item) => (
+                <tr key={item.import_id}>
+                  <Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td>
+                  <Td className="font-mono text-xs">{item.filename}</Td>
+                  <Td>{item.status}</Td>
+                  <Td>{item.accepted_rows}</Td>
+                  <Td>{item.rejected_rows}</Td>
+                  <Td>{item.publish_failed_rows}</Td>
+                  <Td>
+                    <div className="flex gap-3">
+                      <button type="button" className="text-xs text-sky-300" onClick={() => void showErrors(item.import_id)}>
+                        {openImport === item.import_id ? "Hide" : "Errors"}
+                      </button>
+                      {item.status !== "completed" ? (
+                        <button type="button" className="text-xs text-sky-300" onClick={() => void resume(item.import_id)}>
+                          Resume
+                        </button>
+                      ) : null}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        ) : (
+          <Empty>No CSV imports have been recorded.</Empty>
+        )}
+        {openImport ? (
+          <div className="mt-3">
+            {importError ? <p className="text-xs text-red-200">{importError}</p> : null}
+            {!importError && importErrors.length === 0 ? (
+              <p className="text-xs text-zinc-500">No rejected or failed rows are stored for this import.</p>
+            ) : null}
+            {importErrors.length > 0 ? (
+              <DataTable label="CSV row errors">
+                <thead>
+                  <tr>
+                    <Th>Row</Th>
+                    <Th>Status</Th>
+                    <Th>Validation or broker detail</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importErrors.map((row) => (
+                    <tr key={row.row_number}>
+                      <Td>{row.row_number}</Td>
+                      <Td>{row.status}</Td>
+                      <Td className="text-xs">{row.error_detail ?? "—"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
 
-function SubmissionTable({ items }: { items: SourceSubmissionList["items"] }) {
+function SourceCard({ title, body }: { title: string; body: string }) {
   return (
-    <table className="w-full text-left text-sm">
-      <thead className="text-xs tracking-wide text-zinc-500 uppercase">
-        <tr>
-          <th className="py-2 pr-3 font-medium">Received</th>
-          <th className="py-2 pr-3 font-medium">Status</th>
-          <th className="py-2 font-medium">Event</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <tr key={item.id} className="border-t border-zinc-800">
-            <td className="py-2 pr-3 font-mono text-xs">{formatUtc(item.received_at)}</td>
-            <td className="py-2 pr-3 text-xs">{item.status}</td>
-            <td className="py-2 font-mono text-xs text-zinc-400">
-              {item.event_type ?? "—"} {item.event_id ?? ""}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+      <h2 className="text-sm font-medium text-zinc-100">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+    </section>
   );
 }

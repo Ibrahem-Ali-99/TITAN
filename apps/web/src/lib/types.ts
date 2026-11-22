@@ -66,6 +66,7 @@ export type SourceSubmissionList = {
     status: string;
     event_id: string | null;
     event_type: string | null;
+    detail?: string | null;
   }[];
 };
 
@@ -88,6 +89,8 @@ export type QuarantineList = {
     id: number;
     received_at: string;
     reason_code: string;
+    error_detail?: string | null;
+    event_id?: string | null;
     replay_status: string;
     kafka_topic: string;
     kafka_partition: number;

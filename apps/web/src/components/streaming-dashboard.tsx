@@ -1,17 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DataTable,
+  Empty,
+  ErrorState,
+  Kpi,
+  LoadingState,
+  Notice,
+  PageHeader,
+  SectionTitle,
+  Td,
+  Th,
+} from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
 import type { IngestionStats, QuarantineList, ReplayList } from "@/lib/types";
-import { formatUtc } from "@/lib/utils";
+import { formatCount, formatUtc } from "@/lib/utils";
 
 export function StreamingDashboard() {
   const [stats, setStats] = useState<IngestionStats | null>(null);
   const [quarantine, setQuarantine] = useState<QuarantineList | null>(null);
   const [replays, setReplays] = useState<ReplayList | null>(null);
+  const [reason, setReason] = useState("all");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +32,7 @@ export function StreamingDashboard() {
       try {
         const [nextStats, nextQuarantine, nextReplays] = await Promise.all([
           getJson<IngestionStats>("/api/v1/ingestion/stats"),
-          getJson<QuarantineList>("/api/v1/ingestion/quarantine?limit=20"),
+          getJson<QuarantineList>("/api/v1/ingestion/quarantine?limit=50"),
           getJson<ReplayList>("/api/v1/ingestion/replays?limit=20"),
         ]);
         if (cancelled) {
@@ -49,109 +60,117 @@ export function StreamingDashboard() {
     };
   }, []);
 
+  const reasons = useMemo(
+    () => ["all", ...new Set((quarantine?.items ?? []).map((item) => item.reason_code))],
+    [quarantine],
+  );
+  const visible = (quarantine?.items ?? []).filter((item) => reason === "all" || item.reason_code === reason);
+
   if (loading) {
-    return <p className="text-sm text-zinc-400">Loading ingestion outcomes…</p>;
+    return <LoadingState label="Loading ingestion outcomes…" />;
   }
   if (!stats || !quarantine || !replays) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>API unavailable</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-zinc-300">
-          <p>Broker lag and throughput are not estimated when the API cannot be read.</p>
-          <pre className="mt-3 overflow-x-auto text-xs text-red-300">{error}</pre>
-        </CardContent>
-      </Card>
-    );
+    return <ErrorState title="Streaming unavailable" detail={error} />;
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Streaming</h1>
-        <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-          These figures are durable PostgreSQL outcomes. Kafka consumer lag, broker throughput, and
-          in-flight records are not measured, so they are not shown.
-        </p>
+    <div>
+      <PageHeader
+        title="Streaming"
+        description="These counts are durable PostgreSQL outcomes. They are not Kafka broker throughput. Consumer lag is on Monitoring."
+      />
+      {error ? <Notice>The latest refresh failed. Figures below are the previous response. {error}</Notice> : null}
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi label="Logical orders" value={formatCount(stats.logical_orders)} hint={stats.metric_definitions.logical_orders} />
+        <Kpi label="Duplicate deliveries" value={formatCount(stats.duplicate_deliveries)} hint={stats.metric_definitions.duplicate_deliveries} />
+        <Kpi label="Order conflicts" value={formatCount(stats.order_conflicts)} hint={stats.metric_definitions.order_conflicts} />
+        <Kpi label="Quarantined" value={formatCount(stats.quarantined_records)} hint={stats.metric_definitions.quarantined_records} />
       </div>
-      {error ? (
-        <Card className="border-red-900/80">
-          <CardContent className="py-3 text-sm text-red-200">
-            The latest refresh failed. The figures below are the previous successful response. {error}
-          </CardContent>
-        </Card>
-      ) : null}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Consumed outcomes" value={stats.kafka_consumed_events} detail={stats.metric_definitions.kafka_consumed_events} />
-        <Metric label="Logical orders" value={stats.logical_orders} detail={stats.metric_definitions.logical_orders} />
-        <Metric label="Order conflicts" value={stats.order_conflicts} detail={stats.metric_definitions.order_conflicts} />
-        <Metric label="Duplicate deliveries" value={stats.duplicate_deliveries} detail={stats.metric_definitions.duplicate_deliveries} />
-      </div>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Quarantine</CardTitle>
-          <Badge>{quarantine.returned} returned</Badge>
-        </CardHeader>
-        <CardContent>
-          {quarantine.items.length === 0 ? (
-            <p className="text-sm text-zinc-400">No quarantined records.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {quarantine.items.map((item) => (
-                <li key={item.id} className="border-t border-zinc-800 py-2">
-                  <span className="font-mono text-xs text-zinc-300">{item.reason_code}</span>
-                  <span className="ml-2 text-xs text-zinc-500">
-                    {item.kafka_topic} {item.kafka_partition}:{item.kafka_offset} · {item.replay_status} ·{" "}
-                    {formatUtc(item.received_at)}
-                  </span>
-                </li>
+      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <SectionTitle title="Quarantine" detail="Filter applies to the returned page. Malformed payloads stay here with topic, partition, and offset." />
+          <label className="text-xs text-zinc-400">
+            Reason
+            <select
+              className="ml-2 rounded border border-white/10 bg-[#0e1116] px-2 py-1"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            >
+              {reasons.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Replay attempts</CardTitle>
-          <Badge>{replays.returned} returned</Badge>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-3 text-xs text-zinc-500">
-            Replay is an admin action. It stays closed until TITAN_ADMIN_TOKEN is set on the API,
-            and a missing or wrong token returns 401. This page only lists attempts.
-          </p>
-          {replays.items.length === 0 ? (
-            <p className="text-sm text-zinc-400">No replay attempts have been recorded.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
+            </select>
+          </label>
+        </div>
+        {visible.length === 0 ? (
+          <Empty>No quarantined records match this filter.</Empty>
+        ) : (
+          <DataTable label="Quarantined records">
+            <thead>
+              <tr>
+                <Th>Received UTC</Th>
+                <Th>Reason</Th>
+                <Th>Topic</Th>
+                <Th>Partition</Th>
+                <Th>Offset</Th>
+                <Th>Replay</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((item) => (
+                <tr key={item.id}>
+                  <Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td>
+                  <Td>
+                    <div>{item.reason_code}</div>
+                    {item.error_detail ? <div className="mt-1 text-xs text-zinc-500">{item.error_detail}</div> : null}
+                  </Td>
+                  <Td className="font-mono text-xs">{item.kafka_topic}</Td>
+                  <Td>{item.kafka_partition}</Td>
+                  <Td>{item.kafka_offset}</Td>
+                  <Td>{item.replay_status}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        )}
+      </section>
+      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+        <SectionTitle
+          title="Replay history"
+          detail="This page lists attempts. Creating a replay requires the admin token and returns 401 when that token is missing or wrong."
+        />
+        {replays.items.length === 0 ? (
+          <Empty>No replay attempts have been recorded.</Empty>
+        ) : (
+          <DataTable label="Replay attempts">
+            <thead>
+              <tr>
+                <Th>Requested UTC</Th>
+                <Th>Outcome</Th>
+                <Th>Downstream</Th>
+                <Th>Mode</Th>
+                <Th>Detail</Th>
+              </tr>
+            </thead>
+            <tbody>
               {replays.items.map((item) => (
-                <li key={item.id} className="border-t border-zinc-800 py-2">
-                  <span className="text-zinc-200">{item.outcome}</span>
-                  <span className="ml-2 text-xs text-zinc-500">
-                    downstream {item.downstream_state} · {item.mode} · {formatUtc(item.requested_at)}
-                  </span>
-                  <p className="mt-1 text-xs text-zinc-400">{item.detail}</p>
-                </li>
+                <tr key={item.id}>
+                  <Td className="font-mono text-xs">{formatUtc(item.requested_at)}</Td>
+                  <Td>{item.outcome}</Td>
+                  <Td>{item.downstream_state}</Td>
+                  <Td>{item.mode}</Td>
+                  <Td className="text-xs">{item.detail}</Td>
+                </tr>
               ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            </tbody>
+          </DataTable>
+        )}
+        <p className="mt-3 text-xs text-zinc-500">
+          Consumed outcomes {formatCount(stats.kafka_consumed_events)}. {stats.metric_definitions.kafka_consumed_events}
+        </p>
+      </section>
     </div>
-  );
-}
-
-function Metric({ label, value, detail }: { label: string; value: number; detail: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold text-zinc-50">{value}</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
-      </CardContent>
-    </Card>
   );
 }
