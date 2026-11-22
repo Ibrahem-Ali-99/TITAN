@@ -4,7 +4,7 @@ Local foundation for a real-time commerce data platform. Day 1 runs one path:
 
 **synthetic `order_created` event → Kafka → Python consumer → PostgreSQL → FastAPI → Next.js.**
 
-ClickHouse and MinIO are started for later milestones. They do not hold analytical datasets. Events produced here are synthetic and are labeled `synthetic.event-generator`.
+ClickHouse is started and still unused. MinIO holds the Parquet lake after the Day 3 Spark jobs run. Events produced here are synthetic and are labeled `synthetic.event-generator`.
 
 Persisted counts are rows in PostgreSQL. They are not Kafka broker throughput. Consumption is at-least-once with idempotent persistence, not end-to-end exactly-once. Day 2 adds REST and CSV inputs on the same Kafka path. Details are in [docs/consumption-semantics.md](docs/consumption-semantics.md), [docs/money-policy.md](docs/money-policy.md), and [docs/ingestion-hub.md](docs/ingestion-hub.md).
 
@@ -24,6 +24,7 @@ Persisted counts are rows in PostgreSQL. They are not Kafka broker throughput. C
 | MinIO | `alpine/minio:RELEASE.2025-10-15T17-29-55Z` | Community mirror. Official Hub/Quay pulls were not available |
 | Python | `python:3.12.13-slim-bookworm` | Matches the workspace interpreter |
 | Node | `node:26.13.1-bookworm-slim` | Current Node.js LTS used for the web image |
+| Spark | 4.0.1 on Java 21, Hadoop 3.4.1 | Single-node profile. S3A uses `hadoop-aws` 3.4.1 and AWS SDK bundle 2.24.6 |
 
 Python libraries are pinned in the workspace `pyproject.toml` files and locked in `uv.lock`. Notable pins: FastAPI 0.165.0, Pydantic 2.14.4, SQLAlchemy 2.1.9, Alembic 1.20.1, psycopg 3.3.9, confluent-kafka 2.16.2 (librdkafka 2.16.0), uvicorn 0.54.0. The web app pins Next.js 16.4.6.
 
@@ -85,6 +86,13 @@ Publish one order through the API:
 uv run python scripts/verify_day2.py
 ```
 
+Day 3 Spark jobs are on the `processing` profile and are documented in [docs/spark-lake.md](docs/spark-lake.md).
+
+```powershell
+docker compose run --rm --build migrate
+uv run python scripts/verify_day3.py
+```
+
 ## Tests and static checks
 
 ```powershell
@@ -130,7 +138,8 @@ services/event-generator
 services/ingestion  Kafka consumer
 packages/contracts  event schema
 packages/store      models and Alembic
+pipelines/spark     Bronze streaming, Silver batch, and lake checks
 infrastructure/docker
 ```
 
-Warehouse transforms, orchestration, and model training are intentionally absent.
+ClickHouse loading, orchestration, and model training are intentionally absent.

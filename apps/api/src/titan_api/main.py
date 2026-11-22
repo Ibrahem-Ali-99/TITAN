@@ -15,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from titan_api.config import ApiSettings
+from titan_api.lake import LakeStatus, load_lake_status
 from titan_api.logging_config import configure_logging
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
 from titan_api.routes import register_routes
@@ -34,6 +35,8 @@ REQUIRED_TABLES = (
     "csv_imports",
     "csv_import_rows",
     "replay_attempts",
+    "spark_job_status",
+    "lake_publications",
 )
 
 
@@ -111,6 +114,14 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 status_code=503,
                 detail=f"ingestion stats are unavailable: {exc}",
             ) from exc
+
+    @app.get("/api/v1/lake/status", response_model=LakeStatus)
+    def lake_status(session: Session = Depends(get_session)) -> LakeStatus:
+        try:
+            return load_lake_status(session)
+        except SQLAlchemyError as exc:
+            logger.exception("lake status query failed")
+            raise HTTPException(status_code=503, detail="lake status is unavailable") from exc
 
     @app.get("/api/v1/events/recent", response_model=RecentEventsResponse)
     def recent_events(

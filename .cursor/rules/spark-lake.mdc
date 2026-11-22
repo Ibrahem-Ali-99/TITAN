@@ -1,0 +1,16 @@
+---
+description: Spark, Parquet, and the MinIO lake
+globs: "pipelines/spark/**/*.py"
+alwaysApply: false
+---
+
+# Spark lake
+
+- Kafka is the emitted log. PostgreSQL disposition is authoritative for accepted, duplicate_operation, and conflict. Bronze stores raw Kafka records. Silver is a published snapshot of classified rows. ClickHouse is not a Day 3 target.
+- Do not reconstruct first-write-wins from Spark arrival order. A Bronze event missing from PostgreSQL is pending, not rejected.
+- Checkpoints stay on the local `spark_checkpoints` volume. Do not put a Structured Streaming checkpoint on MinIO.
+- A retried microbatch overwrites its own `batch_id` prefix. Do not append Bronze files for the same batch.
+- Silver publishes a new version directory. The current version is the latest `lake_publications` row with status `published`. A failed validation must not move that pointer.
+- Money is decimal. Do not sum different currencies into one total.
+- Canonical order metrics are recomputed from accepted events. A streaming watermark applies only to a result labeled `preliminary_streaming`.
+- Do not log S3 or database credentials. Do not claim exactly-once delivery for the Parquet lake.

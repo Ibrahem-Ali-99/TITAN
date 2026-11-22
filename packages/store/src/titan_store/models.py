@@ -202,3 +202,42 @@ class ReplayAttempt(Base):
     kafka_topic: Mapped[str | None] = mapped_column(String(255), nullable=True)
     kafka_partition: Mapped[int | None] = mapped_column(Integer, nullable=True)
     kafka_offset: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class SparkJobStatus(Base):
+    """Last report from a Spark job. Absence means the job has not reported."""
+
+    __tablename__ = "spark_job_status"
+
+    job_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    last_batch_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    last_batch_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    last_offsets: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class LakePublication(Base):
+    """One Silver version. Only status ``published`` can be the current dataset."""
+
+    __tablename__ = "lake_publications"
+
+    publication_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    version_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    result_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    bronze_record_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bronze_distinct_offsets: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pending_event_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    silver_order_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    silver_payment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    silver_inventory_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    order_metric_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    accepted_revenue_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    identifier_conflict_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_occurred_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { PipelinesDashboard } from "@/components/pipelines-dashboard";
 
 export default function PipelinesPage() {
-  return <PlannedModule href="/pipelines" />;
+  return <PipelinesDashboard />;
 }

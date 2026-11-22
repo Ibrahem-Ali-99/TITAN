@@ -5,9 +5,10 @@ alwaysApply: true
 
 # Architecture
 
-- Keep the path explicit: synthetic event, Kafka, ingestion, PostgreSQL, FastAPI, Next.js.
-- `packages/contracts` owns the canonical event. `packages/store` owns the operational tables. Ingestion writes. The API reads.
-- Do not add Spark, Dagster, dbt, Redis, Kubernetes, or a schema registry for Day 1.
-- ClickHouse and MinIO stay provisioned infrastructure until a milestone actually loads them.
+- Keep the operational path explicit: synthetic, REST, or CSV event, Kafka, ingestion, PostgreSQL, FastAPI, Next.js.
+- `packages/contracts` owns the canonical event. `packages/store` owns the operational tables. Ingestion writes commerce events. The API reads them.
+- Spark reads Kafka into Bronze and PostgreSQL dispositions into Silver. It does not write `commerce_events`.
+- Do not add Dagster, dbt, Redis, Kubernetes, or a schema registry.
+- ClickHouse stays unused until a warehouse milestone. MinIO holds the Parquet lake.
 - Unimplemented product modules stay labeled planned. Do not fill them with fake metrics.
 - Prefer a small explicit module over a new repository or service layer.

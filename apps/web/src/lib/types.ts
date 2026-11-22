@@ -95,6 +95,37 @@ export type QuarantineList = {
   }[];
 };
 
+export type LakeStatus = {
+  spark_jobs: {
+    job_name: string;
+    state: string;
+    display_state: string;
+    last_batch_id: number | null;
+    last_offsets: string | null;
+    detail: string | null;
+    updated_at: string;
+    error_detail: string | null;
+  }[];
+  current_publication: {
+    publication_id: string;
+    version_uri: string;
+    finished_at: string;
+    silver_order_count: number | null;
+    silver_payment_count: number | null;
+    silver_inventory_count: number | null;
+    order_metric_rows: number | null;
+    bronze_record_count: number | null;
+    bronze_distinct_offsets: number | null;
+    pending_event_count: number | null;
+    identifier_conflict_count: number | null;
+    accepted_revenue: Record<string, string>;
+    max_occurred_at: string | null;
+    result_kind: string;
+  } | null;
+  failed_publications: number;
+  metric_definitions: Record<string, string>;
+};
+
 export type ReplayList = {
   returned: number;
   items: {

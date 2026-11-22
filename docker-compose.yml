@@ -12,6 +12,25 @@ x-python: &python-image
     dockerfile: infrastructure/docker/python.Dockerfile
   logging: *default-logging
 
+x-spark: &spark-image
+  image: titan-spark:4.0.1
+  build:
+    context: .
+    dockerfile: infrastructure/docker/spark.Dockerfile
+  logging: *default-logging
+
+x-spark-env: &spark-env
+  KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+  DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-titan}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-titan_dev_password}
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-titan}
+  MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-titan_dev_password}
+  LAKE_BUCKET: titan-lake
+  CHECKPOINT_ROOT: /var/lib/titan/spark-checkpoints
+
 services:
   kafka:
     image: apache/kafka:4.4.0
@@ -252,6 +271,77 @@ services:
         limits:
           memory: 768M
 
+  lake-init:
+    <<: *spark-image
+    profiles: ["processing"]
+    command: ["python", "-m", "titan_spark.init_lake"]
+    environment:
+      <<: *spark-env
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  spark-bronze:
+    <<: *spark-image
+    profiles: ["processing"]
+    command: ["python", "-m", "titan_spark.bronze", "--trigger", "availableNow"]
+    environment:
+      <<: *spark-env
+    volumes:
+      - ./pipelines/spark:/opt/titan/pipelines/spark
+      - spark_checkpoints:/var/lib/titan/spark-checkpoints
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      lake-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    restart: "no"
+
+  spark-silver:
+    <<: *spark-image
+    profiles: ["processing"]
+    command: ["python", "-m", "titan_spark.silver"]
+    environment:
+      <<: *spark-env
+    volumes:
+      - ./pipelines/spark:/opt/titan/pipelines/spark
+      - spark_checkpoints:/var/lib/titan/spark-checkpoints
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      lake-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    restart: "no"
+
+  spark-tests:
+    <<: *spark-image
+    profiles: ["processing"]
+    command: ["python", "-m", "pytest", "-q", "pipelines/spark/tests"]
+    volumes:
+      - ./pipelines/spark:/opt/titan/pipelines/spark
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    restart: "no"
+
   event-generator:
     <<: *python-image
     profiles: ["generate"]
@@ -268,4 +358,5 @@ volumes:
   postgres_data:
   clickhouse_data:
   minio_data:
+  spark_checkpoints:
   web_node_modules:

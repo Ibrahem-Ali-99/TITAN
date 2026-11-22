@@ -44,8 +44,8 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/pipelines",
     label: "Pipelines",
     icon: GitBranch,
-    available: false,
-    summary: "Orchestrated pipelines are a later milestone. No pipeline runs are recorded.",
+    available: true,
+    summary: "Last Spark report and the current Silver publication. Not a live lake scan.",
   },
   {
     href: "/warehouse",
