@@ -38,7 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Streaming",
     icon: Radio,
     available: true,
-    summary: "Durable consume, quarantine, conflict, and replay outcomes. Lag is not measured.",
+    summary: "Durable consume, quarantine, conflict, and replay outcomes.",
   },
   {
     href: "/pipelines",
@@ -58,22 +58,21 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/data-quality",
     label: "Data Quality",
     icon: ShieldCheck,
-    available: false,
-    summary:
-      "Quarantine counts are on Overview. A data-quality workspace is not available yet.",
+    available: true,
+    summary: "Candidate checks, findings, and whether a run was an injected fault.",
   },
   {
     href: "/ml",
     label: "ML & Predictions",
     icon: Brain,
-    available: false,
-    summary: "No models are trained or served. This module is not available.",
+    available: true,
+    summary: "Stored demand forecasts, baseline metrics, and statistical anomalies.",
   },
   {
     href: "/monitoring",
     label: "Monitoring",
     icon: Activity,
-    available: false,
-    summary: "Host and broker monitoring is not wired up. No latency or error-rate series exist.",
+    available: true,
+    summary: "Pipeline history, freshness, and ingestion-consumer lag.",
   },
 ];

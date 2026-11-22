@@ -9,6 +9,7 @@ alwaysApply: true
 - `packages/contracts` owns the canonical event. `packages/store` owns the operational tables. Ingestion writes commerce events. The API reads them.
 - Spark reads Kafka into Bronze and PostgreSQL dispositions into Silver. It does not write `commerce_events`.
 - ClickHouse serves the published warehouse. dbt builds the analytical models. Dagster orders those jobs and does not transform rows.
+- Quality checks and demand training read a published or candidate warehouse version. They write their own metadata and do not write `commerce_events`.
 - Do not add Redis, Kubernetes, or a schema registry.
 - MinIO holds the Parquet lake. Do not load invented warehouse metrics.
 - Unimplemented product modules stay labeled planned. Do not fill them with fake metrics.

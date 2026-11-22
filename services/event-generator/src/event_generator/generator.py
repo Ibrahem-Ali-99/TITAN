@@ -5,10 +5,23 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from titan_contracts.events import OrderCreatedEvent
-from titan_contracts.identifiers import ORDER_CREATED, SCHEMA_VERSION, SYNTHETIC_SOURCE
+from titan_contracts.events import (
+    CommerceEvent,
+    InventoryUpdatedEvent,
+    OrderCreatedEvent,
+    PaymentCompletedEvent,
+)
+from titan_contracts.identifiers import (
+    INVENTORY_UPDATED,
+    ORDER_CREATED,
+    PAYMENT_COMPLETED,
+    SCHEMA_VERSION,
+    SYNTHETIC_SOURCE,
+)
+from titan_contracts.inventory import InventoryUpdatedPayload
 from titan_contracts.money import SUPPORTED_CURRENCIES, order_total
 from titan_contracts.orders import OrderCreatedPayload, OrderItem
+from titan_contracts.payments import PaymentCompletedPayload
 
 # Stable namespace so deterministic ids do not depend on the payload RNG.
 EVENT_ID_NAMESPACE = uuid.UUID("6f0d3e2a-1b7c-4d5e-8f90-a1b2c3d4e5f6")
@@ -112,3 +125,94 @@ def generate_orders(
             )
         )
     return events
+
+
+def generate_history(days: int, seed: int) -> list[CommerceEvent]:
+    """Deterministic multi-day orders, matching payments, and daily inventory.
+
+    This is the ML backfill scenario. It is not the short local demo generator.
+    Event ids are stable for the seed, so a second publish does not add orders.
+    """
+    if days < 14 or days > 120:
+        raise ValueError("history days must be between 14 and 120")
+    factors = (1.0, 1.0, 1.1, 1.2, 1.6, 0.7, 0.5)
+    currencies = ("USD", "EUR", "GBP")
+    events: list[CommerceEvent] = []
+    sequence = 0
+    for day in range(days):
+        moment = TIMELINE_ORIGIN + timedelta(days=day)
+        sold: dict[str, int] = {product_id: 0 for product_id, _price in CATALOG}
+        order_count = max(2, int(round(6 * factors[moment.weekday()] + day // 14)))
+        for index in range(order_count):
+            product_id, price = CATALOG[(day * 3 + index + seed) % len(CATALOG)]
+            quantity = 1 + (day + index) % 4
+            sold[product_id] += quantity
+            total = order_total(((quantity, price),))
+            occurred_at = moment + timedelta(hours=9, minutes=index)
+            customer_id = f"cus_hist{(index + day) % 12:08d}"
+            order_id = f"ord_h{seed % 10000:04d}{day:03d}{index:02d}"
+            currency = currencies[(day + index) % 3]
+            events.append(
+                OrderCreatedEvent(
+                    event_id=_history_id(seed, "order", sequence),
+                    event_type=ORDER_CREATED,
+                    schema_version=SCHEMA_VERSION,
+                    occurred_at=occurred_at,
+                    produced_at=occurred_at + timedelta(minutes=30),
+                    source=SYNTHETIC_SOURCE,
+                    payload=OrderCreatedPayload(
+                        order_id=order_id,
+                        customer_id=customer_id,
+                        items=[
+                            OrderItem(
+                                product_id=product_id,
+                                quantity=quantity,
+                                unit_price=price,
+                            )
+                        ],
+                        currency=currency,
+                        total_amount=total,
+                    ),
+                )
+            )
+            events.append(
+                PaymentCompletedEvent(
+                    event_id=_history_id(seed, "payment", sequence),
+                    event_type=PAYMENT_COMPLETED,
+                    schema_version=SCHEMA_VERSION,
+                    occurred_at=occurred_at + timedelta(minutes=20),
+                    produced_at=occurred_at + timedelta(minutes=40),
+                    source=SYNTHETIC_SOURCE,
+                    payload=PaymentCompletedPayload(
+                        payment_id=f"pay_h{seed % 10000:04d}{day:03d}{index:02d}",
+                        order_id=order_id,
+                        customer_id=customer_id,
+                        currency=currency,
+                        amount=total,
+                        method="card",
+                    ),
+                )
+            )
+            sequence += 1
+        for product_index, (product_id, _price) in enumerate(CATALOG):
+            events.append(
+                InventoryUpdatedEvent(
+                    event_id=_history_id(seed, "inventory", day * 10 + product_index),
+                    event_type=INVENTORY_UPDATED,
+                    schema_version=SCHEMA_VERSION,
+                    occurred_at=moment + timedelta(hours=8),
+                    produced_at=moment + timedelta(hours=8, minutes=5),
+                    source=SYNTHETIC_SOURCE,
+                    payload=InventoryUpdatedPayload(
+                        product_id=product_id,
+                        warehouse_id="wh_main0001",
+                        quantity_on_hand=max(0, 500 - day * 3),
+                        delta=-sold[product_id],
+                    ),
+                )
+            )
+    return events
+
+
+def _history_id(seed: int, kind: str, index: int) -> uuid.UUID:
+    return uuid.uuid5(EVENT_ID_NAMESPACE, f"history:{seed}:{kind}:{index}")

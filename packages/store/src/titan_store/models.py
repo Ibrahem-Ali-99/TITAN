@@ -289,3 +289,91 @@ class WarehouseLoad(Base):
     item_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     accepted_revenue_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class QualityRun(Base):
+    """One quality evaluation. A later success does not delete a failed run."""
+
+    __tablename__ = "quality_runs"
+
+    run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    warehouse_publication_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    silver_publication_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    blocking: Mapped[int] = mapped_column(Integer, nullable=False)
+    injected: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    failure_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class QualityFinding(Base):
+    """One check result inside a quality run."""
+
+    __tablename__ = "quality_findings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    check_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    check_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    dataset: Mapped[str] = mapped_column(String(64), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    blocks_publication: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed: Mapped[str] = mapped_column(Text, nullable=False)
+    expected: Mapped[str] = mapped_column(Text, nullable=False)
+    passed: Mapped[int] = mapped_column(Integer, nullable=False)
+    business_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    detail: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MlRun(Base):
+    """One training attempt. Only status ``promoted`` is served."""
+
+    __tablename__ = "ml_runs"
+
+    run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    warehouse_publication_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    algorithm: Mapped[str] = mapped_column(String(80), nullable=False)
+    hyperparameters_json: Mapped[str] = mapped_column(Text, nullable=False)
+    feature_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    train_start: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    train_end: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    test_start: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    test_end: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    metrics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    artifact_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trained_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MlPrediction(Base):
+    """A stored forecast. ``kind`` separates evaluation rows from forward forecasts."""
+
+    __tablename__ = "ml_predictions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    product_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    target_date: Mapped[str] = mapped_column(String(16), nullable=False)
+    predicted_quantity: Mapped[str] = mapped_column(String(32), nullable=False)
+    actual_quantity: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class MlAnomaly(Base):
+    """A statistical demand score. This is not a contract violation."""
+
+    __tablename__ = "ml_anomalies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    product_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    activity_date: Mapped[str] = mapped_column(String(16), nullable=False)
+    observed: Mapped[str] = mapped_column(String(32), nullable=False)
+    baseline: Mapped[str] = mapped_column(String(32), nullable=False)
+    score: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    flagged: Mapped[int] = mapped_column(Integer, nullable=False)
+    method: Mapped[str] = mapped_column(String(64), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, nullable=False)

@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { MlDashboard } from "@/components/ml-dashboard";
 
-export default function MachineLearningPage() {
-  return <PlannedModule href="/ml" />;
+export default function MlPage() {
+  return <MlDashboard />;
 }

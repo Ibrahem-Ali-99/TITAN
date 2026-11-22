@@ -105,7 +105,7 @@ def main() -> None:
         raise SystemExit(f"stale Silver replaced the active publication: {refused}")
 
     dagster_started = time.perf_counter()
-    _dagster("clickhouse_load", "warehouse_models", "analytics_ready")
+    _dagster("clickhouse_load", "warehouse_models", "quality_gate", "analytics_ready")
     dagster_seconds = time.perf_counter() - dagster_started
     if _active_orders() != _published_order_count():
         raise SystemExit("Dagster promotion does not match the serving view")
@@ -302,6 +302,8 @@ def _python(module: str, *args: str) -> subprocess.CompletedProcess[str]:
     env["PYTHONPATH"] = os.pathsep.join(
         [
             str(ROOT / "pipelines" / "warehouse" / "src"),
+            str(ROOT / "pipelines" / "quality" / "src"),
+            str(ROOT / "pipelines" / "ml" / "src"),
             str(ROOT / "pipelines" / "dagster" / "src"),
             env.get("PYTHONPATH", ""),
         ]

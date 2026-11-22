@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { MonitoringDashboard } from "@/components/monitoring-dashboard";
 
 export default function MonitoringPage() {
-  return <PlannedModule href="/monitoring" />;
+  return <MonitoringDashboard />;
 }

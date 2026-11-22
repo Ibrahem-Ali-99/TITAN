@@ -8,6 +8,8 @@ from titan_dagster.definitions import (
     analytics_ready,
     bronze_evidence,
     clickhouse_load,
+    demand_forecast,
+    quality_gate,
     silver_publication,
     warehouse_models,
 )
@@ -17,7 +19,9 @@ ASSETS = {
     "silver_publication": silver_publication,
     "clickhouse_load": clickhouse_load,
     "warehouse_models": warehouse_models,
+    "quality_gate": quality_gate,
     "analytics_ready": analytics_ready,
+    "demand_forecast": demand_forecast,
 }
 
 
@@ -26,6 +30,7 @@ def main() -> None:
         "silver_publication",
         "clickhouse_load",
         "warehouse_models",
+        "quality_gate",
         "analytics_ready",
     ]
     unknown = [name for name in names if name not in ASSETS]

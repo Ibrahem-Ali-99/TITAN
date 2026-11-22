@@ -71,13 +71,33 @@ def warehouse_models(context: AssetExecutionContext, clickhouse_load: str) -> st
 
 
 @asset(retry_policy=RETRY, group_name="warehouse")
+def quality_gate(context: AssetExecutionContext, warehouse_models: str) -> str:
+    """Blocking checks for the tested candidate. Promotion has not happened yet."""
+    from titan_warehouse.load import run_quality_gate
+
+    run_id = run_quality_gate(warehouse_models)
+    context.add_output_metadata({"quality_run_id": run_id})
+    return warehouse_models
+
+
+@asset(deps=[quality_gate], retry_policy=RETRY, group_name="warehouse")
 def analytics_ready(context: AssetExecutionContext, warehouse_models: str) -> str:
-    """Promote the tested load. A failed dbt test never reaches this asset."""
+    """Promote the tested load after the quality gate. A failed check never arrives here."""
     from titan_warehouse.load import publish_load
 
     publication_id = publish_load(warehouse_models)
     context.add_output_metadata({"warehouse_publication_id": publication_id})
     return publication_id
+
+
+@asset(retry_policy=RETRY, group_name="ml")
+def demand_forecast(context: AssetExecutionContext) -> str:
+    """Train from the active publication. A training failure leaves that publication in place."""
+    from titan_ml.train import train_demand_model
+
+    run_id = train_demand_model()
+    context.add_output_metadata({"ml_run_id": run_id})
+    return run_id
 
 
 analytics_publication = define_asset_job(
@@ -86,8 +106,14 @@ analytics_publication = define_asset_job(
         silver_publication,
         clickhouse_load,
         warehouse_models,
+        quality_gate,
         analytics_ready,
     ),
+)
+
+demand_training = define_asset_job(
+    name="demand_training",
+    selection=AssetSelection.assets(demand_forecast),
 )
 
 bronze_refresh = define_asset_job(
@@ -101,14 +127,22 @@ hourly_analytics = ScheduleDefinition(
     name="hourly_analytics",
 )
 
+daily_training = ScheduleDefinition(
+    job=demand_training,
+    cron_schedule="30 2 * * *",
+    name="daily_training",
+)
+
 defs = Definitions(
     assets=[
         bronze_evidence,
         silver_publication,
         clickhouse_load,
         warehouse_models,
+        quality_gate,
         analytics_ready,
+        demand_forecast,
     ],
-    jobs=[analytics_publication, bronze_refresh],
-    schedules=[hourly_analytics],
+    jobs=[analytics_publication, bronze_refresh, demand_training],
+    schedules=[hourly_analytics, daily_training],
 )

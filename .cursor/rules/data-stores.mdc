@@ -10,5 +10,5 @@ alwaysApply: false
 - Store the canonical envelope. Do not reshape it into a warehouse model on Day 1.
 - `ingested_at` is database write time. `occurred_at` is business time. API copy must keep them distinct.
 - Persisted row counts are not Kafka throughput.
-- ClickHouse holds the published Silver snapshot and the dbt models built from it. Do not load sample analytical data. A warehouse publication is visible only after its pointer is exchanged.
+- ClickHouse holds the published Silver snapshot and the dbt models built from it. Do not load sample analytical data. A warehouse publication is visible only after its pointer is exchanged. Quality and ML metadata live in PostgreSQL. Model artifacts live under the lake bucket prefix `models/`.
 - Use timezone-aware UTC timestamps in the operational store.

@@ -18,6 +18,26 @@ from sqlalchemy.orm import Session
 from titan_api.config import ApiSettings
 from titan_api.lake import LakeStatus, load_lake_status
 from titan_api.logging_config import configure_logging
+from titan_api.platform import (
+    AnomaliesResponse,
+    FindingsResponse,
+    ForecastsResponse,
+    ModelsResponse,
+    MonitoringOverview,
+    QualityRuns,
+    QualitySummary,
+    RunsResponse,
+    StageFreshness,
+    ml_anomalies,
+    ml_forecasts,
+    ml_models,
+    monitoring_freshness,
+    monitoring_overview,
+    monitoring_runs,
+    quality_findings,
+    quality_runs,
+    quality_summary,
+)
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
 from titan_api.routes import register_routes
 from titan_api.schemas import HealthLive, HealthReady, IngestionStats, RecentEventsResponse
@@ -54,7 +74,20 @@ REQUIRED_TABLES = (
     "bronze_batch_commits",
     "pipeline_runs",
     "warehouse_loads",
+    "quality_runs",
+    "quality_findings",
+    "ml_runs",
+    "ml_predictions",
+    "ml_anomalies",
 )
+
+
+def _read[T](loader: Callable[[], T]) -> T:
+    try:
+        return loader()
+    except SQLAlchemyError as exc:
+        logger.exception("platform query failed")
+        raise HTTPException(status_code=503, detail="platform data is unavailable") from exc
 
 
 def _analytics[T](loader: Callable[[], T]) -> T:
@@ -159,6 +192,68 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         except SQLAlchemyError as exc:
             logger.exception("warehouse status query failed")
             raise HTTPException(status_code=503, detail="warehouse status is unavailable") from exc
+
+    @app.get("/api/v1/quality/summary", response_model=QualitySummary)
+    def quality_summary_route(session: Session = Depends(get_session)) -> QualitySummary:
+        return _read(lambda: quality_summary(session))
+
+    @app.get("/api/v1/quality/runs", response_model=QualityRuns)
+    def quality_runs_route(
+        limit: int = Query(default=20, ge=1, le=100),
+        session: Session = Depends(get_session),
+    ) -> QualityRuns:
+        return _read(lambda: quality_runs(session, limit))
+
+    @app.get("/api/v1/quality/findings", response_model=FindingsResponse)
+    def quality_findings_route(
+        limit: int = Query(default=50, ge=1, le=200),
+        run_id: str | None = None,
+        failed_only: bool = False,
+        session: Session = Depends(get_session),
+    ) -> FindingsResponse:
+        return _read(lambda: quality_findings(session, limit, run_id, failed_only))
+
+    @app.get("/api/v1/ml/models", response_model=ModelsResponse)
+    def ml_models_route(
+        limit: int = Query(default=10, ge=1, le=50),
+        session: Session = Depends(get_session),
+    ) -> ModelsResponse:
+        return _read(lambda: ml_models(session, limit))
+
+    @app.get("/api/v1/ml/evaluations", response_model=ModelsResponse)
+    def ml_evaluations_route(session: Session = Depends(get_session)) -> ModelsResponse:
+        return _read(lambda: ml_models(session, 10))
+
+    @app.get("/api/v1/ml/forecasts", response_model=ForecastsResponse)
+    def ml_forecasts_route(
+        limit: int = Query(default=50, ge=1, le=200),
+        kind: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> ForecastsResponse:
+        return _read(lambda: ml_forecasts(session, limit, kind))
+
+    @app.get("/api/v1/ml/anomalies", response_model=AnomaliesResponse)
+    def ml_anomalies_route(
+        limit: int = Query(default=50, ge=1, le=200),
+        flagged_only: bool = False,
+        session: Session = Depends(get_session),
+    ) -> AnomaliesResponse:
+        return _read(lambda: ml_anomalies(session, limit, flagged_only))
+
+    @app.get("/api/v1/monitoring/overview", response_model=MonitoringOverview)
+    def monitoring_overview_route(session: Session = Depends(get_session)) -> MonitoringOverview:
+        return _read(lambda: monitoring_overview(session, resolved))
+
+    @app.get("/api/v1/monitoring/runs", response_model=RunsResponse)
+    def monitoring_runs_route(
+        limit: int = Query(default=30, ge=1, le=100),
+        session: Session = Depends(get_session),
+    ) -> RunsResponse:
+        return _read(lambda: monitoring_runs(session, limit))
+
+    @app.get("/api/v1/monitoring/freshness", response_model=list[StageFreshness])
+    def monitoring_freshness_route(session: Session = Depends(get_session)) -> list[StageFreshness]:
+        return _read(lambda: monitoring_freshness(session))
 
     @app.get("/api/v1/analytics/overview", response_model=AnalyticsOverview)
     def analytics_overview(session: Session = Depends(get_session)) -> AnalyticsOverview:

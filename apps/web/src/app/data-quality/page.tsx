@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { QualityDashboard } from "@/components/quality-dashboard";
 
 export default function DataQualityPage() {
-  return <PlannedModule href="/data-quality" />;
+  return <QualityDashboard />;
 }

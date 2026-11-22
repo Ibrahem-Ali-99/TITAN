@@ -58,6 +58,7 @@ def run_warehouse_pipeline(
         warehouse_id = str(uuid4())
         _insert_load(database_url, load_id, silver, warehouse_id, "staging")
         _record("warehouse_load", "running", f"staging {warehouse_id}")
+        started_load = datetime.now(UTC)
         try:
             client = _clickhouse()
             _ensure_tables(client)
@@ -82,13 +83,48 @@ def run_warehouse_pipeline(
                 silver["finished_at"], None if active is None else active["silver_finished_at"]
             ):
                 raise StalePublication("a newer Silver snapshot exists")
+            started = datetime.now(UTC)
+            try:
+                from titan_quality.evaluate import QualityGateError, gate_load
+
+                gate_load(
+                    database_url,
+                    client,
+                    {
+                        "warehouse_publication_id": warehouse_id,
+                        "silver_publication_id": silver["publication_id"],
+                        "revenue_json": summary["revenue_json"],
+                    },
+                )
+            except QualityGateError as exc:
+                _record(
+                    "quality_gate",
+                    "failed",
+                    load_id,
+                    error=str(exc)[:2000],
+                    started_at=started,
+                )
+                raise
+            _record("quality_gate", "succeeded", load_id, started_at=started)
             _promote(client, warehouse_id, silver, summary)
             _mark(database_url, load_id, "published", summary)
-            _record("warehouse_load", "succeeded", warehouse_id, metadata=summary)
+            _record(
+                "warehouse_load",
+                "succeeded",
+                warehouse_id,
+                metadata=summary,
+                started_at=started_load,
+            )
             return warehouse_id
         except Exception as exc:
             _mark(database_url, load_id, "failed", error=str(exc)[:2000])
-            _record("warehouse_load", "failed", warehouse_id, error=str(exc)[:2000])
+            _record(
+                "warehouse_load",
+                "failed",
+                warehouse_id,
+                error=str(exc)[:2000],
+                started_at=started_load,
+            )
             raise
 
 
@@ -218,20 +254,27 @@ def _record(
     detail: str,
     error: str | None = None,
     metadata: dict[str, object] | None = None,
+    started_at: datetime | None = None,
 ) -> None:
-    now = datetime.now(UTC)
+    finished = datetime.now(UTC)
+    started = started_at or finished
+    duration_ms = None
+    if started_at is not None:
+        duration_ms = max(0, int((finished - started).total_seconds() * 1000))
     with psycopg.connect(_database_url()) as connection:
         connection.execute(
             """
             insert into pipeline_runs (
-                job_name, state, started_at, finished_at, detail, error_detail, metadata_json
-            ) values (%s, %s, %s, %s, %s, %s, %s)
+                job_name, state, started_at, finished_at, duration_ms,
+                detail, error_detail, metadata_json
+            ) values (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 job_name,
                 state,
-                now,
-                now,
+                started,
+                finished,
+                duration_ms,
                 detail,
                 error,
                 None if metadata is None else json.dumps(metadata),
@@ -566,14 +609,36 @@ def test_load(load_id: str) -> str:
         row = _load_row(database_url, load_id)
         if row["status"] != "validated":
             raise WarehouseError(f"load {load_id} is {row['status']}, not validated")
+        started = datetime.now(UTC)
         try:
             _run_dbt(str(row["warehouse_publication_id"]))
         except Exception as exc:
-            _record("warehouse_models", "failed", load_id, error=str(exc)[:2000])
+            _record(
+                "warehouse_models",
+                "failed",
+                load_id,
+                error=str(exc)[:2000],
+                started_at=started,
+            )
             raise
         _mark(database_url, load_id, "tested", _summary_from_row(row))
-        _record("warehouse_models", "succeeded", load_id)
+        _record("warehouse_models", "succeeded", load_id, started_at=started)
         return load_id
+
+
+def run_quality_gate(load_id: str) -> str:
+    """Evaluate a tested load without promoting it."""
+    database_url = _database_url()
+    row = _load_row(database_url, load_id)
+    if row["status"] not in {"tested", "published"}:
+        raise WarehouseError(f"load {load_id} is {row['status']}, not tested")
+    client = _clickhouse()
+    try:
+        from titan_quality.evaluate import gate_load
+
+        return gate_load(database_url, client, row)
+    finally:
+        client.close()
 
 
 def publish_load(load_id: str) -> str:
@@ -593,6 +658,16 @@ def publish_load(load_id: str) -> str:
             raise StalePublication(f"load {load_id} is older than the published snapshot")
         client = _clickhouse()
         summary = _summary_from_row(row)
+        started = datetime.now(UTC)
+        try:
+            from titan_quality.evaluate import QualityGateError, gate_load
+
+            gate_load(database_url, client, row)
+        except QualityGateError as exc:
+            _mark(database_url, load_id, "failed", summary, error=str(exc)[:2000])
+            _record("quality_gate", "failed", load_id, error=str(exc)[:2000], started_at=started)
+            raise WarehouseError(str(exc)) from exc
+        _record("quality_gate", "succeeded", load_id, started_at=started)
         _promote(
             client,
             str(row["warehouse_publication_id"]),
@@ -608,6 +683,7 @@ def publish_load(load_id: str) -> str:
             "succeeded",
             str(row["warehouse_publication_id"]),
             metadata=summary,
+            started_at=started,
         )
         return str(row["warehouse_publication_id"])
 

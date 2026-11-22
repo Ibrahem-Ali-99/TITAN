@@ -88,7 +88,7 @@ Publish one order through the API:
 uv run python scripts/verify_day2.py
 ```
 
-Day 3 Spark jobs are on the `processing` profile and are documented in [docs/spark-lake.md](docs/spark-lake.md). Day 4 warehouse publication is documented in [docs/warehouse.md](docs/warehouse.md).
+Day 3 Spark jobs are on the `processing` profile and are documented in [docs/spark-lake.md](docs/spark-lake.md). Day 4 warehouse publication is documented in [docs/warehouse.md](docs/warehouse.md). Day 5 quality checks, monitoring, and demand forecasts are documented in [docs/quality-ml.md](docs/quality-ml.md).
 
 ```powershell
 uv sync --group orchestration
@@ -109,7 +109,10 @@ The optional Compose profile is `docker compose --profile orchestration up -d da
 docker compose run --rm --build migrate
 uv run python scripts/verify_day3.py
 uv run python scripts/verify_day4.py
+uv run python scripts/verify_day5.py
 ```
+
+The Day 5 script publishes a 28-day synthetic history when the warehouse has fewer than 21 distinct item dates, then trains from the published warehouse. The short demo generator is still `--count`. Do not use `--history-days` for that demo.
 
 ## Tests and static checks
 

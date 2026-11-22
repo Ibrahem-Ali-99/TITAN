@@ -49,11 +49,19 @@ orchestration = [
     "clickhouse-connect==1.13.0",
     "psycopg[binary]==3.3.9",
     "pyarrow==26.0.1",
+    "scikit-learn==1.7.2",
+    "minio==7.2.20",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["scripts", "pipelines/spark/src", "pipelines/warehouse/src"]
+pythonpath = [
+    "scripts",
+    "pipelines/spark/src",
+    "pipelines/warehouse/src",
+    "pipelines/quality/src",
+    "pipelines/ml/src",
+]
 markers = [
     "integration: requires the local Docker Compose stack",
 ]
@@ -71,6 +79,8 @@ src = [
     "pipelines/spark/src",
     "pipelines/warehouse/src",
     "pipelines/dagster/src",
+    "pipelines/quality/src",
+    "pipelines/ml/src",
     "tests",
     "scripts",
 ]
@@ -95,11 +105,14 @@ known-first-party = [
     "titan_spark",
     "titan_warehouse",
     "titan_dagster",
+    "titan_quality",
+    "titan_ml",
 ]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = ["pipelines/quality/src", "pipelines/ml/src"]
 plugins = ["pydantic.mypy"]
 warn_unused_ignores = true
 files = [
@@ -116,6 +129,8 @@ files = [
     "pipelines/spark/src/titan_spark/config.py",
     "pipelines/spark/src/titan_spark/init_lake.py",
     "pipelines/warehouse/src/titan_warehouse/policy.py",
+    "pipelines/quality/src/titan_quality/checks.py",
+    "pipelines/ml/src/titan_ml/features.py",
 ]
 
 [[tool.mypy.overrides]]
