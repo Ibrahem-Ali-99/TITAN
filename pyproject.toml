@@ -36,6 +36,7 @@ titan-store = { workspace = true }
 [dependency-groups]
 dev = [
     "httpx==0.28.1",
+    "httpx2==2.16.2",
     "minio==7.2.20",
     "mypy==2.4.1",
     "pytest==9.2.0",
