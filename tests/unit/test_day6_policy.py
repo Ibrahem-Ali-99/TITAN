@@ -6,7 +6,28 @@ from titan_api.config import ApiSettings
 from titan_api.main import create_app
 from titan_messaging.producer import PublishError, acknowledgement_is_uncertain
 from titan_ml.selection import choose_strategy, recursive_seasonal
-from titan_warehouse.recovery import PublicationEvidence, decide_recovery, is_verified
+from titan_warehouse.recovery import PublicationEvidence, decide_recovery, fact_count, is_verified
+
+
+def test_a_missing_fact_group_counts_as_zero() -> None:
+    assert fact_count({}, "payments") == 0
+    assert fact_count({"orders": 11}, "orders") == 11
+    orders_only = PublicationEvidence(
+        publication_id="orders-only",
+        published=True,
+        dbt_passed=True,
+        quality_passed=True,
+        silver_published=True,
+        order_count=11,
+        payment_count=0,
+        inventory_count=0,
+        item_count=24,
+        clickhouse_orders=11,
+        clickhouse_payments=fact_count({}, "payments"),
+        clickhouse_inventory=fact_count({}, "inventory"),
+        clickhouse_items=24,
+    )
+    assert is_verified(orders_only)
 
 
 def test_a_worse_candidate_is_not_the_served_method() -> None:

@@ -72,7 +72,19 @@ def run_warehouse_pipeline(
             if stop_after == "validated":
                 _record("clickhouse_load", "succeeded", load_id, metadata=summary)
                 return load_id
-            _run_dbt(warehouse_id)
+            started_dbt = datetime.now(UTC)
+            try:
+                _run_dbt(warehouse_id)
+            except Exception as exc:
+                _record(
+                    "warehouse_models",
+                    "failed",
+                    load_id,
+                    error=str(exc)[:2000],
+                    started_at=started_dbt,
+                )
+                raise
+            _record("warehouse_models", "succeeded", load_id, started_at=started_dbt)
             _mark(database_url, load_id, "tested", summary)
             if crash_after == "tested" or stop_after == "tested":
                 if crash_after == "tested":
@@ -794,7 +806,7 @@ def reconcile_warehouse() -> str:
 
 
 def _recovery_evidence(database_url: str, client: Any) -> list[Any]:
-    from titan_warehouse.recovery import PublicationEvidence
+    from titan_warehouse.recovery import PublicationEvidence, fact_count
 
     published = _published_loads(database_url)
     with psycopg.connect(database_url) as connection:
@@ -841,10 +853,10 @@ def _recovery_evidence(database_url: str, client: Any) -> list[Any]:
                 payment_count=_stored_count(item["payment_count"]),
                 inventory_count=_stored_count(item["inventory_count"]),
                 item_count=_stored_count(item["item_count"]),
-                clickhouse_orders=int(observed.get("orders", -1)),
-                clickhouse_payments=int(observed.get("payments", -1)),
-                clickhouse_inventory=int(observed.get("inventory", -1)),
-                clickhouse_items=int(observed.get("items", -1)),
+                clickhouse_orders=fact_count(observed, "orders"),
+                clickhouse_payments=fact_count(observed, "payments"),
+                clickhouse_inventory=fact_count(observed, "inventory"),
+                clickhouse_items=fact_count(observed, "items"),
             )
         )
     return evidence

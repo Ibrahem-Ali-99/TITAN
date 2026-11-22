@@ -1,0 +1,191 @@
+{
+  "started_at": "2026-11-22T20:44:10.290782+00:00",
+  "project": "titan-e2e",
+  "scenarios": {
+    "ingestion": {
+      "late_order_id": "ord_f7ed54e3430d",
+      "late_occurred_at": "2026-01-01T12:00:00+00:00",
+      "csv_import": {
+        "import_id": "f1aec42a-8463-412a-84bd-01066f9cb916",
+        "status": "queued",
+        "accepted_rows": 0,
+        "rejected_rows": 1,
+        "detail": "Validation finished. Kafka publication continues after this response."
+      },
+      "malformed_replay": {
+        "items": [
+          {
+            "id": "3721fdf3-548b-4bb2-9213-28669bd27267",
+            "requested_at": "2026-11-22T20:44:46.792553+00:00",
+            "mode": "exact",
+            "outcome": "refused",
+            "downstream_state": "refused",
+            "detail": "record cannot be replayed without correction: malformed_json",
+            "quarantine_id": 1,
+            "source_event_id": null,
+            "published_event_id": null,
+            "kafka_topic": null,
+            "kafka_partition": null,
+            "kafka_offset": null
+          }
+        ]
+      },
+      "replacement_replay": {
+        "items": [
+          {
+            "id": "c3841f8a-abd9-4268-b3d7-15311c2b1904",
+            "requested_at": "2026-11-22T20:44:46.800613+00:00",
+            "mode": "replacement",
+            "outcome": "published",
+            "downstream_state": "persisted",
+            "detail": "Kafka acknowledged the event. Persistence is not complete until the consumer writes it.",
+            "quarantine_id": 1,
+            "source_event_id": null,
+            "published_event_id": "4eca34f5-6f8e-559c-bd2e-64111b363d86",
+            "kafka_topic": "titan.commerce.order-events",
+            "kafka_partition": 2,
+            "kafka_offset": 5
+          }
+        ]
+      },
+      "persisted_replay": {
+        "items": [
+          {
+            "id": "87af7c0d-d548-44fa-93fc-3f4081af937e",
+            "requested_at": "2026-11-22T20:44:47.392740+00:00",
+            "mode": "exact",
+            "outcome": "published",
+            "downstream_state": "persisted",
+            "detail": "Kafka acknowledged the event. Persistence is not complete until the consumer writes it.",
+            "quarantine_id": null,
+            "source_event_id": "22577d4e-2dde-5997-b850-992960855397",
+            "published_event_id": "22577d4e-2dde-5997-b850-992960855397",
+            "kafka_topic": "titan.commerce.order-events",
+            "kafka_partition": 0,
+            "kafka_offset": 4
+          }
+        ]
+      },
+      "logical_orders_before_restart": 7,
+      "stats": {
+        "logical_orders": 8,
+        "order_conflicts": 1,
+        "duplicate_deliveries": 3,
+        "quarantined_records": 1,
+        "csv_rows_accepted": 1,
+        "csv_rows_rejected": 1,
+        "replays_published": 2,
+        "replays_refused": 1
+      },
+      "order_rows": "ord_0940bc76b638|accepted|1\nord_3ccecfdb6b65|accepted|1\nord_4496fa34e2d4|accepted|1\nord_44ab54c6af72|accepted|1\nord_4dd90cf40dbb|accepted|1\nord_6aee4bc1deb0|accepted|1\nord_6aee4bc1deb0|conflict|1\nord_e2ecsv000001|accepted|1\nord_f7ed54e3430d|accepted|1"
+    },
+    "integration_pytest": {
+      "returncode": 0,
+      "tail": ".                                                                        [100%]\n============================== warnings summary ===============================\n.venv\\Lib\\site-packages\\fastapi\\testclient.py:1\n  D:\\TITAN\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n1 passed, 55 deselected, 1 warning in 2.47s\n"
+    },
+    "spark_warehouse": {
+      "bronze_commits_after_first": "1",
+      "bronze_commits_after_second": "2",
+      "running_rows_with_finish": "0",
+      "silver": "45896d93-adf7-4491-811f-def96fa1991e|published|11",
+      "warehouse_command_tail": "e6f5a055-f071-484f-b9c1-e01f4107ebce\n",
+      "status": {
+        "ready": false,
+        "warehouse_publication_id": "e6f5a055-f071-484f-b9c1-e01f4107ebce",
+        "order_count": null,
+        "item_count": null,
+        "accepted_revenue": {}
+      },
+      "postgres_revenue": {
+        "EUR": "1194.16",
+        "GBP": "257.49",
+        "USD": "256.19"
+      }
+    },
+    "direct_publish_records_dbt": {
+      "tail": "0e171bf1-0d3f-4c2f-bb7c-9f23f4d9287b\n",
+      "ready": true,
+      "reason": null,
+      "order_count": 11,
+      "revenue": {
+        "EUR": "1194.16",
+        "GBP": "257.49",
+        "USD": "256.19"
+      },
+      "warehouse_models_rows": "1"
+    },
+    "publication_failures": {
+      "pointer_before": "0e171bf1-0d3f-4c2f-bb7c-9f23f4d9287b",
+      "orders_before": 11,
+      "crash_inserted_tail": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\__main__.py\", line 4, in <module>\n    main()\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 925, in main\n    print(run_warehouse_pipeline(crash_after=crash_after, silver_publication_id=silver_id))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 69, in run_warehouse_pipeline\n    raise WarehouseError(\"crash after the ClickHouse insert and before publication\")\ntitan_warehouse.load.WarehouseError: crash after the ClickHouse insert and before publication\n",
+      "crash_exchanged_tail": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\__main__.py\", line 4, in <module>\n    main()\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 925, in main\n    print(run_warehouse_pipeline(crash_after=crash_after, silver_publication_id=silver_id))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 124, in run_warehouse_pipeline\n    raise WarehouseError(\ntitan_warehouse.load.WarehouseError: crash after the ClickHouse pointer exchange and before the PostgreSQL row\n",
+      "reconcile_tail": "no verified publication is recoverable; the pointer was left unchanged\n",
+      "dbt_gate_tail": "32mPASS\u001b[0m in 0.05s]\n\u001b[0m20:48:50  22 of 22 START test valid_quantities ........................................... [RUN]\n\u001b[0m20:48:50  22 of 22 PASS valid_quantities ................................................. [\u001b[32mPASS\u001b[0m in 0.05s]\n\u001b[0m20:48:50  \n\u001b[0m20:48:50  Finished running 22 data tests in 0 hours 0 minutes and 2.15 seconds (2.15s).\n\u001b[0m20:48:50  \n\u001b[0m20:48:50  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m20:48:50  \n\u001b[0m20:48:50  [\u001b[31mERROR\u001b[0m]: in test promotion_gate (tests\\promotion_gate.sql)\n\u001b[0m20:48:50    Got 1 result, configured to fail if != 0\n\u001b[0m20:48:50  \n\u001b[0m20:48:50    compiled code at target\\compiled\\titan_warehouse\\tests\\promotion_gate.sql\n\u001b[0m20:48:50  \n\u001b[0m20:48:50  Done. PASS=21 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=22\n\n",
+      "quality_inject_tail": "frozen runpy>\", line 88, in _run_code\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\__main__.py\", line 4, in <module>\n    main()\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 925, in main\n    print(run_warehouse_pipeline(crash_after=crash_after, silver_publication_id=silver_id))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\TITAN\\pipelines\\warehouse\\src\\titan_warehouse\\load.py\", line 103, in run_warehouse_pipeline\n    gate_load(\n  File \"D:\\TITAN\\pipelines\\quality\\src\\titan_quality\\evaluate.py\", line 64, in gate_load\n    raise QualityGateError(\"blocking quality checks failed: \" + \", \".join(failed))\ntitan_quality.evaluate.QualityGateError: blocking quality checks failed: orders.revenue_matches_lines\n",
+      "pointer_after": "0e171bf1-0d3f-4c2f-bb7c-9f23f4d9287b",
+      "orders_after": null,
+      "ready": false,
+      "revenue": {}
+    },
+    "reconcile_after_empty_facts": {
+      "ready": true,
+      "reason": null,
+      "warehouse_publication_id": "0e171bf1-0d3f-4c2f-bb7c-9f23f4d9287b",
+      "clickhouse_publication_id": "0e171bf1-0d3f-4c2f-bb7c-9f23f4d9287b",
+      "order_count": 11,
+      "revenue": {
+        "EUR": "1194.16",
+        "GBP": "257.49",
+        "USD": "256.19"
+      }
+    },
+    "monitoring": {
+      "latest_scope_probe": {
+        "id": 30,
+        "job_name": "e2e_scope_probe",
+        "state": "succeeded",
+        "started_at": "2026-11-22T20:50:35.232504Z",
+        "finished_at": "2026-11-22T20:50:35.232504Z",
+        "duration_ms": null,
+        "detail": "scope b",
+        "error_detail": null,
+        "scope": "pub-b"
+      },
+      "runs_page_limit_1": "e2e_scope_probe",
+      "jobs_returned": 6,
+      "warehouse_load_recent": "failed|f\nrunning|t\nfailed|f\nrunning|t\nfailed|f\nrunning|t"
+    },
+    "dagster": {
+      "returncode": 0,
+      "tail": "ge\\warehouse_models using PickledObjectFilesystemIOManager...\n2026-11-22 22:51:18 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - LOADED_INPUT - Loaded input \"warehouse_models\" using input manager \"io_manager\", from output \"result\" of step \"warehouse_models\"\n2026-11-22 22:51:18 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - STEP_INPUT - Got input \"warehouse_models\" of type \"String\". (Type check passed).\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - STEP_OUTPUT - Yielded output \"result\" of type \"String\". (Type check passed).\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - analytics_ready - Writing file at: C:\\Users\\pc\\AppData\\Local\\Temp\\tmp6ft8nphq\\storage\\analytics_ready using PickledObjectFilesystemIOManager...\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - ASSET_MATERIALIZATION - Materialized value analytics_ready.\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - HANDLED_OUTPUT - Handled output \"result\" using IO manager \"io_manager\"\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - analytics_ready - STEP_SUCCESS - Finished execution of step \"analytics_ready\" in 868ms.\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - ENGINE_EVENT - Finished steps in process (pid: 18788) in 39.07s\n2026-11-22 22:51:19 +0200 - dagster - DEBUG - __ephemeral_asset_job__ - 8fff4fb1-63ab-443e-bf2a-cf3f509d8ca3 - 18788 - RUN_SUCCESS - Finished execution of run for \"__ephemeral_asset_job__\".\n",
+      "orders_before": 11,
+      "orders_after": 11,
+      "ready": true,
+      "publication_changed": true,
+      "revenue": {
+        "EUR": "1194.16",
+        "GBP": "257.49",
+        "USD": "256.19"
+      }
+    },
+    "spark_tests": {
+      "returncode": 0,
+      "tail": "...........                                                              [100%]\n11 passed in 31.70s\n Container titan-e2e-spark-tests-run-b5f4ac992b39 Creating \n Container titan-e2e-spark-tests-run-b5f4ac992b39 Created \n"
+    },
+    "dagster_validate": {
+      "returncode": 0,
+      "tail": "2026-11-22 22:51:53 +0200 - dagster - WARNING - No dagster instance configuration file (dagster.yaml) found at D:\\TITAN\\.dagster-e2e. Defaulting to loading and storing all metadata with D:\\TITAN\\.dagster-e2e. If this is the desired behavior, create an empty dagster.yaml file in D:\\TITAN\\.dagster-e2e.\n2026-11-22 22:51:55 +0200 - dagster - INFO - Validation successful for code location titan_dagster.definitions:defs.\n2026-11-22 22:51:55 +0200 - dagster - INFO - All code locations passed validation.\nD:\\TITAN\\.venv\\Lib\\site-packages\\click\\core.py:911: SupersessionWarning: Function `definitions_validate_command` is superseded and its usage is discouraged. Use 'dg check defs' instead.\n  return callback(*args, **kwargs)\n"
+    }
+  },
+  "live_orders_before": 362,
+  "isolation": {
+    "postgres_volume": "titan-e2e_postgres_data",
+    "api": "http://localhost:18000",
+    "kafka": "localhost:19092",
+    "clickhouse": "localhost:18123",
+    "minio": "http://localhost:19000"
+  },
+  "finished_at": "2026-11-22T20:51:55.345560+00:00",
+  "live_orders_after": 362,
+  "live_orders_unchanged": true
+}

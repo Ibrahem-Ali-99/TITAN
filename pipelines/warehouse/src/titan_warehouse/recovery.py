@@ -33,6 +33,16 @@ class RecoveryDecision:
     reason: str
 
 
+def fact_count(observed: dict[str, int], name: str) -> int:
+    """A publication missing from a grouped count has zero rows.
+
+    ClickHouse ``GROUP BY`` omits empty groups. That is a count of zero, not an
+    unknown count, so recovery can still verify a publication that has no
+    payments or inventory events.
+    """
+    return int(observed.get(name, 0))
+
+
 def is_verified(item: PublicationEvidence) -> bool:
     """A serving target needs the full publication record, not one fact table."""
     if not item.published or not item.dbt_passed or not item.quality_passed:

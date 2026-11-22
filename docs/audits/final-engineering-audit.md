@@ -181,8 +181,8 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 | Data flow matches the live snapshot | Passed for the read-only reconciliation above |
 | No unresolved Critical, Major, or Minor in the executed slice | Passed for AUD-001, AUD-002, AUD-003, AUD-006. Historical rows were left in place on purpose. |
 | Financial reconciliation | Passed, currencies separate |
-| Replay and restart | **NOT VERIFIED** this session |
-| Automated suites that were executed | Passed. Integration, Spark, dbt, Dagster validate: **NOT VERIFIED** |
+| Replay and restart | Passed on the disposable `titan-e2e` project. See `docs/audits/end-to-end-reliability.md`. A forced Spark `kill -9` remains **NOT VERIFIED**. |
+| Automated suites that were executed | Passed. Isolated integration pytest 1 passed. Spark image tests 11 passed. dbt tests ran inside publication (22 tests, the injected `promotion_gate` failure was the expected 1 error). Dagster materialize and `definitions validate` passed. |
 | Eight pages | Passed at 1440 and 390. 1024 and 768: **NOT VERIFIED** |
 | Accessibility | **NOT VERIFIED** beyond console, overflow, and nav presence |
 | Monitoring semantics | Passed on the live page for the warehouse-ready and recovery-unknown labels |
@@ -191,6 +191,10 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 | Performance evidence | Passed as the latency sample above. Not a capacity test. |
 | Documentation matches the implementation | This file records the narrowed domain and the unverified gates |
 | Git diff reviewed | The commit for this audit contains the lifecycle fix, the scope and health-label changes, the formatter wrap, CI `npm test`, and this report |
+
+## Reliability follow-up
+
+`docs/audits/end-to-end-reliability.md` records the isolated execution. Two publication defects found there are fixed: a direct warehouse command now records `warehouse_models`, and recovery treats a missing ClickHouse fact group as zero rows. The live development database stayed at 362 accepted orders. Verdict remains **CONDITIONAL** because a clean clone, hosted GitHub Actions, viewport widths 1024 and 768, and an accessibility scan were not part of that run.
 
 ## Git
 
