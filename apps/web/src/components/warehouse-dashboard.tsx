@@ -120,7 +120,7 @@ export function WarehouseDashboard() {
         <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-zinc-300">
           <SectionTitle title="No serving snapshot" />
           <p>{status.reason ?? "The warehouse is not ready."}</p>
-          <p className="mt-2 text-xs text-zinc-500">Staging rows are not shown as current.</p>
+          <p className="mt-2 text-xs text-zinc-400">Staging rows are not shown as current.</p>
         </section>
       ) : (
         <>
@@ -190,7 +190,7 @@ export function WarehouseDashboard() {
           <p>Warehouse <CopyId value={status.warehouse_publication_id} /></p>
           <p>Silver source <CopyId value={status.silver_publication_id} /></p>
           <p>ClickHouse pointer <CopyId value={status.clickhouse_publication_id} /></p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             Payments {formatCount(status.payment_count)} · inventory events {formatCount(status.inventory_count)}
           </p>
         </TechnicalDetails>

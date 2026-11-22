@@ -59,7 +59,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _load_cwd_env() -> None:
+    root = os.getcwd()
+    compose = os.path.join(root, "docker-compose.yml")
+    env_path = os.path.join(root, ".env")
+    if not os.path.isfile(compose) or not os.path.isfile(env_path):
+        return
+    with open(env_path, encoding="utf-8") as handle:
+        for raw in handle:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def main(argv: list[str] | None = None) -> None:
+    _load_cwd_env()
     args = build_parser().parse_args(argv)
     if args.history_days is None and (args.count is None or args.count < 1 or args.count > 100_000):
         print("pass --count between 1 and 100000, or --history-days", file=sys.stderr)

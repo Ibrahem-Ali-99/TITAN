@@ -425,10 +425,10 @@ def _monitoring(report: dict[str, Any]) -> None:
         "job_name, state, started_at, finished_at, detail, metadata_json"
         ") values ("
         "'e2e_scope_probe', 'failed', now(), now(), 'scope a', "
-        "'{\"publication_id\":\"pub-a\"}'"
+        '\'{"publication_id":"pub-a"}\''
         "), ("
         "'e2e_scope_probe', 'succeeded', now(), now(), 'scope b', "
-        "'{\"publication_id\":\"pub-b\"}'"
+        '\'{"publication_id":"pub-b"}\''
         ")"
     )
     jobs = _get("/api/v1/monitoring/jobs")

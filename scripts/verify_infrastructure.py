@@ -1,6 +1,7 @@
 """Check Kafka, PostgreSQL, ClickHouse, and MinIO. This creates no business data."""
 
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -15,7 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def check_postgres(url: str) -> str:
-    engine = create_engine(url, pool_pre_ping=True)
+    engine = create_engine(
+        url,
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 15},
+    )
     try:
         with engine.connect() as connection:
             value = connection.execute(text("SELECT 1")).scalar_one()
@@ -69,6 +74,39 @@ def check_minio(endpoint: str, access_key: str, secret_key: str) -> str:
     return f"ok authenticated ListBuckets count={len(buckets)}"
 
 
+def assess_volume_mount(project: str, mounts: str) -> str:
+    """A non-development project must use its own Postgres volume."""
+    if project in {"", "titan"}:
+        return "ok development project"
+    if f"{project}_postgres_data" not in mounts:
+        return f"FAIL postgres is not on {project}_postgres_data: {mounts!r}"
+    if "titan_postgres_data" in mounts or "titan-e2e_postgres_data" in mounts:
+        return f"FAIL postgres mounts another project's volume: {mounts!r}"
+    return f"ok {mounts.strip()}"
+
+
+def check_project_volume(project: str) -> str:
+    if project in {"", "titan"}:
+        return "ok development project"
+    completed = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            f"{project}-postgres-1",
+            "--format",
+            "{{range .Mounts}}{{.Name}} {{end}}",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "unknown"
+        return f"FAIL postgres container {project}-postgres-1 is not inspectable: {reason}"
+    return assess_volume_mount(project, completed.stdout)
+
+
 def main() -> None:
     load_env_file(ROOT / ".env")
     checks = {
@@ -89,6 +127,7 @@ def main() -> None:
             os.environ.get("MINIO_ROOT_USER", "titan"),
             os.environ.get("MINIO_ROOT_PASSWORD", "titan_dev_password"),
         ),
+        "volume": check_project_volume(os.environ.get("COMPOSE_PROJECT_NAME", "titan")),
     }
     failed = False
     for name, result in checks.items():

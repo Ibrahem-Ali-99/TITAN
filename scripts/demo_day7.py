@@ -16,6 +16,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from envfile import load_cwd_env
 from titan_contracts.events import InventoryUpdatedEvent, OrderCreatedEvent, PaymentCompletedEvent
 from titan_contracts.inventory import InventoryUpdatedPayload
 from titan_contracts.orders import OrderCreatedPayload, OrderItem
@@ -26,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
+    load_cwd_env()
     base = os.environ.get("API_BASE_URL", "http://localhost:8000")
     _wait_ready(base)
     before = _json(base, "/api/v1/warehouse/status")
@@ -139,7 +141,7 @@ def main() -> None:
         raise SystemExit(f"published orders did not include {order_id}")
     after_models = _json(base, "/api/v1/ml/models?limit=3")
     still = next(row for row in after_models["models"] if row["status"] == "serving")
-    if still["serving_strategy"] != "seasonal_naive":
+    if still["serving_strategy"] != serving["serving_strategy"]:
         raise SystemExit("serving strategy changed during the demo")
     if still["run_id"] != serving["run_id"]:
         raise SystemExit("the demo replaced the serving model")

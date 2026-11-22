@@ -6,17 +6,19 @@ A second run uses a new identifier. It does not reset volumes and it does not de
 
 ## Before you start
 
-From the repository root, with Docker Desktop running:
+From the repository root, with Docker Desktop running, follow the quick start in [README.md](README.md). A checkout that must not attach the development volumes uses `docker-compose.clone.yml` and `.env.clone.example` instead.
+
+An empty database is not ready for this script. Publish the 28-day history and train the forecast first:
 
 ```powershell
-copy .env.example .env
-docker compose up --build -d
-docker compose run --rm --build migrate
-uv sync --all-packages
-uv sync --group orchestration
+uv run python -m event_generator --history-days 28 --seed 51022 --rate 0
+docker compose --profile processing run --rm spark-bronze
+docker compose --profile processing run --rm spark-silver
+uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
+uv run --group orchestration python scripts/run_pipeline.py titan_ml
 ```
 
-Wait until `http://localhost:8000/health/ready` returns `"status": "ready"`.
+Wait until `/api/v1/warehouse/status` returns `"ready": true` and `/api/v1/ml/models` has one `serving` row. The development API is `http://localhost:8000`. An isolated checkout uses the `API_BASE_URL` in its `.env`.
 
 Replay and CSV resume stay closed until `TITAN_ADMIN_TOKEN` is set and the API container is recreated. The demo publishes through the open REST ingestion route and does not call replay.
 

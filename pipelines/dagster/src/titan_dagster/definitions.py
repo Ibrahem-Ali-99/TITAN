@@ -19,8 +19,12 @@ from dagster import (
     define_asset_job,
 )
 
+from titan_warehouse.dotenv import load_cwd_env
+
 ROOT = Path(__file__).resolve().parents[4]
 RETRY = RetryPolicy(max_retries=1, delay=20)
+
+load_cwd_env()
 
 
 def _compose(service: str) -> None:

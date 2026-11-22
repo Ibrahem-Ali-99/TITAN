@@ -166,7 +166,7 @@ export function StreamingDashboard() {
                   <Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td>
                   <Td>
                     <div>{item.reason_code}</div>
-                    {item.error_detail ? <div className="mt-1 text-xs text-zinc-500">{item.error_detail}</div> : null}
+                    {item.error_detail ? <div className="mt-1 text-xs text-zinc-400">{item.error_detail}</div> : null}
                   </Td>
                   <Td className="font-mono text-xs">{item.kafka_topic}</Td>
                   <Td>{item.kafka_partition}</Td>

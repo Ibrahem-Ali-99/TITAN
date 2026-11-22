@@ -265,7 +265,7 @@ export function OverviewDashboard() {
           <p>
             Silver <CopyId value={warehouse?.silver_publication_id ?? null} />
           </p>
-          <p className="text-xs text-zinc-500">Quarantined records {formatCount(stats.quarantined_records)}. {stats.metric_definitions.quarantined_records}</p>
+          <p className="text-xs text-zinc-400">Quarantined records {formatCount(stats.quarantined_records)}. {stats.metric_definitions.quarantined_records}</p>
         </TechnicalDetails>
       </div>
     </div>
@@ -281,7 +281,7 @@ function EventRow({ event }: { event: RecentEvent }) {
       <Td className="font-mono text-xs">
         {event.currency && event.total_amount ? formatMoney(event.total_amount, event.currency) : "—"}
       </Td>
-      <Td className="font-mono text-xs text-zinc-500">
+      <Td className="font-mono text-xs text-zinc-400">
         {event.kafka_partition}:{event.kafka_offset}
       </Td>
     </tr>

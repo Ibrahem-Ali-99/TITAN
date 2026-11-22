@@ -229,7 +229,7 @@ export function QualityDashboard() {
               <p>
                 Run <CopyId value={openRun} />
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 Silver {runs.find((run) => run.run_id === openRun)?.silver_publication_id ?? "—"}
               </p>
             </TechnicalDetails>

@@ -209,7 +209,7 @@ export function DataSourcesDashboard() {
                   </Td>
                   <Td className="font-mono text-xs">
                     {item.event_type ?? "—"}
-                    {item.detail ? <div className="mt-1 font-sans text-xs text-zinc-500">{item.detail}</div> : null}
+                    {item.detail ? <div className="mt-1 font-sans text-xs text-zinc-400">{item.detail}</div> : null}
                   </Td>
                 </tr>
               ))}
@@ -280,7 +280,7 @@ export function DataSourcesDashboard() {
           <div className="mt-3">
             {importError ? <p className="text-xs text-red-200">{importError}</p> : null}
             {!importError && importErrors.length === 0 ? (
-              <p className="text-xs text-zinc-500">No rejected or failed rows are stored for this import.</p>
+              <p className="text-xs text-zinc-400">No rejected or failed rows are stored for this import.</p>
             ) : null}
             {importErrors.length > 0 ? (
               <DataTable label="CSV row errors">

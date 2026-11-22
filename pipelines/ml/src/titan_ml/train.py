@@ -408,6 +408,9 @@ def _round(value: float | None) -> float | None:
 
 
 def main() -> None:
+    from titan_warehouse.dotenv import load_cwd_env
+
+    load_cwd_env()
     print(train_demand_model())
 
 

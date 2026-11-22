@@ -913,6 +913,9 @@ def _published_loads(database_url: str) -> list[dict[str, object]]:
 
 
 def main() -> None:
+    from titan_warehouse.dotenv import load_cwd_env
+
+    load_cwd_env()
     if "--reconcile" in sys.argv:
         print(reconcile_warehouse())
         return

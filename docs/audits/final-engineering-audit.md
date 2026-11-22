@@ -2,7 +2,7 @@
 
 Audit date: 2026-11-22. Starting commit: `3e1ce831a26a87973e8c9637367e6335769c56f0`. Workstation: Windows, Docker Compose project `titan`. Live development volumes were not reset. No push. `.cursor/mcp.json` was not committed.
 
-**Verdict: CONDITIONAL.** The executed slice found no remaining Critical or Major defect in current code. Three defects were fixed and covered by tests. Several acceptance gates were not executed and stay **NOT VERIFIED**. Historical `pipeline_runs` rows were not rewritten.
+**Verdict: CONDITIONAL.** The executed slice found no remaining Critical or Major defect in current code. Three defects were fixed and covered by tests. Several acceptance gates were not executed and stay **NOT VERIFIED**. Historical `pipeline_runs` rows were not rewritten. A later isolated checkout is recorded in `docs/audits/clean-clone-release.md`. Hosted GitHub Actions and viewport widths 1024 and 768 remain **NOT VERIFIED**.
 
 ## Architecture inventory
 
@@ -185,10 +185,10 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 | Spark hard-kill recovery | **PASSED.** `docker kill --signal=KILL` during a Bronze microbatch on project `titan-sparkkill`, then a consistent restart. See `docs/audits/spark-crash-recovery.md`. |
 | Automated suites that were executed | Passed. Isolated integration pytest 1 passed. Spark image tests 11 passed. dbt tests ran inside publication (22 tests, the injected `promotion_gate` failure was the expected 1 error). Dagster materialize and `definitions validate` passed. |
 | Eight pages | Passed at 1440 and 390. 1024 and 768: **NOT VERIFIED** |
-| Accessibility | **NOT VERIFIED** beyond console, overflow, and nav presence |
+| Accessibility | Passed later with axe-core 4.10.3 on eight pages at 1440×900 and 390×844. See `docs/audits/clean-clone-release.md`. Widths 1024 and 768: **NOT VERIFIED** |
 | Monitoring semantics | Passed on the live page for the warehouse-ready and recovery-unknown labels |
-| Security blockers | None found in the executed checks |
-| Docker startup from a clean clone | **NOT VERIFIED**. The already-running stack stayed up. `docker compose config --quiet` passed. |
+| Security blockers | None remaining after `python-multipart` 0.0.31. The earlier secret scan did not include a Python CVE audit. |
+| Docker startup from a clean clone | **PASSED** on project `titan-clone` from commit `61b6005`. See `docs/audits/clean-clone-release.md`. |
 | Performance evidence | Passed as the latency sample above. Not a capacity test. |
 | Documentation matches the implementation | This file records the narrowed domain and the unverified gates |
 | Git diff reviewed | The commit for this audit contains the lifecycle fix, the scope and health-label changes, the formatter wrap, CI `npm test`, and this report |
@@ -198,6 +198,8 @@ Environment: the Compose stack above, API on localhost:8000, measured with `Invo
 `docs/audits/end-to-end-reliability.md` records the isolated execution. Two publication defects found there are fixed: a direct warehouse command now records `warehouse_models`, and recovery treats a missing ClickHouse fact group as zero rows. The live development database stayed at 362 accepted orders. Verdict remains **CONDITIONAL** because a clean clone, hosted GitHub Actions, viewport widths 1024 and 768, and an accessibility scan were not part of that run.
 
 `docs/audits/spark-crash-recovery.md` records the later hard-kill. The driver container was SIGKILLed after the Bronze Parquet copy and before the batch commit. Restart on the same checkpoint republished the same 5 orders, 10 line items, and currency-separated revenue. The live accepted-order count stayed 362.
+
+`docs/audits/clean-clone-release.md` records a detached worktree at `61b6005` under Compose project `titan-clone`. That checkout published its own warehouse and the console matched it. The development accepted-order count stayed 362. Hosted Actions for the resulting commit were not run.
 
 ## Git
 

@@ -282,7 +282,7 @@ export function MonitoringDashboard() {
                       <StatusBadge tone={view.tone === "ok" ? "ok" : view.tone === "bad" ? "bad" : view.tone === "warn" ? "warn" : "neutral"}>
                         {view.label}
                       </StatusBadge>
-                      <span className="ml-2 text-xs text-zinc-500">stored {run.state}</span>
+                      <span className="ml-2 text-xs text-zinc-400">stored {run.state}</span>
                     </Td>
                     <Td>{formatDuration(run.duration_ms)}</Td>
                     <Td>
@@ -299,13 +299,13 @@ export function MonitoringDashboard() {
         </TechnicalDetails>
         <TechnicalDetails summary="Latest stored failure text">
           <p>{overview.latest_failure ?? "No failed pipeline run is stored."}</p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             This string is the newest failed row. It is an active incident only when that attempt is the latest verified execution of the same job.
           </p>
         </TechnicalDetails>
         <TechnicalDetails summary="Spark checkpoint progress">
           <p className="font-mono text-xs break-all">{overview.spark_progress ?? "No Bronze report is stored."}</p>
-          <p className="text-xs text-zinc-500">Checkpoint offsets are not the ingestion consumer lag.</p>
+          <p className="text-xs text-zinc-400">Checkpoint offsets are not the ingestion consumer lag.</p>
         </TechnicalDetails>
         {open ? (
           <TechnicalDetails summary={`Run ${open.id}`}>

@@ -73,7 +73,7 @@ export function PageHeader({
         <h1 className="text-[1.65rem] font-semibold tracking-tight text-[var(--foreground)]">{title}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
       </div>
-      {aside ? <div className="text-xs text-zinc-500">{aside}</div> : null}
+      {aside ? <div className="text-xs text-zinc-400">{aside}</div> : null}
     </div>
   );
 }
@@ -181,7 +181,7 @@ export function Empty({ children }: { children: ReactNode }) {
 export function CopyId({ value }: { value: string | null }) {
   const [copied, setCopied] = useState(false);
   if (!value) {
-    return <span className="text-zinc-500">—</span>;
+    return <span className="text-zinc-400">—</span>;
   }
   return (
     <span className="inline-flex items-center gap-2">
@@ -229,7 +229,7 @@ export function DataTable({ children, label }: { children: ReactNode; label: str
 }
 
 export function Th({ children }: { children: ReactNode }) {
-  return <th className="py-2 pr-3 text-xs font-medium tracking-wide text-zinc-500 uppercase">{children}</th>;
+  return <th className="py-2 pr-3 text-xs font-medium tracking-wide text-zinc-400 uppercase">{children}</th>;
 }
 
 export function Td({ children, className }: { children: ReactNode; className?: string }) {

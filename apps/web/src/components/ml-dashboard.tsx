@@ -234,10 +234,10 @@ export function MlDashboard() {
           <TechnicalDetails summary="Lineage">
             <p>Run <CopyId value={serving.run_id} /></p>
             <p>Training publication <CopyId value={serving.warehouse_publication_id} /></p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               Features {serving.feature_version}. Train {serving.train_start} to {serving.train_end}. Trained {serving.trained_at}.
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               Evaluated candidates remain in the model list. Statuses:{" "}
               {models.map((model) => `${model.status}`).join(", ")}.
             </p>
