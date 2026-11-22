@@ -1,0 +1,14 @@
+---
+description: Testing, naming, documentation, and Git hygiene
+globs: "**/{tests,docs,scripts,.github}/**/*"
+alwaysApply: false
+---
+
+# Testing, docs, and Git
+
+- Unit tests cover money, schema, generator determinism, stats errors, and commit-after-persist. Docker tests are marked `integration`.
+- Do not report a check as passed unless it was executed. Skipped integration tests are not evidence.
+- Names describe the business fact: `commerce_events`, `order_created`, `ingested_at`.
+- Document consumption semantics and the money policy next to the code that implements them.
+- Use Conventional Commits. Do not push, amend published history, or commit `.env`.
+- Do not manufacture earlier Git history.

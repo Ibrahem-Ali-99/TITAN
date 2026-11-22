@@ -1,0 +1,13 @@
+---
+description: TITAN service boundaries and Day 1 scope
+alwaysApply: true
+---
+
+# Architecture
+
+- Keep the path explicit: synthetic event, Kafka, ingestion, PostgreSQL, FastAPI, Next.js.
+- `packages/contracts` owns the canonical event. `packages/store` owns the operational tables. Ingestion writes. The API reads.
+- Do not add Spark, Dagster, dbt, Redis, Kubernetes, or a schema registry for Day 1.
+- ClickHouse and MinIO stay provisioned infrastructure until a milestone actually loads them.
+- Unimplemented product modules stay labeled planned. Do not fill them with fake metrics.
+- Prefer a small explicit module over a new repository or service layer.

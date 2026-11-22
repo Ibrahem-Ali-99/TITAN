@@ -1,0 +1,13 @@
+---
+description: TypeScript, React, and Next.js standards
+globs: "apps/web/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript and Next.js
+
+- Keep `strict` enabled. Type API responses in `src/lib/types.ts`; do not use `any` for payloads.
+- The browser calls the host API URL. Do not assume the Next.js server can reach `localhost` from inside Docker for client fetches.
+- Show loading, empty, and error states. A failed refresh must not look like a live zero.
+- Planned routes state that they are not available. Do not invent revenue, latency, or percentages.
+- Label `synthetic.event-generator` records as synthetic business data.

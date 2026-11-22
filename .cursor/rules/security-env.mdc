@@ -1,0 +1,14 @@
+---
+description: Secrets and environment configuration
+globs: "**/*.{py,ts,tsx,yml,yaml,example,md}"
+alwaysApply: false
+---
+
+# Security and environment
+
+- Commit `.env.example` only. Never commit `.env`, credentials, or real passwords.
+- The values in Compose and `.env.example` are local placeholders, not production secrets.
+- Keep host addresses (`localhost:9092`) separate from container addresses (`kafka:19092`).
+- Do not publish the Kafka controller port, mount the Docker socket, or run privileged containers.
+- API errors must not echo connection URLs or passwords. Log the exception on the server.
+- CORS is an explicit local origin list, not `*`.

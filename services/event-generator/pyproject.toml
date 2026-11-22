@@ -1,0 +1,22 @@
+[project]
+name = "titan-event-generator"
+version = "0.1.0"
+description = "Deterministic synthetic order_created producer"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "confluent-kafka==2.16.2",
+    "titan-contracts",
+]
+
+[project.scripts]
+titan-generate = "event_generator.cli:main"
+
+[tool.uv.sources]
+titan-contracts = { workspace = true }
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

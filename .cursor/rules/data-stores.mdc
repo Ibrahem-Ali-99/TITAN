@@ -1,0 +1,14 @@
+---
+description: PostgreSQL, ClickHouse, and operational data rules
+globs: "**/*.{py,sql}"
+alwaysApply: false
+---
+
+# Data stores
+
+- Ship schema changes through Alembic in `packages/store`. The ingestion service owns writes to `commerce_events` and `ingestion_quarantine`.
+- Store the canonical envelope. Do not reshape it into a warehouse model on Day 1.
+- `ingested_at` is database write time. `occurred_at` is business time. API copy must keep them distinct.
+- Persisted row counts are not Kafka throughput.
+- ClickHouse may have an empty database. Do not load sample analytical data to make it look active.
+- Use timezone-aware UTC timestamps in the operational store.

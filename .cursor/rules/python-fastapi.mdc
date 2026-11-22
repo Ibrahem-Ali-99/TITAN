@@ -1,0 +1,14 @@
+---
+description: Python, FastAPI, and typing standards
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python and FastAPI
+
+- Target Python 3.12. Pin dependencies in `pyproject.toml` and keep `uv.lock` current.
+- Use type hints on public functions. Pydantic models are the API and event boundary.
+- FastAPI routes use response models and dependency-injected sessions. Do not call `create_all` at startup.
+- A failed database query returns an observable error. Do not substitute zeros.
+- `/health/live` must not check dependencies. `/health/ready` must.
+- Configure logging once at process start. Do not print secrets or connection URLs.

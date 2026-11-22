@@ -1,0 +1,94 @@
+[project]
+name = "titan-dev"
+version = "0.1.0"
+description = "TITAN local development workspace"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "titan-api",
+    "titan-contracts",
+    "titan-event-generator",
+    "titan-ingestion",
+    "titan-store",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "packages/contracts",
+    "packages/store",
+    "services/event-generator",
+    "services/ingestion",
+]
+
+[tool.uv.sources]
+titan-api = { workspace = true }
+titan-contracts = { workspace = true }
+titan-event-generator = { workspace = true }
+titan-ingestion = { workspace = true }
+titan-store = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "httpx==0.28.1",
+    "minio==7.2.20",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
+    "ruff==0.17.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts"]
+markers = [
+    "integration: requires the local Docker Compose stack",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = [
+    "apps/api/src",
+    "packages/contracts/src",
+    "packages/store/src",
+    "services/event-generator/src",
+    "services/ingestion/src",
+    "tests",
+    "scripts",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"apps/api/src/titan_api/main.py" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "event_generator",
+    "ingestion",
+    "titan_api",
+    "titan_contracts",
+    "titan_store",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+files = [
+    "packages/contracts/src",
+    "packages/store/src",
+    "services/event-generator/src",
+    "services/ingestion/src",
+    "apps/api/src",
+    "tests",
+    "scripts",
+]
+
+[[tool.mypy.overrides]]
+module = ["confluent_kafka", "confluent_kafka.*", "minio", "minio.*"]
+ignore_missing_imports = true

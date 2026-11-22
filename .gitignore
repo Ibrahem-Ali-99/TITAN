@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Local environment and generated evidence
+.env
+.env.*
+!.env.example
+artifacts/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Editors and OS
+.idea/
+.vscode/
+*.log
+Thumbs.db
+Desktop.ini

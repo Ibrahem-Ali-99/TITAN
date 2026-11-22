@@ -1,0 +1,18 @@
+[project]
+name = "titan-contracts"
+version = "0.1.0"
+description = "Canonical TITAN business event contracts"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic==2.14.4",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+titan_contracts = ["py.typed"]

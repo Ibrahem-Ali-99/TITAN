@@ -1,0 +1,27 @@
+[project]
+name = "titan-ingestion"
+version = "0.1.0"
+description = "Kafka consumer that durably persists canonical commerce events"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic==1.20.1",
+    "confluent-kafka==2.16.2",
+    "psycopg[binary]==3.3.9",
+    "pydantic-settings==2.16.3",
+    "titan-contracts",
+    "titan-store",
+]
+
+[project.scripts]
+titan-ingest = "ingestion.main:main"
+
+[tool.uv.sources]
+titan-contracts = { workspace = true }
+titan-store = { workspace = true }
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
