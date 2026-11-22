@@ -4,6 +4,7 @@ Kafka acknowledgement is not PostgreSQL persistence. Business rows are written
 only by the ingestion consumer.
 """
 
+import os
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -16,6 +17,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Query,
+    Request,
     UploadFile,
 )
 from pydantic import BaseModel, Field
@@ -298,7 +300,12 @@ def register_routes(app: FastAPI, get_session: Callable[..., Iterator[Session]])
         }
 
     @routes.post("/api/v1/ingestion/replays")
-    def create_replays(body: ReplayBody, session: Session = Depends(get_session)) -> dict[str, Any]:
+    def create_replays(
+        body: ReplayBody,
+        request: Request,
+        session: Session = Depends(get_session),
+    ) -> dict[str, Any]:
+        _require_admin(request)
         try:
             attempts = run_replay(
                 session,
@@ -372,6 +379,18 @@ def _submission_item(row: SourceSubmission) -> dict[str, object]:
         "kafka_offset": row.kafka_offset,
         "persisted": False,
     }
+
+
+def _require_admin(request: Request) -> None:
+    """Require a bearer token only when TITAN_ADMIN_TOKEN is set.
+
+    An unset token is the local demo. It is not an internet-safe control plane.
+    """
+    token = os.environ.get("TITAN_ADMIN_TOKEN")
+    if not token:
+        return
+    if request.headers.get("authorization") != f"Bearer {token}":
+        raise HTTPException(status_code=401, detail="admin token required")
 
 
 def _replay_item(session: Session, attempt: ReplayAttempt) -> dict[str, object]:

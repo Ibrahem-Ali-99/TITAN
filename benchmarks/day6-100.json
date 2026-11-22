@@ -1,0 +1,13 @@
+{
+  "measured_at": "2026-11-22T17:11:38.524218+00:00",
+  "count": 100,
+  "seed": 61022,
+  "elapsed_seconds": 0.602,
+  "acknowledged_per_second": 166.033,
+  "ack_seconds": {
+    "p50": 0.000802,
+    "p95": 0.00103,
+    "p99": 0.003655
+  },
+  "definition": "Producer ack time is local monotonic time around publish_record. It is not warehouse freshness and it is not an HTTP response time."
+}

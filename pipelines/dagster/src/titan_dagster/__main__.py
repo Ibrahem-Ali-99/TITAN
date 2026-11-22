@@ -10,6 +10,7 @@ from titan_dagster.definitions import (
     clickhouse_load,
     demand_forecast,
     quality_gate,
+    reliability_heartbeat,
     silver_publication,
     warehouse_models,
 )
@@ -22,6 +23,7 @@ ASSETS = {
     "quality_gate": quality_gate,
     "analytics_ready": analytics_ready,
     "demand_forecast": demand_forecast,
+    "reliability_heartbeat": reliability_heartbeat,
 }
 
 

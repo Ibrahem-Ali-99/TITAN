@@ -76,6 +76,8 @@ class ModelView(BaseModel):
     status: str
     warehouse_publication_id: str
     algorithm: str
+    serving_strategy: str | None
+    decision_rationale: str | None
     feature_version: str
     train_start: str | None
     train_end: str | None
@@ -145,6 +147,9 @@ class MonitoringOverview(BaseModel):
     ingestion_lag: LagView
     spark_progress: str | None
     latest_failure: str | None
+    model_serving: str | None
+    training_publication_id: str | None
+    admin_auth: str
 
 
 class RunView(BaseModel):
@@ -310,6 +315,9 @@ def monitoring_overview(session: Session, settings: ApiSettings) -> MonitoringOv
         ingestion_lag=_lag(settings.kafka_bootstrap_servers),
         spark_progress=_spark(session),
         latest_failure=_failure(session),
+        model_serving=None if (served := _served(session)) is None else served.serving_strategy,
+        training_publication_id=None if served is None else served.warehouse_publication_id,
+        admin_auth=_admin_auth(),
     )
 
 
@@ -440,10 +448,27 @@ def _failure(session: Session) -> str | None:
     return f"{row.job_name}: {(row.error_detail or row.detail or 'failed')[:300]}"
 
 
-def _promoted(session: Session) -> MlRun | None:
+def _served(session: Session) -> MlRun | None:
+    serving = session.scalar(
+        select(MlRun).where(MlRun.status == "serving").order_by(MlRun.trained_at.desc()).limit(1)
+    )
+    if serving is not None:
+        return serving
     return session.scalar(
         select(MlRun).where(MlRun.status == "promoted").order_by(MlRun.trained_at.desc()).limit(1)
     )
+
+
+def _promoted(session: Session) -> MlRun | None:
+    return _served(session)
+
+
+def _admin_auth() -> str:
+    import os
+
+    if os.environ.get("TITAN_ADMIN_TOKEN"):
+        return "token"
+    return "disabled"
 
 
 def _model(row: MlRun) -> ModelView:
@@ -457,6 +482,8 @@ def _model(row: MlRun) -> ModelView:
         status=row.status,
         warehouse_publication_id=row.warehouse_publication_id,
         algorithm=row.algorithm,
+        serving_strategy=row.serving_strategy,
+        decision_rationale=row.decision_rationale,
         feature_version=row.feature_version,
         train_start=row.train_start,
         train_end=row.train_end,

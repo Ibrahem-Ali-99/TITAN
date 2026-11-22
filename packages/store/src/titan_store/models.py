@@ -327,7 +327,7 @@ class QualityFinding(Base):
 
 
 class MlRun(Base):
-    """One training attempt. Only status ``promoted`` is served."""
+    """One training attempt. ``serving`` is the selected forecast method."""
 
     __tablename__ = "ml_runs"
 
@@ -345,6 +345,8 @@ class MlRun(Base):
     artifact_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
     trained_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    serving_strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    decision_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class MlPrediction(Base):

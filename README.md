@@ -112,7 +112,11 @@ uv run python scripts/verify_day4.py
 uv run python scripts/verify_day5.py
 ```
 
-The Day 5 script publishes a 28-day synthetic history when the warehouse has fewer than 21 distinct item dates, then trains from the published warehouse. The short demo generator is still `--count`. Do not use `--history-days` for that demo.
+The Day 5 script publishes a 28-day synthetic history when the warehouse has fewer than 21 distinct item dates, then trains from the published warehouse. The short demo generator is still `--count`. Do not use `--history-days` for that demo. Day 6 recovery and the forecast serving rule are documented in [docs/reliability.md](docs/reliability.md).
+
+```powershell
+uv run python scripts/verify_day6.py
+```
 
 ## Tests and static checks
 

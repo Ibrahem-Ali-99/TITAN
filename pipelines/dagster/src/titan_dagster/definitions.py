@@ -5,11 +5,13 @@ warehouse run does not wait for a Bronze completion flag.
 """
 
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dagster import (
     AssetExecutionContext,
     AssetSelection,
+    DefaultScheduleStatus,
     Definitions,
     RetryPolicy,
     ScheduleDefinition,
@@ -133,6 +135,35 @@ daily_training = ScheduleDefinition(
     name="daily_training",
 )
 
+
+@asset(group_name="monitoring")
+def reliability_heartbeat(context: AssetExecutionContext) -> str:
+    """Record one short run. This asset does not publish the warehouse or train a model."""
+    from titan_warehouse.load import _record
+
+    started = datetime.now(UTC)
+    _record(
+        "reliability_heartbeat",
+        "succeeded",
+        "scheduled heartbeat",
+        started_at=started,
+    )
+    context.add_output_metadata({"job_name": "reliability_heartbeat"})
+    return "reliability_heartbeat"
+
+
+reliability_heartbeat_job = define_asset_job(
+    name="reliability_heartbeat_job",
+    selection=AssetSelection.assets(reliability_heartbeat),
+)
+
+heartbeat_schedule = ScheduleDefinition(
+    job=reliability_heartbeat_job,
+    cron_schedule="*/5 * * * *",
+    name="heartbeat_schedule",
+    default_status=DefaultScheduleStatus.STOPPED,
+)
+
 defs = Definitions(
     assets=[
         bronze_evidence,
@@ -142,7 +173,8 @@ defs = Definitions(
         quality_gate,
         analytics_ready,
         demand_forecast,
+        reliability_heartbeat,
     ],
-    jobs=[analytics_publication, bronze_refresh, demand_training],
-    schedules=[hourly_analytics, daily_training],
+    jobs=[analytics_publication, bronze_refresh, demand_training, reliability_heartbeat_job],
+    schedules=[hourly_analytics, daily_training, heartbeat_schedule],
 )

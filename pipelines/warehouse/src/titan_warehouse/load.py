@@ -107,6 +107,10 @@ def run_warehouse_pipeline(
                 raise
             _record("quality_gate", "succeeded", load_id, started_at=started)
             _promote(client, warehouse_id, silver, summary)
+            if crash_after == "exchanged":
+                raise WarehouseError(
+                    "crash after the ClickHouse pointer exchange and before the PostgreSQL row"
+                )
             _mark(database_url, load_id, "published", summary)
             _record(
                 "warehouse_load",
@@ -260,7 +264,9 @@ def _record(
     started = started_at or finished
     duration_ms = None
     if started_at is not None:
-        duration_ms = max(0, int((finished - started).total_seconds() * 1000))
+        elapsed = int((finished - started).total_seconds() * 1000)
+        if elapsed > 0:
+            duration_ms = elapsed
     with psycopg.connect(_database_url()) as connection:
         connection.execute(
             """
@@ -724,7 +730,112 @@ def _summary_from_row(row: dict[str, object]) -> dict[str, object]:
     }
 
 
+def reconcile_warehouse() -> str:
+    """Point wh_active at the newest published id that already has rows."""
+    from titan_warehouse.recovery import PublishedPointer, decide_recovery
+
+    database_url = _database_url()
+    with _lock(database_url):
+        client = _clickhouse()
+        try:
+            pointer_rows = client.query(
+                "select warehouse_publication_id from wh_active limit 1"
+            ).result_rows
+            pointer = None if not pointer_rows else str(pointer_rows[0][0])
+            known = {
+                str(row[0])
+                for row in client.query(
+                    "select distinct warehouse_publication_id from wh_orders"
+                ).result_rows
+            }
+        finally:
+            client.close()
+        published = _published_loads(database_url)
+        decision = decide_recovery(
+            pointer,
+            [PublishedPointer(item["id"], item["id"] in known) for item in published],
+        )
+        started = datetime.now(UTC)
+        try:
+            if decision.action == "exchange" and decision.publication_id is not None:
+                chosen = next(item for item in published if item["id"] == decision.publication_id)
+                client = _clickhouse()
+                try:
+                    _promote(
+                        client,
+                        chosen["id"],
+                        {
+                            "publication_id": chosen["silver_publication_id"],
+                            "finished_at": chosen["silver_finished_at"],
+                        },
+                        {
+                            "order_count": chosen["order_count"],
+                            "payment_count": chosen["payment_count"],
+                            "inventory_count": chosen["inventory_count"],
+                            "item_count": chosen["item_count"],
+                            "revenue_json": chosen["revenue_json"],
+                        },
+                    )
+                finally:
+                    client.close()
+        except Exception as exc:
+            _record(
+                "warehouse_reconcile",
+                "failed",
+                decision.reason,
+                error=str(exc)[:2000],
+                metadata={
+                    "action": decision.action,
+                    "publication_id": decision.publication_id,
+                    "previous_pointer": pointer,
+                },
+                started_at=started,
+            )
+            raise
+        _record(
+            "warehouse_reconcile",
+            "failed" if decision.action == "refuse" else "succeeded",
+            decision.reason,
+            metadata={
+                "action": decision.action,
+                "publication_id": decision.publication_id,
+                "previous_pointer": pointer,
+            },
+            started_at=started,
+        )
+        return decision.reason
+
+
+def _published_loads(database_url: str) -> list[dict[str, object]]:
+    with psycopg.connect(database_url) as connection:
+        rows = connection.execute(
+            """
+            select warehouse_publication_id, silver_publication_id, silver_finished_at,
+                   order_count, payment_count, inventory_count, item_count, accepted_revenue_json
+            from warehouse_loads
+            where status = 'published' and finished_at is not null
+            order by finished_at desc
+            """
+        ).fetchall()
+    return [
+        {
+            "id": str(row[0]),
+            "silver_publication_id": str(row[1]),
+            "silver_finished_at": row[2],
+            "order_count": row[3],
+            "payment_count": row[4],
+            "inventory_count": row[5],
+            "item_count": row[6],
+            "revenue_json": row[7],
+        }
+        for row in rows
+    ]
+
+
 def main() -> None:
+    if "--reconcile" in sys.argv:
+        print(reconcile_warehouse())
+        return
     crash_after = None
     silver_id = None
     if "--crash-after" in sys.argv:

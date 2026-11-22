@@ -16,7 +16,24 @@ from titan_contracts.topics import topic_for_event_type
 
 
 class PublishError(RuntimeError):
-    """The broker did not acknowledge the event within the retry budget."""
+    """The broker did not acknowledge the event within the retry budget.
+
+    ``uncertain`` is true when the produce may still have been accepted.
+    Callers must not report that case as a definitive broker rejection.
+    """
+
+    def __init__(self, message: str, *, uncertain: bool = False) -> None:
+        super().__init__(message)
+        self.uncertain = uncertain
+
+
+def acknowledgement_is_uncertain(error: object | None, remaining: int) -> bool:
+    """A timeout or a still-buffered produce is not proof the broker rejected it."""
+    if remaining > 0 and error is None:
+        return True
+    text = "" if error is None else str(error).lower()
+    markers = ("timed out", "timeout", "transport", "broker transport failure")
+    return any(marker in text for marker in markers)
 
 
 @dataclass(frozen=True)
@@ -54,6 +71,7 @@ def publish_record(
     payload = event.model_dump_json().encode("utf-8")
     key = business_key(event)
     last_error = "delivery was not acknowledged"
+    uncertain = False
     for attempt in range(1, max_attempts + 1):
         box: dict[str, Any] = {}
 
@@ -85,5 +103,9 @@ def publish_record(
                 offset=int(message.offset()),
             )
         last_error = str(error) if error is not None else f"{remaining} message(s) still buffered"
+        uncertain = acknowledgement_is_uncertain(error, remaining)
         time.sleep(min(2**attempt, 8))
-    raise PublishError(f"event {event.event_id} was not acknowledged: {last_error}")
+    raise PublishError(
+        f"event {event.event_id} was not acknowledged: {last_error}",
+        uncertain=uncertain,
+    )

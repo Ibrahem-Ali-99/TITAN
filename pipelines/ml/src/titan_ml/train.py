@@ -27,6 +27,7 @@ from titan_ml.features import (
     split_rows,
     wape,
 )
+from titan_ml.selection import choose_strategy, recursive_seasonal
 
 HYPERPARAMETERS = {
     "max_depth": 3,
@@ -56,32 +57,43 @@ def train_demand_model() -> str:
     naive = seasonal_naive(test)
     predicted = _predict(model, codes, test)
     actual = [float(row["target"]) for row in test]
+    model_mae = mae(actual, predicted)
+    naive_mae = mae(actual, naive)
+    choice = choose_strategy(model_mae, naive_mae)
     metrics = {
-        "mae_model": round(mae(actual, predicted), 6),
-        "mae_seasonal_naive": round(mae(actual, naive), 6),
+        "mae_model": round(model_mae, 6),
+        "mae_seasonal_naive": round(naive_mae, 6),
         "wape_model": _round(wape(actual, predicted)),
         "wape_seasonal_naive": _round(wape(actual, naive)),
         "test_rows": len(test),
         "train_rows": len(train),
-        "better_than_baseline": mae(actual, predicted) < mae(actual, naive),
+        "better_than_baseline": model_mae < naive_mae,
+        "serving_strategy": choice.strategy,
         "split": "chronological last 7 dates; one-step features",
     }
     artifact = _store_artifact(run_id, model, codes)
     train_dates = [row["activity_date"] for row in train if isinstance(row["activity_date"], date)]
     test_dates = [row["activity_date"] for row in test if isinstance(row["activity_date"], date)]
+    served = naive if choice.strategy == "seasonal_naive" else predicted
     _insert_run(
         database_url,
         run_id,
         publication,
-        "promoted",
+        "serving",
         metrics,
         artifact,
         (min(train_dates), max(train_dates), min(test_dates), max(test_dates)),
-        None,
+        choice.rationale,
+        serving_strategy=choice.strategy,
+        decision_rationale=choice.rationale,
     )
-    _archive_previous(database_url, run_id)
-    _store_predictions(database_url, run_id, test, predicted)
-    _store_forward(database_url, run_id, model, codes, panel)
+    _retire_previous(database_url, run_id)
+    _store_predictions(database_url, run_id, test, served, "one_step_evaluation")
+    _store_predictions(database_url, run_id, test, predicted, "candidate_one_step")
+    if choice.strategy == "seasonal_naive":
+        _store_forward_naive(database_url, run_id, panel)
+    else:
+        _store_forward(database_url, run_id, model, codes, panel)
     _store_anomalies(database_url, run_id, panel)
     return run_id
 
@@ -169,11 +181,41 @@ def _store_forward(
         connection.commit()
 
 
+def _store_forward_naive(
+    database_url: str,
+    run_id: str,
+    panel: list[tuple[str, date, int]],
+) -> None:
+    """Seven recursive seasonal steps. Each step reads the prior prediction, not a future actual."""
+    by_product: dict[str, list[tuple[date, int]]] = {}
+    for product_id, activity_date, quantity in panel:
+        by_product.setdefault(product_id, []).append((activity_date, quantity))
+    now = datetime.now(UTC)
+    with psycopg.connect(database_url) as connection:
+        for product_id, series in by_product.items():
+            series = sorted(series)
+            forecasts = recursive_seasonal([float(quantity) for _, quantity in series], 7)
+            cursor = series[-1][0]
+            for predicted in forecasts:
+                cursor += timedelta(days=1)
+                connection.execute(
+                    """
+                    insert into ml_predictions (
+                        run_id, product_id, target_date, predicted_quantity,
+                        actual_quantity, kind, generated_at
+                    ) values (%s, %s, %s, %s, null, 'recursive_forecast', %s)
+                    """,
+                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", now),
+                )
+        connection.commit()
+
+
 def _store_predictions(
     database_url: str,
     run_id: str,
     test: list[dict[str, object]],
     predicted: list[float],
+    kind: str,
 ) -> None:
     now = datetime.now(UTC)
     with psycopg.connect(database_url) as connection:
@@ -186,7 +228,7 @@ def _store_predictions(
                 insert into ml_predictions (
                     run_id, product_id, target_date, predicted_quantity,
                     actual_quantity, kind, generated_at
-                ) values (%s, %s, %s, %s, %s, 'one_step_evaluation', %s)
+                ) values (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     run_id,
@@ -194,6 +236,7 @@ def _store_predictions(
                     activity_date.isoformat(),
                     f"{value:.3f}",
                     str(int(row["target"])),
+                    kind,
                     now,
                 ),
             )
@@ -237,6 +280,8 @@ def _insert_run(
     artifact: str | None,
     windows: tuple[date, date, date, date] | None,
     detail: str | None,
+    serving_strategy: str | None = None,
+    decision_rationale: str | None = None,
 ) -> None:
     train_start = test_start = train_end = test_end = None
     if windows is not None:
@@ -247,8 +292,9 @@ def _insert_run(
             insert into ml_runs (
                 run_id, status, warehouse_publication_id, algorithm, hyperparameters_json,
                 feature_version, train_start, train_end, test_start, test_end,
-                metrics_json, artifact_uri, trained_at, detail
-            ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                metrics_json, artifact_uri, trained_at, detail,
+                serving_strategy, decision_rationale
+            ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 run_id,
@@ -265,18 +311,22 @@ def _insert_run(
                 artifact,
                 datetime.now(UTC),
                 detail,
+                serving_strategy,
+                decision_rationale,
             ),
         )
         connection.commit()
 
 
-def _archive_previous(database_url: str, run_id: str) -> None:
+def _retire_previous(database_url: str, run_id: str) -> None:
+    """Keep the previous decision row and its metrics. Do not delete it."""
     with psycopg.connect(database_url) as connection:
         connection.execute(
             """
             update ml_runs
-            set status = 'archived'
-            where status = 'promoted' and run_id <> %s
+            set status = 'evaluated',
+                detail = coalesce(detail, '') || ' Retained after a later serving decision.'
+            where status in ('promoted', 'serving') and run_id <> %s
             """,
             (run_id,),
         )

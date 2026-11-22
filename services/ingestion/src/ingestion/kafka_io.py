@@ -11,6 +11,7 @@ from ingestion.errors import CommitFailed, PartitionLost
 from ingestion.runtime import Polled
 
 logger = logging.getLogger(__name__)
+MAX_PREFETCH = 1000
 
 
 class ConfluentRecord:
@@ -161,6 +162,9 @@ class ConfluentConsumer:
                 if should_stop():
                     return
                 remaining = deadline - time.monotonic()
+                if len(self._prefetched) >= MAX_PREFETCH:
+                    time.sleep(min(0.2, max(remaining, 0.0)))
+                    continue
                 unexpected = self._consumer.poll(min(0.2, max(remaining, 0.0)))
                 if unexpected is None:
                     continue

@@ -9,6 +9,8 @@ type Model = {
   run_id: string;
   status: string;
   algorithm: string;
+  serving_strategy: string | null;
+  decision_rationale: string | null;
   feature_version: string;
   test_start: string | null;
   test_end: string | null;
@@ -92,7 +94,10 @@ export function MlDashboard() {
       </Card>
     );
   }
-  const promoted = models.find((model) => model.status === "promoted") ?? null;
+  const promoted =
+    models.find((model) => model.status === "serving") ??
+    models.find((model) => model.status === "promoted") ??
+    null;
   const maxActual = Math.max(
     1,
     ...forecasts.map((row) => Number(row.actual_quantity ?? row.predicted_quantity)),
@@ -118,12 +123,19 @@ export function MlDashboard() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>{promoted.algorithm}</CardTitle>
+            <CardTitle>{promoted.serving_strategy ?? promoted.algorithm}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-zinc-300">
             <p>
+              Served method {promoted.serving_strategy ?? "not selected"} · candidate{" "}
+              {promoted.algorithm}
+            </p>
+            <p className="mt-2">
               Test {promoted.test_start} to {promoted.test_end} · {promoted.feature_version}
             </p>
+            {promoted.decision_rationale ? (
+              <p className="mt-2 text-xs text-zinc-400">{promoted.decision_rationale}</p>
+            ) : null}
             <p className="mt-2 font-mono text-xs">{promoted.warehouse_publication_id}</p>
             {promoted.metrics ? (
               <ul className="mt-3 space-y-1">
