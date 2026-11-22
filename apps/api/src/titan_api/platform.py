@@ -6,7 +6,7 @@ from typing import Any
 
 from confluent_kafka import Consumer, ConsumerGroupTopicPartitions, TopicPartition
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from titan_api.config import ApiSettings
@@ -161,11 +161,17 @@ class RunView(BaseModel):
     duration_ms: int | None
     detail: str | None
     error_detail: str | None
+    scope: str | None = None
 
 
 class RunsResponse(BaseModel):
     returned: int
     runs: list[RunView]
+
+
+class JobStatusResponse(BaseModel):
+    returned: int
+    jobs: list[RunView]
 
 
 def quality_summary(session: Session) -> QualitySummary:
@@ -327,19 +333,21 @@ def monitoring_runs(session: Session, limit: int) -> RunsResponse:
     return RunsResponse(
         returned=len(rows),
         runs=[
-            RunView(
-                id=row.id,
-                job_name=row.job_name,
-                state=row.state,
-                started_at=row.started_at,
-                finished_at=row.finished_at,
-                duration_ms=row.duration_ms,
-                detail=row.detail,
-                error_detail=row.error_detail,
-            )
+            _run_view(row)
             for row in rows
         ],
     )
+
+
+def monitoring_jobs(session: Session) -> JobStatusResponse:
+    """Latest recorded attempt for each job. This is not the execution history."""
+    latest = select(func.max(PipelineRun.id).label("id")).group_by(PipelineRun.job_name).subquery()
+    rows = session.scalars(
+        select(PipelineRun)
+        .join(latest, PipelineRun.id == latest.c.id)
+        .order_by(PipelineRun.job_name)
+    ).all()
+    return JobStatusResponse(returned=len(rows), jobs=[_run_view(row) for row in rows])
 
 
 def monitoring_freshness(session: Session) -> list[StageFreshness]:
@@ -434,6 +442,36 @@ def _spark(session: Session) -> str | None:
     if row is None:
         return None
     return f"{row.state} at {row.updated_at.isoformat()} offsets {row.last_offsets or 'unreported'}"
+
+
+def _run_view(row: PipelineRun) -> RunView:
+    return RunView(
+        id=row.id,
+        job_name=row.job_name,
+        state=row.state,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+        duration_ms=row.duration_ms,
+        detail=row.detail,
+        error_detail=row.error_detail,
+        scope=_publication_scope(row.metadata_json),
+    )
+
+
+def _publication_scope(metadata_json: str | None) -> str | None:
+    if not metadata_json:
+        return None
+    try:
+        parsed = json.loads(metadata_json)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    for key in ("warehouse_publication_id", "publication_id"):
+        value = parsed.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def _failure(session: Session) -> str | None:

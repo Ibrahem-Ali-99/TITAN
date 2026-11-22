@@ -22,6 +22,7 @@ from titan_api.platform import (
     AnomaliesResponse,
     FindingsResponse,
     ForecastsResponse,
+    JobStatusResponse,
     ModelsResponse,
     MonitoringOverview,
     QualityRuns,
@@ -32,6 +33,7 @@ from titan_api.platform import (
     ml_forecasts,
     ml_models,
     monitoring_freshness,
+    monitoring_jobs,
     monitoring_overview,
     monitoring_runs,
     quality_findings,
@@ -250,6 +252,10 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         session: Session = Depends(get_session),
     ) -> RunsResponse:
         return _read(lambda: monitoring_runs(session, limit))
+
+    @app.get("/api/v1/monitoring/jobs", response_model=JobStatusResponse)
+    def monitoring_jobs_route(session: Session = Depends(get_session)) -> JobStatusResponse:
+        return _read(lambda: monitoring_jobs(session))
 
     @app.get("/api/v1/monitoring/freshness", response_model=list[StageFreshness])
     def monitoring_freshness_route(session: Session = Depends(get_session)) -> list[StageFreshness]:

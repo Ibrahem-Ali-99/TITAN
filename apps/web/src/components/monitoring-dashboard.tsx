@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
 import type { WarehouseStatus } from "@/lib/types";
-import { classifyRun, formatAge, formatDuration, formatUtc, hasLaterSuccess } from "@/lib/utils";
+import { classifyIncident, matchLatest, platformHealth, summarizeIncidents, type Execution } from "@/lib/incidents";
+import { formatAge, formatDuration, formatUtc } from "@/lib/utils";
 
 type Overview = {
   freshness: {
@@ -50,6 +51,7 @@ type Run = {
   duration_ms: number | null;
   detail: string | null;
   error_detail: string | null;
+  scope?: string | null;
 };
 
 export function MonitoringDashboard() {
@@ -57,17 +59,20 @@ export function MonitoringDashboard() {
   const [warehouse, setWarehouse] = useState<WarehouseStatus | null>(null);
   const [qualityStatus, setQualityStatus] = useState<string | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [jobs, setJobs] = useState<Execution[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [next, history, warehouseStatus, qualityRuns] = await Promise.all([
+        const [next, history, jobStatus, warehouseStatus, qualityRuns] = await Promise.all([
           getJson<Overview>("/api/v1/monitoring/overview"),
           getJson<{ runs: Run[] }>("/api/v1/monitoring/runs?limit=30"),
+          getJson<{ jobs: Execution[] }>("/api/v1/monitoring/jobs").catch(() => null),
           getJson<WarehouseStatus>("/api/v1/warehouse/status").catch(() => null),
           getJson<{ runs: { status: string; warehouse_publication_id: string; finished_at: string | null }[] }>(
             "/api/v1/quality/runs?limit=30",
@@ -81,6 +86,7 @@ export function MonitoringDashboard() {
             : null;
           setQualityStatus(matched?.status ?? null);
           setRuns(history.runs);
+          setJobs(jobStatus ? jobStatus.jobs : null);
           setError(null);
         }
       } catch (caught) {
@@ -89,6 +95,7 @@ export function MonitoringDashboard() {
         }
       } finally {
         if (!cancelled) {
+          setNow(Date.now());
           setLoading(false);
         }
       }
@@ -99,10 +106,7 @@ export function MonitoringDashboard() {
     };
   }, []);
 
-  const unresolved = useMemo(
-    () => runs.filter((run) => run.state === "failed" && !hasLaterSuccess(run, runs)),
-    [runs],
-  );
+  const summary = useMemo(() => summarizeIncidents(runs, jobs, now), [runs, jobs, now]);
 
   if (loading) {
     return <LoadingState label="Loading pipeline history…" />;
@@ -113,27 +117,33 @@ export function MonitoringDashboard() {
 
   const open = runs.find((run) => run.id === openId) ?? null;
   const warehouseFresh = overview.freshness.find((stage) => stage.stage.toLowerCase().includes("warehouse"));
-  const recoveredCount = runs.filter((run) => run.state === "failed" && hasLaterSuccess(run, runs)).length;
+  const health = platformHealth({
+    warehouseReady: warehouse === null ? null : warehouse.ready,
+    activeFailures: summary.active.length,
+  });
   const stages = [
     {
       stage: "Warehouse publication",
-      status: warehouse?.ready ? "Succeeded" : "Not ready",
-      notes: warehouse?.ready ? "Ready" : "Not serving",
-      ok: Boolean(warehouse?.ready),
+      status: warehouse === null ? "Unknown" : warehouse.ready ? "Succeeded" : "Not ready",
+      notes: warehouse === null ? "Status unavailable" : warehouse.ready ? "Ready" : "Not serving",
+      tone: warehouse === null ? "neutral" : warehouse.ready ? "ok" : "warn",
       runId: null as number | null,
     },
     ...["quality_gate", "warehouse_models"].map((name) => {
-      const run = runs.find((item) => item.job_name === name && item.state === "succeeded") ?? runs.find((item) => item.job_name === name);
-      const view = run ? classifyRun({ ...run, recovered: hasLaterSuccess(run, runs) }) : null;
+      const latest = jobs?.find((job) => job.job_name === name) ?? null;
+      const incident = latest ? classifyIncident(latest, runs, latest) : null;
+      const matched = latest ? runs.find((run) => run.id === latest.id) : null;
       return {
         stage: name === "quality_gate" ? "Quality gate" : "dbt models",
-        status: view?.label ?? "No row",
-        notes: run ? formatDuration(run.duration_ms) : "Not in this page",
-        ok: view?.tone === "ok",
-        runId: run?.id ?? null,
+        status: incident?.label ?? (jobs === null ? "Unknown" : "No row"),
+        notes: matched ? formatDuration(matched.duration_ms) : jobs === null ? "Latest execution was not loaded" : "No execution stored",
+        tone: incident?.tone ?? "neutral",
+        runId: matched?.id ?? null,
       };
     }),
   ];
+  const toneClass = (tone: string) =>
+    tone === "ok" ? "text-[var(--ok)]" : tone === "bad" ? "text-[var(--bad)]" : tone === "warn" ? "text-[var(--warn)]" : "text-[var(--muted)]";
   return (
     <div>
       <PageHeader
@@ -177,39 +187,68 @@ export function MonitoringDashboard() {
               onClick={() => item.runId !== null && setOpenId(openId === item.runId ? null : item.runId)}
             >
               <span>{item.stage}</span>
-              <span className={item.ok ? "text-[var(--ok)]" : "text-[var(--warn)]"}>{item.status}</span>
+              <span className={toneClass(item.tone)}>{item.status}</span>
               <span className="text-[var(--muted)]">{item.notes}</span>
             </button>
           ))}
-          {recoveredCount > 0 ? (
+          {summary.active
+            .filter((job) => job.job_name !== "quality_gate" && job.job_name !== "warehouse_models")
+            .map((job) => (
+              <div key={job.job_name} className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-3 border-t border-[var(--line)] py-3 text-sm">
+                <span>{job.job_name}</span>
+                <span className="text-[var(--bad)]">Failed</span>
+                <span className="text-[var(--muted)]">Current execution</span>
+              </div>
+            ))}
+          {summary.recovered > 0 ? (
             <div className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-3 border-t border-[var(--line)] py-3 text-sm">
               <span>Historical failure</span>
-              <span className="text-[var(--muted)]">Recovered</span>
-              <span className="text-[var(--muted)]">{recoveredCount} retained</span>
+              <span className="text-[var(--ok)]">Recovered</span>
+              <span className="text-[var(--muted)]">{summary.recovered} confirmed</span>
+            </div>
+          ) : null}
+          {summary.recoveryUnknown > 0 ? (
+            <div className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-3 border-t border-[var(--line)] py-3 text-sm">
+              <span>Historical failure</span>
+              <span className="text-[var(--warn)]">Recovery unknown</span>
+              <span className="text-[var(--muted)]">{summary.recoveryUnknown} not active</span>
             </div>
           ) : null}
         </Panel>
         <Panel
           title="Service health"
           detail="Latest observed signals"
-          action={unresolved.length === 0 && warehouse?.ready && overview.ingestion_lag.available ? <StatusPill tone="ok">Ready</StatusPill> : <StatusPill tone="warn">Partial</StatusPill>}
+          action={<StatusPill tone={health.tone}>{health.label}</StatusPill>}
         >
           <MetaList
             rows={[
               { label: "Kafka consumer", value: overview.ingestion_lag.available ? `${overview.ingestion_lag.total_lag} records lag` : "Not measured" },
               { label: "Spark checkpoint", value: overview.spark_progress ? "Report stored" : "No report" },
-              { label: "Warehouse serving", value: warehouse?.ready ? "Verified" : "Not verified" },
+              { label: "Warehouse serving", value: warehouse === null ? "Unavailable" : warehouse.ready ? "Verified" : "Not verified" },
               { label: "ML predictions", value: overview.model_serving ?? "Not recorded" },
             ]}
           />
-          {recoveredCount > 0 ? (
+          {summary.recovered > 0 ? (
             <div className="mt-3 rounded-lg border border-[var(--line)] px-3 py-2">
-              <p className="text-[10px] tracking-[0.14em] text-[var(--warn)] uppercase">Recovered incident</p>
+              <p className="text-[10px] tracking-[0.14em] text-[var(--ok)] uppercase">Recovered incident</p>
               <p className="mt-1 text-sm">Previous failure retained</p>
-              <p className="text-xs text-[var(--muted)]">Historical. A later success exists for that job. It is not an active publication failure.</p>
+              <p className="text-xs text-[var(--muted)]">A later success of the same job is confirmed. It is not an active incident.</p>
             </div>
           ) : null}
-          {unresolved.length > 0 ? <StatusPill tone="bad">{unresolved.length} unresolved on this page</StatusPill> : null}
+          {summary.recoveryUnknown > 0 ? (
+            <div className="mt-3 rounded-lg border border-[var(--line)] px-3 py-2">
+              <p className="text-[10px] tracking-[0.14em] text-[var(--warn)] uppercase">Historical failure · Recovery unknown</p>
+              <p className="mt-1 text-sm">Not an active incident</p>
+              <p className="text-xs text-[var(--muted)]">
+                {jobs === null
+                  ? "The returned history does not show whether this job succeeded afterward."
+                  : "The latest recorded attempt for that job is not a confirmed success."}
+              </p>
+            </div>
+          ) : null}
+          {summary.active.length > 0 ? (
+            <StatusPill tone="bad">{summary.active.length} active {summary.active.length === 1 ? "failure" : "failures"}</StatusPill>
+          ) : null}
         </Panel>
       </div>
       <ScopeBar>Current status, last activity, and historical incidents stay distinct.</ScopeBar>
@@ -229,8 +268,8 @@ export function MonitoringDashboard() {
               </tr>
             </thead>
             <tbody>
-              {runs.map((run) => {
-                const view = classifyRun({ ...run, recovered: hasLaterSuccess(run, runs) });
+              {runs.map((run, index) => {
+                const view = summary.incidents[index] ?? classifyIncident(run, runs, matchLatest(run, jobs));
                 return (
                   <tr key={run.id}>
                     <Td className="font-mono text-xs">{formatUtc(run.started_at)}</Td>
@@ -257,7 +296,7 @@ export function MonitoringDashboard() {
         <TechnicalDetails summary="Latest stored failure text">
           <p>{overview.latest_failure ?? "No failed pipeline run is stored."}</p>
           <p className="text-xs text-zinc-500">
-            This string is the newest failed row. It is a current incident only when that job has no later success in the table above.
+            This string is the newest failed row. It is an active incident only when that attempt is the latest verified execution of the same job.
           </p>
         </TechnicalDetails>
         <TechnicalDetails summary="Spark checkpoint progress">
