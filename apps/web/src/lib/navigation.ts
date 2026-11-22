@@ -30,17 +30,15 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/data-sources",
     label: "Data Sources",
     icon: Database,
-    available: false,
-    summary:
-      "Kafka, PostgreSQL, ClickHouse, and MinIO are provisioned locally. This page does not query them, and ClickHouse and MinIO have no application datasets yet.",
+    available: true,
+    summary: "REST submissions, CSV imports, and the synthetic generator.",
   },
   {
     href: "/streaming",
     label: "Streaming",
     icon: Radio,
-    available: false,
-    summary:
-      "The order consumer is a separate service. Broker lag, throughput, and partition detail are not collected, so none are shown here.",
+    available: true,
+    summary: "Durable consume, quarantine, conflict, and replay outcomes. Lag is not measured.",
   },
   {
     href: "/pipelines",

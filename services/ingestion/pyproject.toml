@@ -9,6 +9,7 @@ dependencies = [
     "psycopg[binary]==3.3.9",
     "pydantic-settings==2.16.3",
     "titan-contracts",
+    "titan-messaging",
     "titan-store",
 ]
 
@@ -17,6 +18,7 @@ titan-ingest = "ingestion.main:main"
 
 [tool.uv.sources]
 titan-contracts = { workspace = true }
+titan-messaging = { workspace = true }
 titan-store = { workspace = true }
 
 [build-system]

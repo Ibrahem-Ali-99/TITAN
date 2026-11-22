@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { StreamingDashboard } from "@/components/streaming-dashboard";
 
 export default function StreamingPage() {
-  return <PlannedModule href="/streaming" />;
+  return <StreamingDashboard />;
 }

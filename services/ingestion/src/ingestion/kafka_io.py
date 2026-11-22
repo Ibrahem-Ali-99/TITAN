@@ -7,7 +7,7 @@ from typing import Any
 
 from confluent_kafka import Consumer, KafkaError
 
-from ingestion.errors import CommitFailed
+from ingestion.errors import CommitFailed, PartitionLost
 from ingestion.runtime import Polled
 
 logger = logging.getLogger(__name__)
@@ -70,9 +70,19 @@ def retain_prefetched(current: Polled, message: Polled | None, buffer: list[Poll
     buffer.append(message)
 
 
+def drop_revoked(buffer: list[Polled], revoked: set[tuple[str, int]]) -> list[Polled]:
+    """Drop buffered records for partitions this consumer no longer owns.
+
+    Those records stay uncommitted. The new owner reads them from the last
+    committed offset, which preserves per-partition order.
+    """
+    return [item for item in buffer if (item.topic(), item.partition()) not in revoked]
+
+
 class ConfluentConsumer:
-    def __init__(self, bootstrap_servers: str, group_id: str, topic: str) -> None:
+    def __init__(self, bootstrap_servers: str, group_id: str, topics: list[str]) -> None:
         self._prefetched: list[Polled] = []
+        self._revoked: set[tuple[str, int]] = set()
         self._consumer = Consumer(
             {
                 "bootstrap.servers": bootstrap_servers,
@@ -86,7 +96,28 @@ class ConfluentConsumer:
                 "max.poll.interval.ms": 600000,
             }
         )
-        self._consumer.subscribe([topic])
+        self._consumer.subscribe(
+            topics,
+            on_assign=self._on_assign,  # type: ignore[arg-type]
+            on_revoke=self._on_revoke,  # type: ignore[arg-type]
+        )
+
+    def _on_assign(self, _consumer: object, partitions: list[object]) -> None:
+        for partition in partitions:
+            topic = getattr(partition, "topic", None)
+            number = getattr(partition, "partition", None)
+            if isinstance(topic, str) and isinstance(number, int):
+                self._revoked.discard((topic, number))
+
+    def _on_revoke(self, _consumer: object, partitions: list[object]) -> None:
+        revoked: set[tuple[str, int]] = set()
+        for partition in partitions:
+            topic = getattr(partition, "topic", None)
+            number = getattr(partition, "partition", None)
+            if isinstance(topic, str) and isinstance(number, int):
+                revoked.add((topic, number))
+        self._revoked.update(revoked)
+        self._prefetched = drop_revoked(self._prefetched, revoked)
 
     def poll(self, timeout: float) -> Polled | None:
         if self._prefetched:
@@ -100,6 +131,10 @@ class ConfluentConsumer:
         return ConfluentRecord(message)
 
     def commit(self, record: Polled) -> None:
+        if (record.topic(), record.partition()) in self._revoked:
+            raise PartitionLost(
+                f"{record.topic()}[{record.partition()}] was revoked before the offset commit"
+            )
         if not isinstance(record, ConfluentRecord):
             raise CommitFailed("offset commit received an unexpected record type")
         try:
@@ -141,6 +176,8 @@ class ConfluentConsumer:
                 partition = unexpected.partition()
                 offset = unexpected.offset()
                 if topic is None or partition is None or offset is None:
+                    continue
+                if (topic, partition) in self._revoked:
                     continue
                 retain_prefetched(record, ConfluentRecord(unexpected), self._prefetched)
         finally:

@@ -7,11 +7,11 @@ alwaysApply: false
 # Streaming correctness
 
 - Disable automatic offset commits. Commit only after the database transaction commits.
-- A database error must not acknowledge the record. Seek or retry that record; do not move on and commit a later offset.
+- A database error must not acknowledge the record. Retry that record from memory. Do not seek over prefetched records, and do not commit after the partition is revoked.
 - Persist with an `event_id` uniqueness constraint. Duplicate delivery is a successful no-op, then an offset commit.
 - Invalid records are quarantined and then acknowledged so one bad message cannot stall the partition. If quarantine itself fails, do not commit.
 - This path is at-least-once plus idempotent persistence, not an end-to-end exactly-once transaction.
-- Order events use `order_id` as the Kafka key. Bounded retries and delivery callbacks are required on the producer.
+- Partition keys are `order_id`, `payment_id`, and `product_id` on their own topics. Bounded retries and delivery callbacks are required on the producer.
 
 ```python
 # BAD: the broker is told to skip a record that never landed

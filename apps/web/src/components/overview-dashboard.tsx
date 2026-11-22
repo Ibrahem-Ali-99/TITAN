@@ -198,7 +198,8 @@ export function OverviewDashboard() {
                         {formatUtc(event.ingested_at)}
                       </td>
                       <td className="py-2 pr-3">
-                        <div className="font-mono text-xs">{event.order_id}</div>
+                        <div className="font-mono text-xs">{event.order_id ?? "—"}</div>
+                        <div className="text-xs text-zinc-500">{event.disposition}</div>
                         <div className="text-xs text-zinc-500">{event.event_type}</div>
                       </td>
                       <td className="py-2 pr-3 font-mono text-xs">

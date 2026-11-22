@@ -17,12 +17,24 @@ from sqlalchemy.orm import Session
 from titan_api.config import ApiSettings
 from titan_api.logging_config import configure_logging
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
+from titan_api.routes import register_routes
 from titan_api.schemas import HealthLive, HealthReady, IngestionStats, RecentEventsResponse
+from titan_contracts.events import CommerceEvent
+from titan_messaging.admin import ensure_commerce_topics
+from titan_messaging.producer import PublishError, PublishResult, connect_producer, publish_record
 from titan_store.db import create_db_engine, create_session_factory
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_TABLES = ("commerce_events", "ingestion_quarantine")
+REQUIRED_TABLES = (
+    "commerce_events",
+    "ingestion_quarantine",
+    "ingestion_observations",
+    "source_submissions",
+    "csv_imports",
+    "csv_import_rows",
+    "replay_attempts",
+)
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -42,13 +54,29 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=False,
-        allow_methods=["GET", "OPTIONS"],
+        allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Accept", "Content-Type"],
     )
     engine = create_db_engine(resolved.database_url)
     app.state.settings = resolved
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
+
+    def publish_event(event: CommerceEvent) -> PublishResult:
+        try:
+            ensure_commerce_topics(resolved.kafka_bootstrap_servers)
+            producer = connect_producer(resolved.kafka_bootstrap_servers, client_id="titan-api")
+        except PublishError:
+            raise
+        except Exception as exc:
+            raise PublishError(f"broker was not ready: {exc}") from exc
+        try:
+            return publish_record(producer, event)
+        finally:
+            producer.flush(10)
+
+    app.state.publish = publish_event
+    register_routes(app, get_session)
 
     @app.get("/health/live", response_model=HealthLive)
     def live() -> HealthLive:

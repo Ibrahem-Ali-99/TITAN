@@ -6,7 +6,7 @@ Local foundation for a real-time commerce data platform. Day 1 runs one path:
 
 ClickHouse and MinIO are started for later milestones. They do not hold analytical datasets. Events produced here are synthetic and are labeled `synthetic.event-generator`.
 
-Persisted counts are rows in PostgreSQL. They are not Kafka broker throughput. Consumption is at-least-once with idempotent persistence, not end-to-end exactly-once. Details are in [docs/consumption-semantics.md](docs/consumption-semantics.md) and [docs/money-policy.md](docs/money-policy.md).
+Persisted counts are rows in PostgreSQL. They are not Kafka broker throughput. Consumption is at-least-once with idempotent persistence, not end-to-end exactly-once. Day 2 adds REST and CSV inputs on the same Kafka path. Details are in [docs/consumption-semantics.md](docs/consumption-semantics.md), [docs/money-policy.md](docs/money-policy.md), and [docs/ingestion-hub.md](docs/ingestion-hub.md).
 
 ## Prerequisites
 
@@ -71,7 +71,19 @@ curl http://localhost:8000/api/v1/ingestion/stats
 curl "http://localhost:8000/api/v1/events/recent?limit=20"
 ```
 
-Open http://localhost:3000 for the overview. The page polls the API every 5 seconds.
+Open http://localhost:3000 for the overview. Data Sources and Streaming read the same API. The pages poll every 5 seconds.
+
+After pulling Day 2, rerun migrations:
+
+```powershell
+docker compose run --rm --build migrate
+```
+
+Publish one order through the API:
+
+```powershell
+uv run python scripts/verify_day2.py
+```
 
 ## Tests and static checks
 

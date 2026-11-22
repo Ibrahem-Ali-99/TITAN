@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { DataSourcesDashboard } from "@/components/data-sources-dashboard";
 
 export default function DataSourcesPage() {
-  return <PlannedModule href="/data-sources" />;
+  return <DataSourcesDashboard />;
 }

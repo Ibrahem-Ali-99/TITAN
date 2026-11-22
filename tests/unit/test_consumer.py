@@ -5,14 +5,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from event_generator.generator import generate_orders
-from ingestion.errors import TransientStorageError
-from ingestion.kafka_io import retain_prefetched
+from ingestion.errors import PartitionLost, TransientStorageError
+from ingestion.kafka_io import drop_revoked, retain_prefetched
 from ingestion.positions import KafkaPosition
 from ingestion.runtime import Polled, run_consumer
 from ingestion.store import PersistOutcome, SqlEventStore
-from titan_contracts.events import OrderCreatedEvent
+from titan_contracts.events import CommerceEvent
 from titan_store.db import create_db_engine, create_session_factory
-from titan_store.models import Base, CommerceEvent, QuarantineRecord
+from titan_store.models import Base, QuarantineRecord
+from titan_store.models import CommerceEvent as StoredEvent
 
 
 class FakeRecord:
@@ -84,7 +85,7 @@ class MemoryStore:
         self.quarantined_types: list[str] = []
 
     def persist(
-        self, event: OrderCreatedEvent, position: KafkaPosition, ingested_at: datetime
+        self, event: CommerceEvent, position: KafkaPosition, ingested_at: datetime
     ) -> PersistOutcome:
         del position, ingested_at
         if self.failures:
@@ -106,8 +107,15 @@ class MemoryStore:
         error_type: str,
         error_detail: str,
         received_at: datetime | None = None,
+        *,
+        source: str | None = None,
+        event_id: object = None,
+        event_type: str | None = None,
+        schema_version: int | None = None,
+        replay_status: str = "not_replayable",
     ) -> PersistOutcome:
         del position, raw_value, error_detail, received_at
+        del source, event_id, event_type, schema_version, replay_status
         if self.failures:
             self.failures -= 1
             self.trace.append("quarantine-fail")
@@ -218,11 +226,50 @@ def test_sqlite_persistence_is_idempotent_by_event_id() -> None:
     assert store.persist(event, first, now) is PersistOutcome.INSERTED
     assert store.persist(event, second, now) is PersistOutcome.DUPLICATE
     with Session(engine) as session:
-        assert session.scalar(select(func.count()).select_from(CommerceEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(StoredEvent)) == 1
     assert store.quarantine(first, "{", "malformed_json", "bad", now) is PersistOutcome.INSERTED
     assert store.quarantine(first, "{", "malformed_json", "bad", now) is PersistOutcome.DUPLICATE
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(QuarantineRecord)) == 1
+
+
+def test_partition_loss_does_not_acknowledge_or_retry() -> None:
+    event = generate_orders(1, seed=13, deterministic_event_ids=True)[0]
+    trace: list[str] = []
+    store = MemoryStore(trace)
+
+    class LosingConsumer(FakeConsumer):
+        def commit(self, record: Polled) -> None:
+            self.trace.append(f"commit-lost:{record.offset()}")
+            raise PartitionLost("revoked")
+
+    consumer = LosingConsumer(
+        [
+            FakeRecord(
+                event.model_dump_json().encode(), offset=3, key=event.payload.order_id.encode()
+            )
+        ],
+        trace,
+    )
+    run_consumer(
+        consumer,
+        store,
+        should_stop=lambda: False,
+        heartbeat=lambda: None,
+        max_idle_polls=1,
+        max_recoveries=5,
+    )
+    assert trace == ["persist-ok", "commit-lost:3"]
+    assert consumer.closed is True
+
+
+def test_revoked_partitions_drop_buffered_records() -> None:
+    current = FakeRecord(b"{}", offset=5, key=b"ord_current0001")
+    same_partition = FakeRecord(b"{}", offset=6, key=b"ord_later000001")
+    other = FakeRecord(b"{}", offset=1, key=b"ord_other000001", partition=1)
+    kept = drop_revoked([current, same_partition, other], {("titan.commerce.order-events", 0)})
+    assert [record.offset() for record in kept] == [1]
+    assert kept[0].partition() == 1
 
 
 def test_backoff_keeps_prefetched_records_in_order_without_seeking() -> None:

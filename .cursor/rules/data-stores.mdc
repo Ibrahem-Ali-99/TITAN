@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Data stores
 
-- Ship schema changes through Alembic in `packages/store`. The ingestion service owns writes to `commerce_events` and `ingestion_quarantine`.
+- Ship schema changes through Alembic in `packages/store`. The ingestion service owns writes to `commerce_events`, `ingestion_quarantine`, and duplicate-delivery observations. The API records source submissions, CSV import rows, and replay attempts. It does not write `commerce_events`.
 - Store the canonical envelope. Do not reshape it into a warehouse model on Day 1.
 - `ingested_at` is database write time. `occurred_at` is business time. API copy must keep them distinct.
 - Persisted row counts are not Kafka throughput.

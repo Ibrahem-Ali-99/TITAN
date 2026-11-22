@@ -7,11 +7,16 @@ dependencies = [
     "fastapi==0.165.0",
     "psycopg[binary]==3.3.9",
     "pydantic-settings==2.16.3",
+    "python-multipart==0.0.20",
+    "titan-contracts",
+    "titan-messaging",
     "titan-store",
     "uvicorn==0.54.0",
 ]
 
 [tool.uv.sources]
+titan-contracts = { workspace = true }
+titan-messaging = { workspace = true }
 titan-store = { workspace = true }
 
 [build-system]

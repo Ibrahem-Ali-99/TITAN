@@ -22,7 +22,23 @@ class IngestionStats(BaseModel):
     persisted_events: int
     persisted_order_created_events: int
     quarantined_records: int
+    kafka_consumed_events: int
+    logical_orders: int
+    order_conflicts: int
+    duplicate_operations: int
+    duplicate_deliveries: int
+    accepted_payments: int
+    payment_conflicts: int
+    inventory_updates: int
+    rest_events_published: int
+    rest_events_rejected: int
+    csv_rows_accepted: int
+    csv_rows_rejected: int
+    csv_rows_publish_failed: int
+    replays_published: int
+    replays_refused: int
     most_recent_ingested_at: datetime | None
+    most_recent_error_at: datetime | None
     recent_activity: list[ActivityPoint]
     activity_window_minutes: int
     metric_definitions: dict[str, str]
@@ -32,7 +48,8 @@ class RecentEvent(BaseModel):
     event_id: UUID
     event_type: str
     schema_version: int
-    order_id: str
+    order_id: str | None
+    disposition: str
     occurred_at: datetime
     ingested_at: datetime
     source: str

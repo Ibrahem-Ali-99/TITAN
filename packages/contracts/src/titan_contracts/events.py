@@ -1,4 +1,4 @@
-"""Versioned event envelope. Day 1 accepts only ``order_created`` schema 1."""
+"""Versioned commerce envelopes. Schema version 1 remains the only accepted version."""
 
 from datetime import UTC, datetime
 from typing import Literal
@@ -6,8 +6,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
-from titan_contracts.identifiers import ORDER_CREATED, SCHEMA_VERSION
+from titan_contracts.identifiers import (
+    INVENTORY_UPDATED,
+    ORDER_CREATED,
+    PAYMENT_COMPLETED,
+    SCHEMA_VERSION,
+)
+from titan_contracts.inventory import InventoryUpdatedPayload
 from titan_contracts.orders import OrderCreatedPayload
+from titan_contracts.payments import PaymentCompletedPayload
 
 
 def parse_utc_datetime(value: object) -> datetime:
@@ -23,18 +30,14 @@ def parse_utc_datetime(value: object) -> datetime:
     return parsed.astimezone(UTC)
 
 
-class OrderCreatedEvent(BaseModel):
-    """Canonical envelope persisted and forwarded without reshaping the payload."""
-
+class _Envelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     event_id: UUID
-    event_type: Literal["order_created"] = ORDER_CREATED
     schema_version: Literal[1] = SCHEMA_VERSION
     occurred_at: datetime
     produced_at: datetime
     source: str = Field(min_length=1, max_length=200)
-    payload: OrderCreatedPayload
 
     @field_validator("occurred_at", "produced_at", mode="before")
     @classmethod
@@ -48,3 +51,41 @@ class OrderCreatedEvent(BaseModel):
     @field_serializer("event_id", when_used="json")
     def serialize_event_id(self, value: UUID) -> str:
         return str(value)
+
+
+class OrderCreatedEvent(_Envelope):
+    """Canonical order envelope. Schema 1 is unchanged from Day 1."""
+
+    event_type: Literal["order_created"] = ORDER_CREATED
+    payload: OrderCreatedPayload
+
+
+class PaymentCompletedEvent(_Envelope):
+    event_type: Literal["payment_completed"] = PAYMENT_COMPLETED
+    payload: PaymentCompletedPayload
+
+
+class InventoryUpdatedEvent(_Envelope):
+    event_type: Literal["inventory_updated"] = INVENTORY_UPDATED
+    payload: InventoryUpdatedPayload
+
+
+CommerceEvent = OrderCreatedEvent | PaymentCompletedEvent | InventoryUpdatedEvent
+
+_MODELS: dict[str, type[CommerceEvent]] = {
+    "order_created": OrderCreatedEvent,
+    "payment_completed": PaymentCompletedEvent,
+    "inventory_updated": InventoryUpdatedEvent,
+}
+
+
+def business_key(event: CommerceEvent) -> str:
+    if isinstance(event, OrderCreatedEvent):
+        return event.payload.order_id
+    if isinstance(event, PaymentCompletedEvent):
+        return event.payload.payment_id
+    return event.payload.product_id
+
+
+def order_reference(event: CommerceEvent) -> str | None:
+    return event.payload.order_id

@@ -11,12 +11,13 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
 
-from ingestion.errors import CommitFailed, InvalidEvent, TransientStorageError
-from ingestion.parsing import clip, parse_order_created
+from ingestion.errors import CommitFailed, InvalidEvent, PartitionLost, TransientStorageError
+from ingestion.parsing import clip, parse_record, peek_identity
 from ingestion.positions import KafkaPosition
 from ingestion.store import PersistOutcome
-from titan_contracts.events import OrderCreatedEvent
+from titan_contracts.events import CommerceEvent, business_key
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class EventStore(Protocol):
     def persist(
         self,
-        event: OrderCreatedEvent,
+        event: CommerceEvent,
         position: KafkaPosition,
         ingested_at: datetime,
     ) -> PersistOutcome: ...
@@ -36,6 +37,12 @@ class EventStore(Protocol):
         error_type: str,
         error_detail: str,
         received_at: datetime | None = None,
+        *,
+        source: str | None = None,
+        event_id: UUID | None = None,
+        event_type: str | None = None,
+        schema_version: int | None = None,
+        replay_status: str = "not_replayable",
     ) -> PersistOutcome: ...
 
 
@@ -98,9 +105,21 @@ def apply_record(record: Polled, store: EventStore, ingested_at: datetime) -> st
         )
         return "quarantined"
     try:
-        event = parse_order_created(raw)
+        event = parse_record(raw)
     except InvalidEvent as exc:
-        store.quarantine(position, text, exc.error_type, exc.detail, ingested_at)
+        identity = peek_identity(text)
+        store.quarantine(
+            position,
+            text,
+            exc.error_type,
+            exc.detail,
+            ingested_at,
+            source=identity.source,
+            event_id=identity.event_id,
+            event_type=identity.event_type,
+            schema_version=identity.schema_version,
+            replay_status="not_replayable",
+        )
         logger.warning(
             "quarantined invalid record",
             extra={
@@ -111,22 +130,33 @@ def apply_record(record: Polled, store: EventStore, ingested_at: datetime) -> st
         )
         return "quarantined"
     key = decode_key(record.key())
+    expected = business_key(event)
     if key is None:
         store.quarantine(
             position,
             text,
             "missing_or_invalid_key",
-            "order events must use the order_id as a UTF-8 Kafka key",
+            "commerce events must use the business key as a UTF-8 Kafka key",
             ingested_at,
+            source=event.source,
+            event_id=event.event_id,
+            event_type=event.event_type,
+            schema_version=event.schema_version,
+            replay_status="needs_correction",
         )
         return "quarantined"
-    if key != event.payload.order_id:
+    if key != expected:
         store.quarantine(
             position,
             clip(text, 16_384),
             "key_mismatch",
-            f"Kafka key {key} does not equal payload order_id {event.payload.order_id}",
+            f"Kafka key {key} does not equal business key {expected}",
             ingested_at,
+            source=event.source,
+            event_id=event.event_id,
+            event_type=event.event_type,
+            schema_version=event.schema_version,
+            replay_status="needs_correction",
         )
         return "quarantined"
     outcome = store.persist(event, position, ingested_at)
@@ -177,6 +207,10 @@ def run_consumer(
                     apply_record(record, store, now())
                     try:
                         consumer.commit(record)
+                    except PartitionLost:
+                        logger.warning("partition ownership lost before offset commit")
+                        backoff = 1.0
+                        break
                     except Exception as exc:
                         raise CommitFailed("offset commit failed") from exc
                     backoff = 1.0

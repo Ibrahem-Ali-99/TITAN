@@ -2,12 +2,12 @@ import logging
 import signal
 from pathlib import Path
 
-from ingestion.admin import ensure_order_topic
 from ingestion.config import IngestionSettings
 from ingestion.kafka_io import ConfluentConsumer
 from ingestion.logging_config import configure_logging
 from ingestion.runtime import run_consumer
 from ingestion.store import SqlEventStore
+from titan_messaging.admin import ensure_commerce_topics
 from titan_store.db import create_db_engine, create_session_factory
 
 logger = logging.getLogger(__name__)
@@ -37,17 +37,18 @@ def main() -> None:
         heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
         heartbeat_path.write_text("ok", encoding="utf-8")
 
+    topics = settings.topic_names()
     logger.info(
         "ingestion starting",
-        extra={"topic": settings.ingestion_topic, "group": settings.ingestion_consumer_group},
+        extra={"topics": ",".join(topics), "group": settings.ingestion_consumer_group},
     )
-    ensure_order_topic(settings.kafka_bootstrap_servers)
+    ensure_commerce_topics(settings.kafka_bootstrap_servers)
     engine = create_db_engine(settings.database_url)
     store = SqlEventStore(create_session_factory(engine))
     consumer = ConfluentConsumer(
         settings.kafka_bootstrap_servers,
         settings.ingestion_consumer_group,
-        settings.ingestion_topic,
+        topics,
     )
     try:
         run_consumer(

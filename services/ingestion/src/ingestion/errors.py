@@ -13,3 +13,7 @@ class TransientStorageError(Exception):
 
 class CommitFailed(Exception):
     """The database commit succeeded or was unnecessary, but the offset commit failed."""
+
+
+class PartitionLost(Exception):
+    """This process no longer owns the partition. Do not commit the offset."""

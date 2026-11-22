@@ -192,9 +192,14 @@ services:
         "/app/apps/api/src",
         "--reload-dir",
         "/app/packages/store/src",
+        "--reload-dir",
+        "/app/packages/contracts/src",
+        "--reload-dir",
+        "/app/packages/messaging/src",
       ]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       CORS_ORIGINS: http://localhost:3000
       LOG_LEVEL: INFO
       WATCHFILES_FORCE_POLLING: "true"
@@ -204,6 +209,7 @@ services:
       - ./apps/api/src:/app/apps/api/src
       - ./packages/store/src:/app/packages/store/src
       - ./packages/contracts/src:/app/packages/contracts/src
+      - ./packages/messaging/src:/app/packages/messaging/src
     depends_on:
       migrate:
         condition: service_completed_successfully

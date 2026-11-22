@@ -3,16 +3,20 @@
 import logging
 from datetime import UTC, datetime
 from enum import Enum
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, IntegrityError, InterfaceError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
+from ingestion.classify import classify_event
 from ingestion.errors import TransientStorageError
 from ingestion.parsing import RAW_VALUE_LIMIT, clip
 from ingestion.positions import KafkaPosition
-from titan_contracts.events import OrderCreatedEvent
-from titan_store.models import CommerceEvent, QuarantineRecord
+from titan_contracts.events import CommerceEvent, business_key, order_reference
+from titan_contracts.fingerprint import payload_fingerprint
+from titan_store.models import CommerceEvent as CommerceEventRow
+from titan_store.models import IngestionObservation, QuarantineRecord
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,15 @@ logger = logging.getLogger(__name__)
 class PersistOutcome(Enum):
     INSERTED = "inserted"
     DUPLICATE = "duplicate"
+    DUPLICATE_OPERATION = "duplicate_operation"
+    CONFLICT = "conflict"
+
+
+_DISPOSITION_OUTCOME = {
+    "accepted": PersistOutcome.INSERTED,
+    "duplicate_operation": PersistOutcome.DUPLICATE_OPERATION,
+    "conflict": PersistOutcome.CONFLICT,
+}
 
 
 class SqlEventStore:
@@ -28,18 +41,27 @@ class SqlEventStore:
 
     def persist(
         self,
-        event: OrderCreatedEvent,
+        event: CommerceEvent,
         position: KafkaPosition,
         ingested_at: datetime,
     ) -> PersistOutcome:
         session = self._session_factory()
         try:
+            existing = session.get(CommerceEventRow, event.event_id)
+            if existing is not None:
+                self._observe_duplicate(session, event.event_id, position, ingested_at)
+                return PersistOutcome.DUPLICATE
+            fingerprint = payload_fingerprint(event.payload)
+            disposition = classify_event(session, event, fingerprint)
             session.add(
-                CommerceEvent(
+                CommerceEventRow(
                     event_id=event.event_id,
                     event_type=event.event_type,
                     schema_version=event.schema_version,
-                    order_id=event.payload.order_id,
+                    order_id=order_reference(event),
+                    business_key=business_key(event),
+                    disposition=disposition,
+                    payload_fingerprint=fingerprint,
                     occurred_at=event.occurred_at,
                     ingested_at=ingested_at,
                     source=event.source,
@@ -51,10 +73,10 @@ class SqlEventStore:
                 )
             )
             session.commit()
-            return PersistOutcome.INSERTED
+            return _DISPOSITION_OUTCOME[disposition]
         except IntegrityError:
             session.rollback()
-            return self._classify_conflict(session, event, position)
+            return self._classify_conflict(session, event, position, ingested_at)
         except (OperationalError, InterfaceError) as exc:
             session.rollback()
             raise TransientStorageError("database operation failed") from exc
@@ -73,6 +95,12 @@ class SqlEventStore:
         error_type: str,
         error_detail: str,
         received_at: datetime | None = None,
+        *,
+        source: str | None = None,
+        event_id: UUID | None = None,
+        event_type: str | None = None,
+        schema_version: int | None = None,
+        replay_status: str = "not_replayable",
     ) -> PersistOutcome:
         session = self._session_factory()
         try:
@@ -86,6 +114,11 @@ class SqlEventStore:
                     raw_value=None if raw_value is None else clip(raw_value, RAW_VALUE_LIMIT),
                     error_type=error_type,
                     error_detail=clip(error_detail, 8_000),
+                    source=source,
+                    event_id=event_id,
+                    event_type=event_type,
+                    schema_version=schema_version,
+                    replay_status=replay_status,
                 )
             )
             session.commit()
@@ -112,21 +145,48 @@ class SqlEventStore:
         finally:
             session.close()
 
+    def _observe_duplicate(
+        self,
+        session: Session,
+        event_id: UUID,
+        position: KafkaPosition,
+        observed_at: datetime,
+    ) -> None:
+        session.add(
+            IngestionObservation(
+                observed_at=observed_at,
+                event_id=event_id,
+                outcome="duplicate_delivery",
+                kafka_topic=position.topic,
+                kafka_partition=position.partition,
+                kafka_offset=position.offset,
+            )
+        )
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            logger.info(
+                "duplicate delivery already recorded",
+                extra={"event_id": str(event_id), "offset": position.offset},
+            )
+
     def _classify_conflict(
         self,
         session: Session,
-        event: OrderCreatedEvent,
+        event: CommerceEvent,
         position: KafkaPosition,
+        ingested_at: datetime,
     ) -> PersistOutcome:
-        existing = session.get(CommerceEvent, event.event_id)
+        existing = session.get(CommerceEventRow, event.event_id)
         if existing is not None:
-            logger.info("duplicate event_id ignored", extra={"event_id": str(event.event_id)})
+            self._observe_duplicate(session, event.event_id, position, ingested_at)
             return PersistOutcome.DUPLICATE
         stored_at_position = session.scalar(
-            select(CommerceEvent.event_id).where(
-                CommerceEvent.kafka_topic == position.topic,
-                CommerceEvent.kafka_partition == position.partition,
-                CommerceEvent.kafka_offset == position.offset,
+            select(CommerceEventRow.event_id).where(
+                CommerceEventRow.kafka_topic == position.topic,
+                CommerceEventRow.kafka_partition == position.partition,
+                CommerceEventRow.kafka_offset == position.offset,
             )
         )
         if stored_at_position is not None:

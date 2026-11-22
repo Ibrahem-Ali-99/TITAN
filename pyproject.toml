@@ -8,6 +8,7 @@ dependencies = [
     "titan-contracts",
     "titan-event-generator",
     "titan-ingestion",
+    "titan-messaging",
     "titan-store",
 ]
 
@@ -18,6 +19,7 @@ package = false
 members = [
     "apps/api",
     "packages/contracts",
+    "packages/messaging",
     "packages/store",
     "services/event-generator",
     "services/ingestion",
@@ -27,6 +29,7 @@ members = [
 titan-api = { workspace = true }
 titan-contracts = { workspace = true }
 titan-event-generator = { workspace = true }
+titan-messaging = { workspace = true }
 titan-ingestion = { workspace = true }
 titan-store = { workspace = true }
 
@@ -52,6 +55,7 @@ target-version = "py312"
 src = [
     "apps/api/src",
     "packages/contracts/src",
+    "packages/messaging/src",
     "packages/store/src",
     "services/event-generator/src",
     "services/ingestion/src",
@@ -64,6 +68,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/api/src/titan_api/main.py" = ["B008"]
+"apps/api/src/titan_api/routes.py" = ["B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = [
@@ -71,6 +76,7 @@ known-first-party = [
     "ingestion",
     "titan_api",
     "titan_contracts",
+    "titan_messaging",
     "titan_store",
 ]
 
@@ -81,6 +87,7 @@ plugins = ["pydantic.mypy"]
 warn_unused_ignores = true
 files = [
     "packages/contracts/src",
+    "packages/messaging/src",
     "packages/store/src",
     "services/event-generator/src",
     "services/ingestion/src",

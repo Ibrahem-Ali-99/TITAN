@@ -7,8 +7,8 @@ alwaysApply: false
 # Event contracts
 
 - The envelope carries `event_id`, `event_type`, `schema_version`, timezone-aware `occurred_at` and `produced_at`, `source`, and `payload`.
-- Day 1 models use `extra="forbid"` and accept only `order_created` schema version 1. Unknown versions are quarantined, not silently coerced.
+- Models use `extra="forbid"`. Accepted events are `order_created`, `payment_completed`, and `inventory_updated`, all schema version 1. Unknown versions and types are quarantined, not silently coerced.
 - Money is a `Decimal` encoded as a string. Reject floats, non-positive amounts, and totals that differ from the sum of line amounts.
 - A generation seed fixes business payloads. It must not also fix `event_id` unless the caller asks for deterministic ids.
-- Identifier prefixes stay stable: `ord_`, `cus_`, `prd_`, with `pay_` and `inv_` reserved.
+- Identifier prefixes stay stable: `ord_`, `cus_`, `prd_`, `pay_`, and `wh_`.
 - Compatible evolution later means a version bump or an explicit decision to ignore unknown fields. Do not weaken Day 1 validation ad hoc.

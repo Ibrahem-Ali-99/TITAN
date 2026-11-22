@@ -1,9 +1,12 @@
-"""Validate Kafka record bytes into a canonical order event."""
+"""Validate Kafka record bytes into a canonical commerce event."""
 
-from pydantic import ValidationError
+import json
+from dataclasses import dataclass
+from uuid import UUID
 
 from ingestion.errors import InvalidEvent
-from titan_contracts.events import OrderCreatedEvent
+from titan_contracts.events import CommerceEvent
+from titan_contracts.parsing import CommerceParseError, parse_commerce_bytes
 
 RAW_VALUE_LIMIT = 16_384
 DETAIL_LIMIT = 8_000
@@ -15,16 +18,42 @@ def clip(value: str, limit: int) -> str:
     return value[:limit] + "...truncated"
 
 
-def parse_order_created(raw: bytes) -> OrderCreatedEvent:
+@dataclass(frozen=True)
+class PeekedIdentity:
+    event_id: UUID | None
+    event_type: str | None
+    schema_version: int | None
+    source: str | None
+
+
+def peek_identity(text: str) -> PeekedIdentity:
+    """Read identity fields without treating the record as valid."""
     try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise InvalidEvent("malformed_encoding", "record value is not valid UTF-8") from exc
+        body = json.loads(text)
+    except json.JSONDecodeError:
+        return PeekedIdentity(None, None, None, None)
+    if not isinstance(body, dict):
+        return PeekedIdentity(None, None, None, None)
+    raw_id = body.get("event_id")
+    event_id = None
+    if isinstance(raw_id, str):
+        try:
+            event_id = UUID(raw_id)
+        except ValueError:
+            event_id = None
+    event_type = body.get("event_type")
+    version = body.get("schema_version")
+    source = body.get("source")
+    return PeekedIdentity(
+        event_id,
+        event_type if isinstance(event_type, str) else None,
+        version if isinstance(version, int) and not isinstance(version, bool) else None,
+        source if isinstance(source, str) else None,
+    )
+
+
+def parse_record(raw: bytes) -> CommerceEvent:
     try:
-        return OrderCreatedEvent.model_validate_json(text)
-    except ValidationError as exc:
-        error_type = "schema_validation"
-        errors = exc.errors()
-        if errors and errors[0].get("type") == "json_invalid":
-            error_type = "malformed_json"
-        raise InvalidEvent(error_type, clip(exc.json(), DETAIL_LIMIT)) from exc
+        return parse_commerce_bytes(raw)
+    except CommerceParseError as exc:
+        raise InvalidEvent(exc.code, clip(exc.detail, DETAIL_LIMIT)) from exc
