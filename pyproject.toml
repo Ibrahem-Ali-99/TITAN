@@ -145,3 +145,10 @@ module = [
     "playwright.*",
 ]
 ignore_missing_imports = true
+
+# pyarrow is installed with the orchestration group and publishes no type stubs.
+# The default typecheck environment does not include that group.
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+follow_imports = "skip"
+ignore_missing_imports = true

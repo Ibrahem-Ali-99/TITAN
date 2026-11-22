@@ -319,8 +319,8 @@ def _kafka_messages() -> int:
 
 
 def _bronze_parquet() -> dict[str, Any]:
-    import pyarrow.dataset as ds  # type: ignore[import-untyped]
-    import pyarrow.fs as pafs  # type: ignore[import-untyped]
+    import pyarrow.dataset as ds
+    import pyarrow.fs as pafs
 
     prefix = _psql("select object_prefix from bronze_batch_commits order by batch_id").strip()
     path = prefix.replace("s3a://", "").rstrip("/")
