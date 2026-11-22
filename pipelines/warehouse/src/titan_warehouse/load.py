@@ -12,6 +12,7 @@ import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import clickhouse_connect
@@ -731,8 +732,8 @@ def _summary_from_row(row: dict[str, object]) -> dict[str, object]:
 
 
 def reconcile_warehouse() -> str:
-    """Point wh_active at the newest published id that already has rows."""
-    from titan_warehouse.recovery import PublishedPointer, decide_recovery
+    """Point wh_active at the newest verified publication, or leave it."""
+    from titan_warehouse.recovery import decide_recovery
 
     database_url = _database_url()
     with _lock(database_url):
@@ -742,19 +743,11 @@ def reconcile_warehouse() -> str:
                 "select warehouse_publication_id from wh_active limit 1"
             ).result_rows
             pointer = None if not pointer_rows else str(pointer_rows[0][0])
-            known = {
-                str(row[0])
-                for row in client.query(
-                    "select distinct warehouse_publication_id from wh_orders"
-                ).result_rows
-            }
+            evidence = _recovery_evidence(database_url, client)
         finally:
             client.close()
         published = _published_loads(database_url)
-        decision = decide_recovery(
-            pointer,
-            [PublishedPointer(item["id"], item["id"] in known) for item in published],
-        )
+        decision = decide_recovery(pointer, evidence)
         started = datetime.now(UTC)
         try:
             if decision.action == "exchange" and decision.publication_id is not None:
@@ -806,11 +799,91 @@ def reconcile_warehouse() -> str:
         return decision.reason
 
 
+def _recovery_evidence(database_url: str, client: Any) -> list[Any]:
+    from titan_warehouse.recovery import PublicationEvidence
+
+    published = _published_loads(database_url)
+    with psycopg.connect(database_url) as connection:
+        dbt_ids = {
+            str(row[0])
+            for row in connection.execute(
+                """
+                select detail from pipeline_runs
+                where job_name = 'warehouse_models' and state = 'succeeded' and detail is not null
+                """
+            ).fetchall()
+        }
+        quality_rows = connection.execute(
+            """
+            select warehouse_publication_id, status
+            from quality_runs
+            order by started_at desc
+            """
+        ).fetchall()
+        silver_ids = {
+            str(row[0])
+            for row in connection.execute(
+                "select publication_id from lake_publications where status = 'published'"
+            ).fetchall()
+        }
+    latest_quality: dict[str, str] = {}
+    for publication_id, status in quality_rows:
+        key = str(publication_id)
+        if key not in latest_quality:
+            latest_quality[key] = str(status)
+    counts = _clickhouse_counts(client)
+    evidence = []
+    for item in published:
+        publication_id = str(item["id"])
+        observed = counts.get(publication_id, {})
+        evidence.append(
+            PublicationEvidence(
+                publication_id=publication_id,
+                published=True,
+                dbt_passed=str(item["load_id"]) in dbt_ids,
+                quality_passed=latest_quality.get(publication_id) == "passed",
+                silver_published=str(item["silver_publication_id"]) in silver_ids,
+                order_count=_stored_count(item["order_count"]),
+                payment_count=_stored_count(item["payment_count"]),
+                inventory_count=_stored_count(item["inventory_count"]),
+                item_count=_stored_count(item["item_count"]),
+                clickhouse_orders=int(observed.get("orders", -1)),
+                clickhouse_payments=int(observed.get("payments", -1)),
+                clickhouse_inventory=int(observed.get("inventory", -1)),
+                clickhouse_items=int(observed.get("items", -1)),
+            )
+        )
+    return evidence
+
+
+def _stored_count(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return -1
+    return value
+
+
+def _clickhouse_counts(client: Any) -> dict[str, dict[str, int]]:
+    query = client.query
+    tables = {
+        "orders": "wh_orders",
+        "payments": "wh_payments",
+        "inventory": "wh_inventory",
+        "items": "wh_order_items",
+    }
+    found: dict[str, dict[str, int]] = {}
+    for name, table in tables.items():
+        result = query(f"select warehouse_publication_id, count() from {table} group by 1")
+        for row in result.result_rows:
+            bucket = found.setdefault(str(row[0]), {})
+            bucket[name] = int(row[1])
+    return found
+
+
 def _published_loads(database_url: str) -> list[dict[str, object]]:
     with psycopg.connect(database_url) as connection:
         rows = connection.execute(
             """
-            select warehouse_publication_id, silver_publication_id, silver_finished_at,
+            select load_id, warehouse_publication_id, silver_publication_id, silver_finished_at,
                    order_count, payment_count, inventory_count, item_count, accepted_revenue_json
             from warehouse_loads
             where status = 'published' and finished_at is not null
@@ -819,14 +892,15 @@ def _published_loads(database_url: str) -> list[dict[str, object]]:
         ).fetchall()
     return [
         {
-            "id": str(row[0]),
-            "silver_publication_id": str(row[1]),
-            "silver_finished_at": row[2],
-            "order_count": row[3],
-            "payment_count": row[4],
-            "inventory_count": row[5],
-            "item_count": row[6],
-            "revenue_json": row[7],
+            "load_id": str(row[0]),
+            "id": str(row[1]),
+            "silver_publication_id": str(row[2]),
+            "silver_finished_at": row[3],
+            "order_count": row[4],
+            "payment_count": row[5],
+            "inventory_count": row[6],
+            "item_count": row[7],
+            "revenue_json": row[8],
         }
         for row in rows
     ]

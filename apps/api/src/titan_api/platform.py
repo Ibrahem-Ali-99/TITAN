@@ -468,7 +468,7 @@ def _admin_auth() -> str:
 
     if os.environ.get("TITAN_ADMIN_TOKEN"):
         return "token"
-    return "disabled"
+    return "closed"
 
 
 def _model(row: MlRun) -> ModelView:

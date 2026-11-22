@@ -1,5 +1,20 @@
 # Architecture
 
+```mermaid
+flowchart LR
+  sources["Generator, REST, CSV"] --> kafka["Kafka"]
+  kafka --> ingest["Ingestion"]
+  ingest --> pg["PostgreSQL"]
+  kafka --> bronze["Spark Bronze"]
+  pg --> silver["Spark Silver"]
+  bronze --> minio["MinIO"]
+  silver --> minio
+  silver --> ch["ClickHouse"]
+  ch --> dbt["dbt and quality gate"]
+  dbt --> api["FastAPI"]
+  api --> web["Next.js"]
+```
+
 Day 1 is one vertical slice plus two idle infrastructure services.
 
 ```text

@@ -1,173 +1,153 @@
 # TITAN
 
-Local foundation for a real-time commerce data platform. Day 1 runs one path:
+TITAN is a local commerce data platform. It answers a narrow question: which synthetic orders were accepted, in which currency, and which published snapshot is safe to show.
 
-**synthetic `order_created` event → Kafka → Python consumer → PostgreSQL → FastAPI → Next.js.**
+Events are generated, posted over REST, or uploaded as CSV. They move through Kafka, a PostgreSQL classification, Spark Bronze and Silver on MinIO, a versioned ClickHouse warehouse, dbt tests, and a blocking quality gate. Dagster orders that publication. FastAPI and a Next.js console read the snapshot that both databases agree on.
 
-MinIO holds the Parquet lake. ClickHouse serves the published Silver snapshot through dbt models. Dagster orders that publication. Events produced here are synthetic and are labeled `synthetic.event-generator`.
+The data is synthetic. Delivery is at-least-once with idempotent persistence. It is not end-to-end exactly-once.
 
-Persisted counts are rows in PostgreSQL. They are not Kafka broker throughput. Consumption is at-least-once with idempotent persistence, not end-to-end exactly-once. Day 2 adds REST and CSV inputs on the same Kafka path. Details are in [docs/consumption-semantics.md](docs/consumption-semantics.md), [docs/money-policy.md](docs/money-policy.md), and [docs/ingestion-hub.md](docs/ingestion-hub.md).
+## What it demonstrates
 
-## Prerequisites
+- Multi-source ingestion, quarantine, duplicate delivery, and business-key conflicts
+- Offset commit after a durable PostgreSQL write
+- Bronze evidence that is invisible until a commit row exists
+- Versioned Silver and a ClickHouse publication exchanged only after dbt and quality checks
+- Currency-separated revenue, with no cross-currency sum
+- Baseline-aware forecasting: seasonal naive is served because its held-out MAE was lower
+- A recovery decision that requires quality, dbt, Silver lineage, and matching fact counts
+- A measured producer-acknowledgement sample, labeled as that and nothing broader
 
-- Windows with Docker Desktop (WSL2). Allocate at least 6 GB of memory to Docker; 8 GB is more comfortable. See [docs/local-infrastructure.md](docs/local-infrastructure.md).
-- Python 3.12 and [uv](https://docs.astral.sh/uv/) 0.12.x for host-side tests and the generator.
-- Node.js 20.9 or newer (this repo was built with Node.js 26.13.1) to build the dashboard on the host.
+## Architecture
 
-## Pinned runtime images
+```mermaid
+flowchart LR
+  sources["Generator, REST, CSV"] --> kafka["Kafka"]
+  kafka --> ingest["Ingestion"]
+  ingest --> pg["PostgreSQL"]
+  kafka --> bronze["Spark Bronze"]
+  pg --> silver["Spark Silver"]
+  bronze --> minio["MinIO"]
+  silver --> minio
+  silver --> ch["ClickHouse"]
+  ch --> dbt["dbt and quality gate"]
+  dbt --> api["FastAPI"]
+  api --> web["Next.js"]
+```
 
-| Component | Pin | Why |
-| --- | --- | --- |
-| Kafka | `apache/kafka:4.4.0` | Current supported Apache release, KRaft, no ZooKeeper |
-| PostgreSQL | `postgres:18.7-alpine3.23` | Current 18.x patch. 19.0 was only days old on 22 Nov 2026 |
-| ClickHouse | `clickhouse/clickhouse-server:26.8.36.3` | Current LTS patch, not `latest` |
-| MinIO | `alpine/minio:RELEASE.2025-10-15T17-29-55Z` | Community mirror. Official Hub/Quay pulls were not available |
-| Python | `python:3.12.13-slim-bookworm` | Matches the workspace interpreter |
-| Node | `node:26.13.1-bookworm-slim` | Current Node.js LTS used for the web image |
-| Spark | 4.0.1 on Java 21, Hadoop 3.4.1 | Single-node profile. S3A uses `hadoop-aws` 3.4.1 and AWS SDK bundle 2.24.6 |
-| Dagster | 1.13.31 | Orchestration only. Python 3.12, not the Spark image |
-| dbt | core 1.12.7, dbt-clickhouse 1.10.3 | The adapter tests include ClickHouse 26.8 |
+Dagster orders Silver, the ClickHouse load, dbt, the quality gate, and the pointer exchange. It does not transform rows. Details and the guarantee table are in [docs/portfolio/architecture.md](docs/portfolio/architecture.md).
 
-Python libraries are pinned in the workspace `pyproject.toml` files and locked in `uv.lock`. Notable pins: FastAPI 0.165.0, Pydantic 2.14.4, SQLAlchemy 2.1.9, Alembic 1.20.1, psycopg 3.3.9, confluent-kafka 2.16.2 (librdkafka 2.16.0), uvicorn 0.54.0. The web app pins Next.js 16.4.6.
+| Piece | Responsibility |
+| --- | --- |
+| `packages/contracts` | Event envelope and money rules |
+| `packages/store` | Operational tables and migrations |
+| `services/ingestion` | Consume, classify, then commit |
+| `pipelines/spark` | Bronze and Silver |
+| `pipelines/warehouse` | ClickHouse load, exchange, reconcile |
+| `warehouse/dbt` | Models and tests |
+| `pipelines/dagster` | Asset order and schedules |
+| `pipelines/quality` | Blocking publication checks |
+| `pipelines/ml` | Demand training and the serving choice |
+| `apps/api`, `apps/web` | Read models and the operations console |
 
-## Start the stack
+## Quick start
+
+Windows, Docker Desktop, Python 3.12, [uv](https://docs.astral.sh/uv/) 0.12.x, and Node.js 20.9 or newer. Give Docker at least 8 GB. The Compose limits are Kafka 768 MiB, PostgreSQL 512 MiB, MinIO 256 MiB, ClickHouse 1536 MiB, Spark 1536 MiB, ingestion 512 MiB, API 512 MiB, and web 768 MiB.
 
 ```powershell
 copy .env.example .env
 docker compose up --build -d
-docker compose ps
-```
-
-Migrations run in the one-shot `migrate` service before the consumer and API start. The event generator is not a resident process.
-
-Host-side tools, from the repository root:
-
-```powershell
+docker compose run --rm --build migrate
 uv sync --all-packages
-uv run alembic -c packages/store/alembic.ini upgrade head
-uv run python -m event_generator --count 10 --seed 42 --rate 5
-```
-
-The same generator inside Compose, using the internal broker address:
-
-```powershell
-docker compose --profile generate run --rm event-generator --count 10 --seed 42 --rate 5 --bootstrap-servers kafka:19092
-```
-
-## Check health and the vertical slice
-
-```powershell
-uv run python scripts/verify_infrastructure.py
-uv run python scripts/verify_pipeline.py
-```
-
-`verify_infrastructure.py` checks Kafka metadata, `SELECT 1` on PostgreSQL, an authenticated ClickHouse `SELECT 1`, and an authenticated MinIO bucket list. It does not insert business or warehouse data.
-
-`verify_pipeline.py` publishes one synthetic order, waits until it is stored, publishes that same `event_id` again, and checks that PostgreSQL still has one row and the stats count did not move. It then publishes an invalid record and a following valid order to show the consumer kept going.
-
-Direct checks:
-
-```powershell
-curl http://localhost:8000/health/live
-curl http://localhost:8000/health/ready
-curl http://localhost:8000/api/v1/ingestion/stats
-curl "http://localhost:8000/api/v1/events/recent?limit=20"
-```
-
-Open http://localhost:3000 for the overview. Data Sources and Streaming read the same API. The pages poll every 5 seconds.
-
-After pulling Day 2, rerun migrations:
-
-```powershell
-docker compose run --rm --build migrate
-```
-
-Publish one order through the API:
-
-```powershell
-uv run python scripts/verify_day2.py
-```
-
-Day 3 Spark jobs are on the `processing` profile and are documented in [docs/spark-lake.md](docs/spark-lake.md). Day 4 warehouse publication is documented in [docs/warehouse.md](docs/warehouse.md). Day 5 quality checks, monitoring, and demand forecasts are documented in [docs/quality-ml.md](docs/quality-ml.md).
-
-```powershell
 uv sync --group orchestration
-$env:PYTHONPATH = "pipelines/warehouse/src;pipelines/dagster/src"
-uv run --group orchestration python -m titan_dagster
+uv run python scripts/verify_infrastructure.py
 ```
 
-That materializes Silver, the ClickHouse load, the dbt tests, and the publication pointer. The hourly schedule is off until the daemon is started:
+The API is http://localhost:8000 and the console is http://localhost:3000. Profiles: `generate` for the containerized producer, `processing` for Spark, `orchestration` for the optional Dagster daemon. The daemon is off by default so the hourly warehouse job does not publish on its own.
 
 ```powershell
-$env:DAGSTER_HOME = (Resolve-Path "pipelines/dagster/home")
-uv run --group orchestration dagster-daemon run -w pipelines/dagster/workspace.yaml
+docker compose down
 ```
 
-The optional Compose profile is `docker compose --profile orchestration up -d dagster-daemon`. It is not required for a manual run.
+That stops containers and keeps the named volumes. Do not add `-v` unless you intend to delete PostgreSQL, Kafka, MinIO, and ClickHouse data.
+
+Set `TITAN_ADMIN_TOKEN` in `.env` and recreate the API before replay or CSV resume. An empty token makes those two calls return 401. REST publication and CSV upload stay open on localhost. This is a workstation boundary, not a public deployment.
+
+Pinned images and the money rules are in [docs/local-infrastructure.md](docs/local-infrastructure.md) and [docs/money-policy.md](docs/money-policy.md).
+
+## Demo
 
 ```powershell
-docker compose run --rm --build migrate
-uv run python scripts/verify_day3.py
-uv run python scripts/verify_day4.py
-uv run python scripts/verify_day5.py
+uv run python scripts/demo_day7.py
 ```
 
-The Day 5 script publishes a 28-day synthetic history when the warehouse has fewer than 21 distinct item dates, then trains from the published warehouse. The short demo generator is still `--count`. Do not use `--history-days` for that demo. Day 6 recovery and the forecast serving rule are documented in [docs/reliability.md](docs/reliability.md).
+The walkthrough is [DEMO.md](DEMO.md). The last successful run published warehouse `50d22fe5-8db0-4f2f-bc00-47bda48152fc` with 362 accepted orders: EUR 18711.58, GBP 16558.03, USD 17768.77. The order it added was `ord_54943729demo` at EUR 19.95. The larger jump from the earlier 259-order snapshot includes accepted rows that had been stored in PostgreSQL and not yet published.
 
-```powershell
-uv run python scripts/verify_day6.py
-```
+`GET /api/v1/warehouse/status` after that run reported `ready: true` for that publication. The serving forecast remained `seasonal_naive` on run `3a3f7264-818c-4e85-9b56-4793d68157ef`, trained from publication `a44926d4-0d7d-4a30-857d-d543341475a0`.
 
-## Tests and static checks
+## Verification
 
 ```powershell
 uv run ruff check
 uv run ruff format --check
 uv run mypy
 uv run pytest -m "not integration"
+uv run python scripts/scan_secrets.py
+docker compose --profile processing run --rm --no-deps spark-tests
+uv run --group orchestration dbt build --no-partial-parse --project-dir warehouse/dbt --profiles-dir warehouse/dbt
+$env:DAGSTER_HOME = (Resolve-Path pipelines/dagster/home)
+$env:PYTHONPATH = "pipelines/warehouse/src;pipelines/quality/src;pipelines/ml/src;pipelines/dagster/src"
+uv run --group orchestration dagster definitions validate -w pipelines/dagster/workspace.yaml
 ```
 
-With the stack already running:
+Live scripts, each of which needs the stack:
 
 ```powershell
-uv run pytest -m integration
+uv run python scripts/verify_day7.py
+uv run python scripts/demo_day7.py
 ```
 
-From `apps/web`:
+`verify_day7.py` stops Kafka, checks that the warehouse status stays ready, starts Kafka, and runs reconcile. Day 2 through Day 6 scripts remain in `scripts/` for the earlier milestones.
+
+GitHub Actions runs ruff, mypy, unit tests, the secret scan, Dagster definition validation, and the web build. A green hosted run is not claimed until one exists for the commit you are reading.
+
+## Benchmark
+
+`scripts/benchmark_ingestion.py` writes `benchmarks/day7-<count>.json`. The default count is 100. The 5,000-event sample below used an isolated topic so it would not create accepted orders.
 
 ```powershell
-npm ci
-npm run lint
-npx tsc --noEmit
-npm run build
+$env:TITAN_BENCH_COUNT = "5000"
+$env:TITAN_BENCH_SEED = "71022"
+uv run python scripts/benchmark_ingestion.py
 ```
 
-Integration tests are skipped unless Kafka, PostgreSQL, and the API are listening. CI runs the unit tests and the frontend build. It does not start this Compose stack.
+Measured at `2026-11-22T17:31:28.666544+00:00` on an AMD Ryzen 7 9800X3D with 32 GB of RAM. Docker Desktop showed about 13.65 GiB for containers without an explicit limit. Other local containers were running. Kafka was 337 MiB of 768 MiB before the sample and 375 MiB after.
 
-## Troubleshooting
+| Scope | Result |
+| --- | --- |
+| Topic | `titan.benchmark.acks` |
+| Records | 5000, seed 71022 |
+| Elapsed | 4.22 s |
+| Acknowledged / second | 1184.964 |
+| Ack p50 / p95 / p99 | 0.000598 s / 0.000843 s / 0.001013 s |
+| `logical_orders` | 360 before and after |
+| Ingestion lag | 0 before and after |
 
-- **Kafka timeout from Windows.** Host code must use `localhost:9092`. Containers must use `kafka:19092`. The controller port is not published.
-- **API readiness stays 503.** `migrate` has not finished or Postgres is unhealthy. `docker compose logs migrate postgres`.
-- **Consumer unhealthy.** The heartbeat file is only updated while the loop is running. `docker compose logs ingestion`.
-- **Port already allocated.** Something else owns 5435, 9092, 8123, 9000, 9001, 8000, or 3000. Titan publishes PostgreSQL on 5435 because 5432 was already a local PostgreSQL on the verification machine. Change `POSTGRES_HOST_PORT` and the host `DATABASE_URL` together.
-- **Stale Kafka volume.** `docker compose down -v` deletes local data, including the formatted KRaft directory. The cluster id is fixed for a given volume.
-- **MinIO image.** The pin is a community mirror because the official registry images could not be pulled anonymously. Do not treat it as a production image.
-- **Dashboard cannot reach the API.** The browser uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`, not the Docker service name.
+This is producer acknowledgement time. It is not warehouse freshness, not HTTP latency, and not a production capacity figure. An earlier 100-event sample on the commerce topics is in `benchmarks/day6-100.json` and did enter PostgreSQL. Do not describe either sample as sustained end-to-end throughput.
 
-## Layout
+## Forecasts and security
 
-```text
-apps/api            FastAPI read API
-apps/web            Next.js operations console
-services/event-generator
-services/ingestion  Kafka consumer
-packages/contracts  event schema
-packages/store      models and Alembic
-pipelines/spark     Bronze streaming, Silver batch, and lake checks
-pipelines/warehouse ClickHouse load and publication pointer
-pipelines/dagster  asset order, retries, and the hourly schedule
-warehouse/dbt      ClickHouse analytical models
-infrastructure/docker
-```
+Training uses daily quantity per product. The last seven dates are the test week. One-step rows use earlier actuals. The forward week is recursive and does not read a future actual. The gradient-boosting candidate is served only when its MAE is strictly lower. Otherwise the label is `seasonal_naive`, and the candidate stays in `ml_runs`. See [docs/quality-ml.md](docs/quality-ml.md).
 
-Model training is not part of this repository.
+Recovery, offset rules, and the admin token are in [docs/reliability.md](docs/reliability.md).
+
+## Known limits
+
+- Synthetic data only. No claim about a real catalog or a real store.
+- No public-internet authentication. Admin replay and CSV resume are fail-closed. Ingestion ports are still open on the workstation.
+- Spark JVM `kill -9`, a live two-member rebalance, and a MinIO outage during a write were not executed.
+- The console was not exercised in a browser in the Day 7 session. HTTP responses return the client loading shell. A capture list is in [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md).
+- The hourly Dagster schedule is defined and left stopped.
+
+## Portfolio notes
+
+Short descriptions for a resume, a case study, and a demo narration are in [docs/portfolio](docs/portfolio).

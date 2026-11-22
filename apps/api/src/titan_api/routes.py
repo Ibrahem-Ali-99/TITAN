@@ -189,9 +189,11 @@ def register_routes(app: FastAPI, get_session: Callable[..., Iterator[Session]])
     @routes.post("/api/v1/ingestion/imports/{import_id}/publish", response_model=ImportAccepted)
     def resume_import(
         import_id: UUID,
+        request: Request,
         background: BackgroundTasks,
         session: Session = Depends(get_session),
     ) -> ImportAccepted:
+        _require_admin(request)
         record = session.get(CsvImport, import_id)
         if record is None:
             raise HTTPException(status_code=404, detail="import does not exist")
@@ -382,14 +384,10 @@ def _submission_item(row: SourceSubmission) -> dict[str, object]:
 
 
 def _require_admin(request: Request) -> None:
-    """Require a bearer token only when TITAN_ADMIN_TOKEN is set.
-
-    An unset token is the local demo. It is not an internet-safe control plane.
-    """
+    """Fail closed. An unset token does not leave replay or resume open."""
     token = os.environ.get("TITAN_ADMIN_TOKEN")
-    if not token:
-        return
-    if request.headers.get("authorization") != f"Bearer {token}":
+    header = request.headers.get("authorization")
+    if not token or header != f"Bearer {token}":
         raise HTTPException(status_code=401, detail="admin token required")
 
 

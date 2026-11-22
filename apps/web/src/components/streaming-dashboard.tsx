@@ -117,6 +117,10 @@ export function StreamingDashboard() {
           <Badge>{replays.returned} returned</Badge>
         </CardHeader>
         <CardContent>
+          <p className="mb-3 text-xs text-zinc-500">
+            Replay is an admin action. It stays closed until TITAN_ADMIN_TOKEN is set on the API,
+            and a missing or wrong token returns 401. This page only lists attempts.
+          </p>
           {replays.items.length === 0 ? (
             <p className="text-sm text-zinc-400">No replay attempts have been recorded.</p>
           ) : (

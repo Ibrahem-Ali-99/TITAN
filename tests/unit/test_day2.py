@@ -200,7 +200,7 @@ def test_broker_failure_does_not_claim_persistence() -> None:
         assert session.query(CommerceEvent).count() == 0
 
 
-def test_malformed_quarantine_replay_is_refused() -> None:
+def test_malformed_quarantine_replay_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     app = create_app(ApiSettings(database_url="sqlite://", cors_origins="http://localhost:3000"))
     Base.metadata.create_all(app.state.engine)
     called = False
@@ -226,9 +226,11 @@ def test_malformed_quarantine_replay_is_refused() -> None:
         )
         session.commit()
         quarantine_id = session.query(QuarantineRecord.id).one()[0]
+    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin")
     response = TestClient(app).post(
         "/api/v1/ingestion/replays",
         json={"quarantine_ids": [quarantine_id]},
+        headers={"Authorization": "Bearer unit-admin"},
     )
     assert response.status_code == 200
     item = response.json()["items"][0]
@@ -237,7 +239,9 @@ def test_malformed_quarantine_replay_is_refused() -> None:
     assert called is False
 
 
-def test_exact_replay_of_a_persisted_event_does_not_add_a_row() -> None:
+def test_exact_replay_of_a_persisted_event_does_not_add_a_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = create_app(ApiSettings(database_url="sqlite://", cors_origins="http://localhost:3000"))
     Base.metadata.create_all(app.state.engine)
     event = _order()
@@ -270,9 +274,11 @@ def test_exact_replay_of_a_persisted_event_does_not_add_a_row() -> None:
         )
 
     app.state.publish = publish
+    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin")
     response = TestClient(app).post(
         "/api/v1/ingestion/replays",
         json={"event_ids": [str(event.event_id)]},
+        headers={"Authorization": "Bearer unit-admin"},
     )
     item = response.json()["items"][0]
     assert item["outcome"] == "published"

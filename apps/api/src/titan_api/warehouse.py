@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from titan_api.config import ApiSettings
-from titan_store.models import PipelineRun, WarehouseLoad
+from titan_store.models import LakePublication, PipelineRun, QualityRun, WarehouseLoad
 
 CURRENCIES = {"USD", "EUR", "GBP"}
 
@@ -132,6 +132,9 @@ def load_status(session: Session, settings: ApiSettings) -> WarehouseStatus:
             "postgres and ClickHouse publication ids do not match",
             published,
         )
+    gap = _serving_gap(session, settings, published)
+    if gap is not None:
+        return _empty(loads, runs, clickhouse_id, gap, published)
     return WarehouseStatus(
         ready=True,
         reason=None,
@@ -291,6 +294,72 @@ def load_products(
         returned=len(products),
         products=products,
     )
+
+
+def _serving_gap(
+    session: Session, settings: ApiSettings, published: WarehouseLoad
+) -> str | None:
+    """Refuse to call a publication ready when its checks or fact counts are incomplete."""
+    quality = session.scalar(
+        select(QualityRun.status)
+        .where(QualityRun.warehouse_publication_id == published.warehouse_publication_id)
+        .order_by(QualityRun.started_at.desc())
+        .limit(1)
+    )
+    if quality != "passed":
+        return "the active publication has no passing quality run"
+    dbt = session.scalar(
+        select(PipelineRun.id)
+        .where(
+            PipelineRun.job_name == "warehouse_models",
+            PipelineRun.state == "succeeded",
+            PipelineRun.detail == published.load_id,
+        )
+        .limit(1)
+    )
+    if dbt is None:
+        return "the active publication has no successful dbt run"
+    silver = session.scalar(
+        select(LakePublication.status).where(
+            LakePublication.publication_id == published.silver_publication_id
+        )
+    )
+    if silver != "published":
+        return "the source Silver publication is not published"
+    try:
+        client = _client(settings)
+        try:
+            counts = _fact_counts(client, published.warehouse_publication_id)
+        finally:
+            client.close()
+    except Exception:
+        return "warehouse fact counts could not be read"
+    expected = {
+        "orders": published.order_count,
+        "payments": published.payment_count,
+        "inventory": published.inventory_count,
+        "items": published.item_count,
+    }
+    if counts != expected:
+        return "warehouse fact counts do not match the published load"
+    return None
+
+
+def _fact_counts(client: Any, publication_id: str) -> dict[str, int]:
+    tables = {
+        "orders": "wh_orders",
+        "payments": "wh_payments",
+        "inventory": "wh_inventory",
+        "items": "wh_order_items",
+    }
+    found: dict[str, int] = {}
+    for name, table in tables.items():
+        result = client.query(
+            f"select count() from {table} where warehouse_publication_id = {{pub:String}}",
+            parameters={"pub": publication_id},
+        )
+        found[name] = int(result.result_rows[0][0])
+    return found
 
 
 def _require(session: Session, settings: ApiSettings) -> tuple[WarehouseLoad, Any]:

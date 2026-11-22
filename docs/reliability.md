@@ -20,9 +20,9 @@ A forced JVM `kill -9` during a microbatch was not executed. The tested Spark bo
 
 ## Warehouse pointer
 
-`wh_active` and `warehouse_loads` are not one transaction. `--crash-after exchanged` swaps the ClickHouse pointer and then fails before PostgreSQL marks the load published. The exception marks that load failed. `python -m titan_warehouse --reconcile` points `wh_active` at the newest PostgreSQL-published id that already has rows. It does not serve an unpublished candidate and it does not insert a second copy of the facts. The decision is a `warehouse_reconcile` pipeline row.
+`wh_active` and `warehouse_loads` are not one transaction. `--crash-after exchanged` swaps the ClickHouse pointer and then fails before PostgreSQL marks the load published. The exception marks that load failed. `python -m titan_warehouse --reconcile` points `wh_active` at the newest verified publication. A candidate is verified only when its PostgreSQL status is published, its dbt run succeeded, its latest quality run passed, its Silver publication is published, and the ClickHouse order, payment, inventory, and item counts match the stored counts. An orders row is not enough. The exchange does not insert another copy of the facts. The decision is a `warehouse_reconcile` pipeline row.
 
-If no published id has rows, reconcile refuses and leaves the pointer. The API stays unavailable while the pointer and the newest published id disagree.
+If nothing is verified, reconcile refuses and leaves the pointer. The API reports `ready: false` when the pointer disagrees with the newest published id, and also when that id is missing a passing quality run, a successful dbt run, a published Silver lineage, or matching fact counts. Analytics then return 503.
 
 ## Forecast serving
 
@@ -34,7 +34,7 @@ The served one-step rows use the selected method. `candidate_one_step` keeps the
 
 ## Local security
 
-`POST /api/v1/ingestion/replays` requires `Authorization: Bearer $TITAN_ADMIN_TOKEN` when that variable is set. When it is unset, replay is open. That is the local demo, not a control plane that is safe to expose on the public internet. REST event publication and CSV import stay open because they are the ingestion surface; they are still bounded by payload size and row limits. Monitoring reports `admin_auth` as `token` or `disabled`.
+`POST /api/v1/ingestion/replays` and `POST /api/v1/ingestion/imports/{id}/publish` require `Authorization: Bearer $TITAN_ADMIN_TOKEN`. If the variable is empty, those calls return 401. Monitoring reports `admin_auth` as `token` or `closed`. REST event publication and CSV upload stay open on the workstation ports. They are the ingestion surface, bounded by payload size and a 500-row CSV limit. They are not safe to expose on the public internet. Set the token in `.env` and recreate the API container before using replay or CSV resume.
 
 The development password `titan_dev_password` is a local placeholder. Ports are published for the workstation. Containers are not a locked-down production runtime.
 

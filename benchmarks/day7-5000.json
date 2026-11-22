@@ -1,0 +1,18 @@
+{
+  "measured_at": "2026-11-22T17:31:28.666544+00:00",
+  "count": 5000,
+  "seed": 71022,
+  "topic": "titan.benchmark.acks",
+  "elapsed_seconds": 4.22,
+  "acknowledged_per_second": 1184.964,
+  "ack_seconds": {
+    "p50": 0.000598,
+    "p95": 0.000843,
+    "p99": 0.001013
+  },
+  "logical_orders_before": 360,
+  "logical_orders_after": 360,
+  "ingestion_lag_before": 0,
+  "ingestion_lag_after": 0,
+  "scope": "Producer acknowledgement on titan.benchmark.acks. Ingestion does not consume this topic. This is not warehouse freshness and it is not an HTTP response time."
+}

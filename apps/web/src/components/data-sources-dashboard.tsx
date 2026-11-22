@@ -94,8 +94,9 @@ export function DataSourcesDashboard() {
         <h1 className="text-2xl font-semibold tracking-tight">Data sources</h1>
         <p className="mt-1 max-w-3xl text-sm text-zinc-400">
           REST and CSV submissions are tracked separately from PostgreSQL persistence. A published
-          row means Kafka acknowledged it. ClickHouse and MinIO are running with no application
-          datasets, so this page does not show warehouse or object metrics.
+          submission means Kafka acknowledged it. Accepted orders and warehouse revenue are on the
+          Overview and Warehouse pages. CSV upload is the local ingestion surface. Resume of a
+          stalled import is an admin action and requires the API token.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
