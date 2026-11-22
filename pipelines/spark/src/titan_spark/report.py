@@ -8,14 +8,14 @@ import json
 from pyspark.sql import functions as F
 
 from titan_spark.config import load_settings
-from titan_spark.metadata import _connect
+from titan_spark.metadata import _connect, committed_bronze_prefixes
 from titan_spark.session import build_session
 
 
 def main() -> None:
     settings = load_settings()
     spark = build_session(settings, "titan-lake-report")
-    bronze = _read_optional(spark, settings.bronze_uri)
+    bronze = _read_committed(spark, committed_bronze_prefixes(settings))
     publications = _publications(settings)
     current = next((row for row in publications if row["status"] == "published"), None)
     silver_orders = None
@@ -50,13 +50,10 @@ def main() -> None:
     print(json.dumps(report))
 
 
-def _read_optional(spark, uri: str):
-    jvm = spark._jvm
-    path = jvm.org.apache.hadoop.fs.Path(uri)
-    fs = path.getFileSystem(spark._jsc.hadoopConfiguration())
-    if not fs.exists(path):
+def _read_committed(spark, paths: list[str]):
+    if not paths:
         return None
-    return spark.read.parquet(uri)
+    return spark.read.parquet(*paths)
 
 
 def _publications(settings) -> list[dict[str, object]]:

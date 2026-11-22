@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import time
+from datetime import timedelta
 
 from event_generator.admin import ensure_order_topic
 from event_generator.generator import generate_orders
@@ -33,6 +34,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument(
+        "--occurred-span-hours",
+        type=float,
+        default=None,
+        help="Spread occurred_at from 2026-01-01 across this many hours.",
+    )
+    parser.add_argument(
+        "--late-every",
+        type=int,
+        default=None,
+        help="Move the last event of each group earlier. Requires --late-hours.",
+    )
+    parser.add_argument("--late-hours", type=float, default=None)
     return parser
 
 
@@ -44,10 +58,15 @@ def main(argv: list[str] | None = None) -> None:
     if args.rate < 0:
         print("rate must be >= 0", file=sys.stderr)
         sys.exit(2)
+    span = None if args.occurred_span_hours is None else timedelta(hours=args.occurred_span_hours)
+    late = None if args.late_hours is None else timedelta(hours=args.late_hours)
     events = generate_orders(
         args.count,
         args.seed,
         deterministic_event_ids=args.deterministic_event_ids,
+        occurred_span=span,
+        late_every=args.late_every,
+        late_by=late,
     )
     interval = 0.0 if args.rate == 0 else 1.0 / args.rate
     results = []

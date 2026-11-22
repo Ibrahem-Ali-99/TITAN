@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: warehouse
+    schema: "{{ env_var('CLICKHOUSE_DATABASE', 'titan') }}"
+    description: Version-tagged Silver rows loaded into ClickHouse. Serving models read wh_active.
+    tables:
+      - name: wh_orders
+        description: Accepted order facts for every warehouse publication id.
+      - name: wh_order_items
+        description: Order lines exploded from the accepted order envelope.
+      - name: wh_payments
+        description: Accepted payment facts.
+      - name: wh_inventory
+        description: Accepted inventory events. Each row is one update, not a merged stock balance.
+      - name: wh_active
+        description: The single warehouse publication readers are allowed to see.

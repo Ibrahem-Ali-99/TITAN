@@ -241,3 +241,51 @@ class LakePublication(Base):
     identifier_conflict_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_occurred_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class BronzeBatchCommit(Base):
+    """A Bronze prefix readers may open. The row is written after the copy returns."""
+
+    __tablename__ = "bronze_batch_commits"
+
+    batch_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    object_prefix: Mapped[str] = mapped_column(Text, nullable=False)
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    committed_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class PipelineRun(Base):
+    """One recorded attempt. A later success does not delete an earlier failure."""
+
+    __tablename__ = "pipeline_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class WarehouseLoad(Base):
+    """One warehouse load attempt. Readers use the latest row with status published."""
+
+    __tablename__ = "warehouse_loads"
+
+    load_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    silver_publication_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    silver_finished_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    warehouse_publication_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    order_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    inventory_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    item_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    accepted_revenue_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)

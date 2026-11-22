@@ -222,6 +222,11 @@ services:
       CORS_ORIGINS: http://localhost:3000
       LOG_LEVEL: INFO
       WATCHFILES_FORCE_POLLING: "true"
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-titan}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-titan_dev_password}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-titan}
     ports:
       - "8000:8000"
     volumes:
@@ -342,6 +347,40 @@ services:
           memory: 1536M
     restart: "no"
 
+  dagster-daemon:
+    profiles: ["orchestration"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/orchestration.Dockerfile
+    command: ["dagster-daemon", "run", "-w", "/app/pipelines/dagster/workspace.yaml"]
+    environment:
+      DAGSTER_HOME: /var/lib/titan/dagster
+      DATABASE_URL: postgresql://titan:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-titan}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-titan_dev_password}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-titan}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-titan}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-titan_dev_password}
+      PYTHONPATH: /app/pipelines/dagster/src:/app/pipelines/warehouse/src
+    volumes:
+      - ./pipelines:/app/pipelines
+      - ./warehouse:/app/warehouse
+      - dagster_home:/var/lib/titan/dagster
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    restart: "no"
+
   event-generator:
     <<: *python-image
     profiles: ["generate"]
@@ -360,3 +399,4 @@ volumes:
   minio_data:
   spark_checkpoints:
   web_node_modules:
+  dagster_home:

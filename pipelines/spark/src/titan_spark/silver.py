@@ -17,10 +17,23 @@ from uuid import uuid4
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import DecimalType, IntegerType
+from pyspark.sql.types import (
+    ArrayType,
+    DecimalType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+)
 
 from titan_spark.config import Settings, load_settings
-from titan_spark.metadata import finish_publication, start_publication
+from titan_spark.metadata import (
+    SILVER_LOCK_KEY,
+    advisory_lock,
+    committed_bronze_prefixes,
+    finish_publication,
+    start_publication,
+)
 from titan_spark.session import build_session, copy_tree
 from titan_spark.topics import INVENTORY_UPDATED, ORDER_CREATED, PAYMENT_COMPLETED
 from titan_spark.windows import order_windows
@@ -74,6 +87,16 @@ INVENTORY_COLUMNS = [
     "kafka_offset",
 ]
 
+ITEM_SCHEMA = ArrayType(
+    StructType(
+        [
+            StructField("product_id", StringType()),
+            StructField("quantity", IntegerType()),
+            StructField("unit_price", StringType()),
+        ]
+    )
+)
+
 EVENTS_SQL = """(
     select event_id::text as event_id,
            event_type,
@@ -93,13 +116,19 @@ EVENTS_SQL = """(
 def curate(events: DataFrame) -> dict[str, DataFrame]:
     """Build Silver frames from an authoritative event projection."""
     accepted = events.filter(F.col("disposition") == F.lit("accepted"))
-    orders = _orders(accepted.filter(F.col("event_type") == F.lit(ORDER_CREATED)))
+    order_events = accepted.filter(F.col("event_type") == F.lit(ORDER_CREATED))
+    orders = _orders(order_events)
     payments = _payments(
         accepted.filter(F.col("event_type") == F.lit(PAYMENT_COMPLETED)),
         orders,
     )
     inventory = _inventory(accepted.filter(F.col("event_type") == F.lit(INVENTORY_UPDATED)))
-    return {"orders": orders, "payments": payments, "inventory": inventory}
+    return {
+        "orders": orders,
+        "order_items": _order_items(order_events),
+        "payments": payments,
+        "inventory": inventory,
+    }
 
 
 def validate_curation(events: DataFrame, curated: dict[str, DataFrame]) -> list[str]:
@@ -134,6 +163,11 @@ def pending_event_count(bronze: DataFrame | None, events: DataFrame) -> int:
 
 
 def run_silver(settings: Settings) -> str:
+    with advisory_lock(settings, SILVER_LOCK_KEY):
+        return _run_silver_locked(settings)
+
+
+def _run_silver_locked(settings: Settings) -> str:
     spark = build_session(settings, "titan-silver")
     publication_id = str(uuid4())
     version_uri = f"{settings.silver_root}/versions/{publication_id}"
@@ -164,7 +198,7 @@ def run_silver(settings: Settings) -> str:
                 error_detail="; ".join(errors),
             )
             return publication_id
-        bronze = _read_bronze(spark, settings.bronze_uri)
+        bronze = _read_bronze_paths(spark, committed_bronze_prefixes(settings))
         summary = _summary(events, published, metrics, bronze)
         finish_publication(settings, publication_id, status="published", **summary)
         _write_pointer(spark, settings, publication_id, version_uri)
@@ -230,6 +264,35 @@ def _payments(accepted_payments: DataFrame, orders: DataFrame) -> DataFrame:
     )
 
 
+def _order_items(order_events: DataFrame) -> DataFrame:
+    parsed = order_events.withColumn(
+        "items",
+        F.from_json(F.get_json_object("event_envelope", "$.payload.items"), ITEM_SCHEMA),
+    )
+    lines = parsed.select(
+        "event_id",
+        "order_id",
+        F.get_json_object("event_envelope", "$.payload.customer_id").alias("customer_id"),
+        F.get_json_object("event_envelope", "$.payload.currency").alias("currency"),
+        "occurred_at",
+        F.posexplode("items").alias("line_number", "item"),
+    )
+    unit_price = F.col("item.unit_price").cast(MONEY)
+    quantity = F.col("item.quantity")
+    return lines.select(
+        "event_id",
+        "order_id",
+        "customer_id",
+        "currency",
+        F.col("line_number").cast(IntegerType()).alias("line_number"),
+        F.col("item.product_id").alias("product_id"),
+        quantity.alias("quantity"),
+        unit_price.alias("unit_price"),
+        (quantity.cast(MONEY) * unit_price).alias("line_amount"),
+        "occurred_at",
+    ).dropDuplicates(["event_id", "line_number"])
+
+
 def _inventory(accepted_inventory: DataFrame) -> DataFrame:
     return accepted_inventory.select(
         "event_id",
@@ -272,6 +335,7 @@ def _write_local(
     metrics: DataFrame,
 ) -> None:
     _write_frame(curated["orders"], f"{local}/orders")
+    _write_frame(curated["order_items"], f"{local}/order_items")
     _write_frame(curated["payments"], f"{local}/payments")
     _write_frame(curated["inventory"], f"{local}/inventory")
     _write_frame(metrics, f"{local}/order_metrics")
@@ -294,14 +358,10 @@ def _read_version(spark: SparkSession, version_uri: str) -> dict[str, DataFrame]
     return _read_local(spark, version_uri)
 
 
-def _read_bronze(spark: SparkSession, bronze_uri: str) -> DataFrame | None:
-    jvm = spark._jvm
-    conf = spark._jsc.hadoopConfiguration()
-    path = jvm.org.apache.hadoop.fs.Path(bronze_uri)
-    fs = path.getFileSystem(conf)
-    if not fs.exists(path):
+def _read_bronze_paths(spark: SparkSession, paths: list[str]) -> DataFrame | None:
+    if not paths:
         return None
-    return spark.read.parquet(bronze_uri)
+    return spark.read.parquet(*paths)
 
 
 def _summary(

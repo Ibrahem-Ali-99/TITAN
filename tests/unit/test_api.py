@@ -76,6 +76,10 @@ def test_ready_requires_migrated_tables_and_stats_read_real_rows() -> None:
 
     Base.metadata.create_all(app.state.engine)
     assert client.get("/health/ready").json()["checks"]["postgres"] == "ok"
+    warehouse = client.get("/api/v1/warehouse/status")
+    assert warehouse.status_code == 200
+    assert warehouse.json()["ready"] is False
+    assert client.get("/api/v1/analytics/overview").status_code == 503
     empty = client.get("/api/v1/ingestion/stats")
     assert empty.status_code == 200
     assert empty.json()["persisted_events"] == 0

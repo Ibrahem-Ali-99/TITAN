@@ -18,7 +18,12 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
 from titan_spark.config import Settings, load_settings
-from titan_spark.metadata import record_job
+from titan_spark.metadata import (
+    backfill_bronze_batch,
+    commit_bronze_batch,
+    next_bronze_attempt,
+    record_job,
+)
 from titan_spark.parse import parse_kafka_batch
 from titan_spark.session import build_session, copy_tree
 from titan_spark.topics import COMMERCE_TOPIC_NAMES
@@ -30,16 +35,20 @@ def write_bronze_batch(
     batch_id: int,
     staging_root: str,
     bronze_uri: str,
-) -> None:
+    attempt: int | None = None,
+) -> str:
     local = f"{staging_root}/bronze/{batch_id}"
-    remote = f"{bronze_uri}/batch_id={batch_id}"
+    leaf = f"batch_id={batch_id}" if attempt is None else f"batch_id={batch_id}/attempt={attempt}"
+    remote = f"{bronze_uri}/{leaf}"
     (parsed.coalesce(1).write.mode("overwrite").option("compression", "snappy").parquet(local))
     copy_tree(spark, local, remote)
+    return remote
 
 
 def run_bronze(settings: Settings, trigger: str) -> None:
     spark = build_session(settings, "titan-bronze")
     staging = f"file://{settings.checkpoint_root}/staging"
+    _backfill_existing_batches(spark, settings)
     record_job(
         settings,
         job_name="bronze_stream",
@@ -68,7 +77,17 @@ def run_bronze(settings: Settings, trigger: str) -> None:
             return
         parsed = parse_kafka_batch(batch).withColumn("batch_id", F.lit(int(batch_id)))
         parsed = parsed.withColumn("processing_time", F.current_timestamp())
-        write_bronze_batch(spark, parsed, int(batch_id), staging, settings.bronze_uri)
+        attempt = next_bronze_attempt(settings, int(batch_id))
+        destination = write_bronze_batch(
+            spark, parsed, int(batch_id), staging, settings.bronze_uri, attempt
+        )
+        commit_bronze_batch(
+            settings,
+            int(batch_id),
+            attempt,
+            destination,
+            int(parsed.count()),
+        )
         offsets = _batch_offsets(parsed)
         record_job(
             settings,
@@ -107,6 +126,31 @@ def run_bronze(settings: Settings, trigger: str) -> None:
         last_offsets=_progress_offsets(progress),
         detail="available offsets were processed; this is not a container health check",
     )
+
+
+def _backfill_existing_batches(spark, settings: Settings) -> None:
+    """Register Day 3 prefixes that already contain a finished `_SUCCESS` file.
+
+    A prefix without that marker stays invisible. New batches land under
+    `attempt=<n>` and become visible only after `commit_bronze_batch`.
+    """
+    jvm = spark._jvm
+    conf = spark._jsc.hadoopConfiguration()
+    root = jvm.org.apache.hadoop.fs.Path(settings.bronze_uri)
+    fs = root.getFileSystem(conf)
+    if not fs.exists(root):
+        return
+    for status in fs.listStatus(root):
+        name = status.getPath().getName()
+        if not name.startswith("batch_id="):
+            continue
+        success = jvm.org.apache.hadoop.fs.Path(status.getPath(), "_SUCCESS")
+        if not fs.exists(success):
+            continue
+        batch_id = int(name.split("=", 1)[1])
+        prefix = status.getPath().toString()
+        count = int(spark.read.parquet(prefix).count())
+        backfill_bronze_batch(settings, batch_id, prefix, count)
 
 
 def _batch_offsets(parsed: DataFrame) -> str:

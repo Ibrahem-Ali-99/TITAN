@@ -24,6 +24,13 @@ dist/
 build/
 *.tsbuildinfo
 
+# Warehouse and orchestration build output
+warehouse/dbt/target/
+warehouse/dbt/dbt_packages/
+warehouse/dbt/logs/
+warehouse/dbt/.user.yml
+pipelines/dagster/home/
+
 # Editors and OS
 .idea/
 .vscode/

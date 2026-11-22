@@ -5,6 +5,9 @@ from typing import Any
 
 from titan_spark.config import Settings
 
+SILVER_LOCK_KEY = 740001
+WAREHOUSE_LOCK_KEY = 740002
+
 
 def record_job(
     settings: Settings,
@@ -43,6 +46,14 @@ def record_job(
                 now,
                 error_detail,
             ),
+        )
+        connection.execute(
+            """
+            insert into pipeline_runs (
+                job_name, state, started_at, finished_at, detail, error_detail
+            ) values (%s, %s, %s, %s, %s, %s)
+            """,
+            (job_name, state, now, now, detail, error_detail),
         )
         connection.commit()
 
@@ -116,6 +127,97 @@ def finish_publication(
             ),
         )
         connection.commit()
+
+
+def next_bronze_attempt(settings: Settings, batch_id: int) -> int:
+    with _connect(settings) as connection:
+        row = connection.execute(
+            """
+            select coalesce(max(attempt), 0) + 1
+            from bronze_batch_commits
+            where batch_id = %s
+            """,
+            (batch_id,),
+        ).fetchone()
+    return int(row[0]) if row is not None else 1
+
+
+def commit_bronze_batch(
+    settings: Settings,
+    batch_id: int,
+    attempt: int,
+    object_prefix: str,
+    record_count: int,
+) -> None:
+    """Point readers at one finished prefix. A lower attempt cannot replace it."""
+    now = datetime.now(timezone.utc)
+    with _connect(settings) as connection:
+        connection.execute(
+            """
+            insert into bronze_batch_commits (
+                batch_id, attempt, object_prefix, record_count, committed_at
+            ) values (%s, %s, %s, %s, %s)
+            on conflict (batch_id) do update set
+                attempt = excluded.attempt,
+                object_prefix = excluded.object_prefix,
+                record_count = excluded.record_count,
+                committed_at = excluded.committed_at
+            where excluded.attempt >= bronze_batch_commits.attempt
+            """,
+            (batch_id, attempt, object_prefix, record_count, now),
+        )
+        connection.commit()
+
+
+def backfill_bronze_batch(
+    settings: Settings,
+    batch_id: int,
+    object_prefix: str,
+    record_count: int,
+) -> None:
+    """Register a Day 3 prefix that already has a Spark _SUCCESS marker."""
+    now = datetime.now(timezone.utc)
+    with _connect(settings) as connection:
+        connection.execute(
+            """
+            insert into bronze_batch_commits (
+                batch_id, attempt, object_prefix, record_count, committed_at
+            ) values (%s, 0, %s, %s, %s)
+            on conflict (batch_id) do nothing
+            """,
+            (batch_id, object_prefix, record_count, now),
+        )
+        connection.commit()
+
+
+def committed_bronze_prefixes(settings: Settings) -> list[str]:
+    with _connect(settings) as connection:
+        rows = connection.execute(
+            "select object_prefix from bronze_batch_commits order by batch_id"
+        ).fetchall()
+    return [str(row[0]) for row in rows]
+
+
+class advisory_lock:
+    """Hold a PostgreSQL advisory lock for the lifetime of one connection."""
+
+    def __init__(self, settings: Settings, key: int) -> None:
+        self.settings = settings
+        self.key = key
+        self.connection: Any = None
+
+    def __enter__(self) -> "advisory_lock":
+        self.connection = _connect(self.settings)
+        self.connection.execute("select pg_advisory_lock(%s)", (self.key,))
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        try:
+            if self.connection is not None:
+                self.connection.execute("select pg_advisory_unlock(%s)", (self.key,))
+        finally:
+            if self.connection is not None:
+                self.connection.close()
 
 
 def _connect(settings: Settings):

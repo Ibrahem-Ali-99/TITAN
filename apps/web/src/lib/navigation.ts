@@ -24,7 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Overview",
     icon: Gauge,
     available: true,
-    summary: "Persisted ingestion counts from PostgreSQL.",
+    summary: "Live ingestion counts beside the last published analytical snapshot.",
   },
   {
     href: "/data-sources",
@@ -45,15 +45,14 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Pipelines",
     icon: GitBranch,
     available: true,
-    summary: "Last Spark report and the current Silver publication. Not a live lake scan.",
+    summary: "Spark publications and recorded warehouse run attempts.",
   },
   {
     href: "/warehouse",
     label: "Warehouse",
     icon: Warehouse,
-    available: false,
-    summary:
-      "ClickHouse is running as infrastructure only. TITAN has not created warehouse tables or loaded events into it.",
+    available: true,
+    summary: "The active ClickHouse publication and its synthetic commerce metrics.",
   },
   {
     href: "/data-quality",

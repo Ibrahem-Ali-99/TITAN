@@ -1,5 +1,5 @@
-import { PlannedModule } from "@/components/planned-module";
+import { WarehouseDashboard } from "@/components/warehouse-dashboard";
 
 export default function WarehousePage() {
-  return <PlannedModule href="/warehouse" />;
+  return <WarehouseDashboard />;
 }

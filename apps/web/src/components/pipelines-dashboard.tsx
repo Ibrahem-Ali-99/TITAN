@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getJson } from "@/lib/api";
-import type { LakeStatus } from "@/lib/types";
+import type { LakeStatus, WarehouseStatus } from "@/lib/types";
 import { formatUtc } from "@/lib/utils";
 
 export function PipelinesDashboard() {
   const [status, setStatus] = useState<LakeStatus | null>(null);
+  const [warehouse, setWarehouse] = useState<WarehouseStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,8 +18,15 @@ export function PipelinesDashboard() {
     async function load() {
       try {
         const next = await getJson<LakeStatus>("/api/v1/lake/status");
+        let runs: WarehouseStatus | null = null;
+        try {
+          runs = await getJson<WarehouseStatus>("/api/v1/warehouse/status");
+        } catch {
+          runs = null;
+        }
         if (!cancelled) {
           setStatus(next);
+          setWarehouse(runs);
           setError(null);
         }
       } catch (caught) {
@@ -62,8 +70,8 @@ export function PipelinesDashboard() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pipelines</h1>
         <p className="mt-1 max-w-3xl text-sm text-zinc-400">
-          These figures are the last Spark reports stored in PostgreSQL. They are not a live scan
-          of MinIO and they do not mean a Spark container is running.
+          Spark figures are the last reports stored in PostgreSQL. Warehouse runs are recorded
+          attempts. A later success does not erase an earlier failure.
         </p>
       </div>
       {error ? (
@@ -123,6 +131,40 @@ export function PipelinesDashboard() {
           </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Warehouse runs</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-zinc-300">
+          {warehouse === null ? (
+            <p>Warehouse run history was not returned.</p>
+          ) : warehouse.recent_runs.length === 0 ? (
+            <p>No warehouse or Dagster attempt has been recorded.</p>
+          ) : (
+            <ul className="space-y-3">
+              {warehouse.recent_runs.map((run) => (
+                <li key={run.id}>
+                  <p>
+                    {run.job_name} · {run.state}
+                    {run.duration_ms === null ? "" : ` · ${run.duration_ms} ms`}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {formatUtc(run.started_at)}
+                    {run.detail ? ` · ${run.detail}` : ""}
+                  </p>
+                  {run.error_detail ? <p className="text-red-300">{run.error_detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          {warehouse?.recent_loads.length ? (
+            <p className="mt-3 text-xs text-zinc-500">
+              Latest load {warehouse.recent_loads[0]?.status} · Silver{" "}
+              {warehouse.recent_loads[0]?.silver_publication_id}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Spark jobs</CardTitle>

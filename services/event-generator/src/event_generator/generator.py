@@ -24,6 +24,37 @@ CATALOG: tuple[tuple[str, Decimal], ...] = (
 )
 
 
+def _occurred_at(
+    index: int,
+    count: int,
+    occurred_span: timedelta | None,
+    late_every: int | None,
+    late_by: timedelta | None,
+) -> datetime:
+    """Default timestamps stay one second apart from 2026-01-01.
+
+    ``occurred_span`` spreads the same seed across a longer business timeline.
+    ``late_every`` moves the last event of each group earlier by ``late_by``.
+    """
+    if occurred_span is None:
+        return TIMELINE_ORIGIN + timedelta(seconds=index)
+    if occurred_span.total_seconds() < 0:
+        raise ValueError("occurred_span must be zero or positive")
+    if count == 1:
+        occurred_at = TIMELINE_ORIGIN
+    else:
+        offset_seconds = int(occurred_span.total_seconds()) * index // (count - 1)
+        occurred_at = TIMELINE_ORIGIN + timedelta(seconds=offset_seconds)
+    if (
+        late_every is not None
+        and late_by is not None
+        and late_every > 0
+        and (index + 1) % late_every == 0
+    ):
+        return occurred_at - late_by
+    return occurred_at
+
+
 def _token(rng: random.Random, prefix: str) -> str:
     alphabet = "0123456789abcdef"
     return prefix + "".join(rng.choice(alphabet) for _ in range(12))
@@ -41,6 +72,9 @@ def generate_orders(
     *,
     deterministic_event_ids: bool = False,
     produced_at: datetime | None = None,
+    occurred_span: timedelta | None = None,
+    late_every: int | None = None,
+    late_by: timedelta | None = None,
 ) -> list[OrderCreatedEvent]:
     if count < 1:
         raise ValueError("count must be at least 1")
@@ -56,7 +90,7 @@ def generate_orders(
         ]
         currency = rng.choice(SUPPORTED_CURRENCIES)
         total = order_total((item.quantity, item.unit_price) for item in items)
-        occurred_at = TIMELINE_ORIGIN + timedelta(seconds=index)
+        occurred_at = _occurred_at(index, count, occurred_span, late_every, late_by)
         event_produced_at = (
             occurred_at + timedelta(seconds=1) if deterministic_event_ids else wall_clock
         )

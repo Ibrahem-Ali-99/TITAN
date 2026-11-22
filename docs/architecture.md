@@ -17,7 +17,20 @@ event generator  --->  Kafka topic titan.commerce.order-events
                           FastAPI  --->  Next.js overview
 ```
 
-ClickHouse and MinIO start with the Compose stack so later milestones have a warehouse and an object store. No pipeline writes to them.
+MinIO holds Bronze and Silver Parquet. ClickHouse serves one published warehouse snapshot. dbt builds the models readers query. Dagster orders the jobs and does not transform rows.
+
+```text
+published Silver Parquet
+        |
+        v
+ClickHouse versioned facts
+        |
+        v
+dbt candidate tests, then wh_active exchange
+        |
+        v
+FastAPI  --->  Next.js warehouse, pipelines, overview
+```
 
 ## Ownership
 
@@ -28,7 +41,10 @@ ClickHouse and MinIO start with the Compose stack so later milestones have a war
 | `services/event-generator` | Synthetic producer and Kafka acknowledgements |
 | `services/ingestion` | Consume, validate, persist, then commit offsets |
 | `apps/api` | Read models over the operational tables |
-| `apps/web` | Operations overview. Planned modules stay empty of metrics |
+| `apps/web` | Operations overview and the published warehouse |
+| `pipelines/warehouse` | Silver to ClickHouse load and publication pointer |
+| `pipelines/dagster` | Asset order, retries, and the hourly schedule |
+| `warehouse/dbt` | Analytical models over the active publication |
 
 The API depends on the store package, not on the Kafka client. The generator does not import the database.
 

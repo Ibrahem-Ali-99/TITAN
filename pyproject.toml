@@ -41,10 +41,19 @@ dev = [
     "pytest==9.2.0",
     "ruff==0.17.6",
 ]
+orchestration = [
+    "dagster==1.13.31",
+    "dagster-webserver==1.13.31",
+    "dbt-clickhouse==1.10.3",
+    "dbt-core==1.12.7",
+    "clickhouse-connect==1.13.0",
+    "psycopg[binary]==3.3.9",
+    "pyarrow==26.0.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["scripts", "pipelines/spark/src"]
+pythonpath = ["scripts", "pipelines/spark/src", "pipelines/warehouse/src"]
 markers = [
     "integration: requires the local Docker Compose stack",
 ]
@@ -60,6 +69,8 @@ src = [
     "services/event-generator/src",
     "services/ingestion/src",
     "pipelines/spark/src",
+    "pipelines/warehouse/src",
+    "pipelines/dagster/src",
     "tests",
     "scripts",
 ]
@@ -82,6 +93,8 @@ known-first-party = [
     "titan_messaging",
     "titan_store",
     "titan_spark",
+    "titan_warehouse",
+    "titan_dagster",
 ]
 
 [tool.mypy]
@@ -102,8 +115,16 @@ files = [
     "pipelines/spark/src/titan_spark/topics.py",
     "pipelines/spark/src/titan_spark/config.py",
     "pipelines/spark/src/titan_spark/init_lake.py",
+    "pipelines/warehouse/src/titan_warehouse/policy.py",
 ]
 
 [[tool.mypy.overrides]]
-module = ["confluent_kafka", "confluent_kafka.*", "minio", "minio.*"]
+module = [
+    "confluent_kafka",
+    "confluent_kafka.*",
+    "minio",
+    "minio.*",
+    "clickhouse_connect",
+    "clickhouse_connect.*",
+]
 ignore_missing_imports = true

@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: Accepted orders in the active warehouse publication.
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests: [unique, not_null]
+      - name: currency
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["USD", "EUR", "GBP"]
+  - name: fct_revenue_hour
+    description: Hourly accepted order activity. Revenue stays inside each currency.
+  - name: fct_revenue_day
+    description: Daily accepted order activity by currency.
+  - name: product_sales
+    description: Units and revenue by product and currency. Currencies are not combined.
+  - name: customer_orders
+    description: Order counts and revenue by customer and currency. No demographic attributes are invented.
+  - name: dim_customers
+    description: Customer ids observed on accepted orders.
+  - name: dim_products
+    description: Product ids observed on accepted order lines.
+  - name: inventory_latest
+    description: Latest accepted inventory event per product and warehouse. Ties keep one row.
+  - name: payment_reconciliation
+    description: Payments beside the accepted order when that order is in the same publication.

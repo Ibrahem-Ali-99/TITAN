@@ -6,7 +6,8 @@ Stats come from those tables. A failed query returns an error, not zeros.
 """
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,19 @@ from titan_api.logging_config import configure_logging
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
 from titan_api.routes import register_routes
 from titan_api.schemas import HealthLive, HealthReady, IngestionStats, RecentEventsResponse
+from titan_api.warehouse import (
+    AnalyticsOverview,
+    OrdersResponse,
+    ProductsResponse,
+    RevenueResponse,
+    WarehouseStatus,
+    WarehouseUnavailable,
+    load_orders,
+    load_overview,
+    load_products,
+    load_revenue,
+    load_status,
+)
 from titan_contracts.events import CommerceEvent
 from titan_messaging.admin import ensure_commerce_topics
 from titan_messaging.producer import PublishError, PublishResult, connect_producer, publish_record
@@ -37,7 +51,22 @@ REQUIRED_TABLES = (
     "replay_attempts",
     "spark_job_status",
     "lake_publications",
+    "bronze_batch_commits",
+    "pipeline_runs",
+    "warehouse_loads",
 )
+
+
+def _analytics[T](loader: Callable[[], T]) -> T:
+    try:
+        return loader()
+    except WarehouseUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("analytics query failed")
+        raise HTTPException(status_code=503, detail="analytics query failed") from exc
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -122,6 +151,49 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         except SQLAlchemyError as exc:
             logger.exception("lake status query failed")
             raise HTTPException(status_code=503, detail="lake status is unavailable") from exc
+
+    @app.get("/api/v1/warehouse/status", response_model=WarehouseStatus)
+    def warehouse_status(session: Session = Depends(get_session)) -> WarehouseStatus:
+        try:
+            return load_status(session, resolved)
+        except SQLAlchemyError as exc:
+            logger.exception("warehouse status query failed")
+            raise HTTPException(status_code=503, detail="warehouse status is unavailable") from exc
+
+    @app.get("/api/v1/analytics/overview", response_model=AnalyticsOverview)
+    def analytics_overview(session: Session = Depends(get_session)) -> AnalyticsOverview:
+        return _analytics(lambda: load_overview(session, resolved))
+
+    @app.get("/api/v1/analytics/revenue", response_model=RevenueResponse)
+    def analytics_revenue(
+        grain: str = Query(default="hour"),
+        currency: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = Query(default=168, ge=1, le=500),
+        session: Session = Depends(get_session),
+    ) -> RevenueResponse:
+        return _analytics(
+            lambda: load_revenue(session, resolved, grain, currency, start, end, limit)
+        )
+
+    @app.get("/api/v1/analytics/orders", response_model=OrdersResponse)
+    def analytics_orders(
+        currency: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = Query(default=50, ge=1, le=200),
+        session: Session = Depends(get_session),
+    ) -> OrdersResponse:
+        return _analytics(lambda: load_orders(session, resolved, currency, start, end, limit))
+
+    @app.get("/api/v1/analytics/products", response_model=ProductsResponse)
+    def analytics_products(
+        currency: str | None = None,
+        limit: int = Query(default=20, ge=1, le=100),
+        session: Session = Depends(get_session),
+    ) -> ProductsResponse:
+        return _analytics(lambda: load_products(session, resolved, currency, limit))
 
     @app.get("/api/v1/events/recent", response_model=RecentEventsResponse)
     def recent_events(

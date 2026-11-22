@@ -126,6 +126,81 @@ export type LakeStatus = {
   metric_definitions: Record<string, string>;
 };
 
+export type WarehouseStatus = {
+  ready: boolean;
+  reason: string | null;
+  warehouse_publication_id: string | null;
+  silver_publication_id: string | null;
+  clickhouse_publication_id: string | null;
+  published_at: string | null;
+  freshness_seconds: number | null;
+  order_count: number | null;
+  payment_count: number | null;
+  inventory_count: number | null;
+  item_count: number | null;
+  accepted_revenue: Record<string, string>;
+  recent_loads: {
+    load_id: string;
+    status: string;
+    warehouse_publication_id: string;
+    silver_publication_id: string;
+    started_at: string;
+    finished_at: string | null;
+    order_count: number | null;
+    error_detail: string | null;
+  }[];
+  recent_runs: {
+    id: number;
+    job_name: string;
+    state: string;
+    started_at: string;
+    finished_at: string | null;
+    duration_ms: number | null;
+    detail: string | null;
+    error_detail: string | null;
+  }[];
+};
+
+export type RevenuePoint = {
+  window_start: string;
+  currency: string;
+  order_count: number;
+  accepted_revenue: string;
+};
+
+export type AnalyticsOverview = {
+  warehouse_publication_id: string;
+  silver_publication_id: string;
+  published_at: string;
+  freshness_seconds: number;
+  order_count: number;
+  payment_count: number;
+  inventory_count: number;
+  item_count: number;
+  accepted_revenue: Record<string, string>;
+  hourly: RevenuePoint[];
+  synthetic: boolean;
+};
+
+export type RevenueResponse = {
+  warehouse_publication_id: string;
+  silver_publication_id: string;
+  freshness_seconds: number;
+  grain: string;
+  points: RevenuePoint[];
+};
+
+export type ProductsResponse = {
+  warehouse_publication_id: string;
+  returned: number;
+  products: {
+    product_id: string;
+    currency: string;
+    quantity: number;
+    revenue: string;
+  }[];
+};
+
 export type ReplayList = {
   returned: number;
   items: {

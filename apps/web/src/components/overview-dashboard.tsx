@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiError, fetchOverview } from "@/lib/api";
-import type { HealthReady, IngestionStats, RecentEventsResponse } from "@/lib/types";
+import { ApiError, fetchOverview, getJson } from "@/lib/api";
+import type { HealthReady, IngestionStats, RecentEventsResponse, WarehouseStatus } from "@/lib/types";
 import { formatUtc } from "@/lib/utils";
 
 const REFRESH_MS = 5000;
@@ -14,6 +14,8 @@ type Snapshot = {
   ready: HealthReady;
   stats: IngestionStats;
   recent: RecentEventsResponse;
+  warehouse: WarehouseStatus | null;
+  warehouseError: string | null;
   fetchedAt: string;
 };
 
@@ -29,10 +31,24 @@ export function OverviewDashboard() {
     async function load(isInitial: boolean) {
       try {
         const [ready, stats, recent] = await fetchOverview();
+        let warehouse: WarehouseStatus | null = null;
+        let warehouseError: string | null = null;
+        try {
+          warehouse = await getJson<WarehouseStatus>("/api/v1/warehouse/status");
+        } catch (error) {
+          warehouseError = error instanceof ApiError ? error.message : "Warehouse status failed.";
+        }
         if (cancelled) {
           return;
         }
-        setSnapshot({ ready, stats, recent, fetchedAt: new Date().toISOString() });
+        setSnapshot({
+          ready,
+          stats,
+          recent,
+          warehouse,
+          warehouseError,
+          fetchedAt: new Date().toISOString(),
+        });
         setInitialError(null);
         setRefreshError(null);
       } catch (error) {
@@ -89,7 +105,8 @@ export function OverviewDashboard() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-zinc-400">
-            Counts are rows stored in PostgreSQL. They are not Kafka broker throughput.
+            Ingestion counts are PostgreSQL rows. The analytical card is the last published
+            ClickHouse snapshot, and it is not the live ingest stream. Commerce data is synthetic.
           </p>
         </div>
         <p className="text-xs text-zinc-500">
@@ -139,6 +156,39 @@ export function OverviewDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Published analytical snapshot</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-zinc-300">
+          {snapshot.warehouseError ? (
+            <p>The warehouse status request failed. Ingestion figures above are unchanged.</p>
+          ) : snapshot.warehouse?.ready ? (
+            <>
+              <p className="font-mono text-xs">{snapshot.warehouse.warehouse_publication_id}</p>
+              <p className="mt-2">
+                {snapshot.warehouse.order_count ?? "—"} accepted orders · freshness{" "}
+                {snapshot.warehouse.freshness_seconds ?? "—"} seconds
+              </p>
+              {Object.entries(snapshot.warehouse.accepted_revenue).map(([currency, amount]) => (
+                <p key={currency}>
+                  {currency} {amount}
+                </p>
+              ))}
+              <p className="mt-2 text-xs text-zinc-500">
+                Silver {snapshot.warehouse.silver_publication_id}. This is not the live ingestion
+                count.
+              </p>
+            </>
+          ) : (
+            <p>
+              {snapshot.warehouse?.reason ??
+                "No validated warehouse publication is available. Ingestion can still be running."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
         <Card>
