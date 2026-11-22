@@ -138,7 +138,7 @@ export function DataSourcesDashboard() {
     <div>
       <PageHeader
         title="Data sources"
-        description="A submission status means the API accepted the request and Kafka acknowledged publication. It does not mean the row is already an accepted order in PostgreSQL. CSV is limited to 500 data rows and 1 MiB."
+        description="Unified event entry points"
       />
       {error && submissions ? <p className="mb-3 text-sm text-amber-100">The latest refresh failed. {error}</p> : null}
       <div className="mb-4 grid gap-3 md:grid-cols-3">
@@ -151,7 +151,7 @@ export function DataSourcesDashboard() {
         <SourceCard title="REST" body="POST /api/v1/ingestion/events. Validation and broker failures are stored as submissions." />
         <SourceCard title="CSV" body="Invalid rows stay in the import. Valid rows are published to Kafka asynchronously." />
       </div>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="CSV upload" />
         <form className="flex flex-wrap items-center gap-3" onSubmit={onSubmit}>
           <input
@@ -166,7 +166,7 @@ export function DataSourcesDashboard() {
         </form>
         {uploadMessage ? <p className="mt-3 text-xs text-zinc-300">{uploadMessage}</p> : null}
       </section>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="Recent submissions" />
         {submissions && submissions.items.length > 0 ? (
           <DataTable label="Source submissions">
@@ -200,7 +200,7 @@ export function DataSourcesDashboard() {
           <Empty>No REST submissions have been recorded.</Empty>
         )}
       </section>
-      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="CSV imports"
           detail="Resume sends rows still marked publishing. It is an admin call. A missing token is reported as 401 and does not pretend to succeed."
@@ -292,7 +292,7 @@ export function DataSourcesDashboard() {
 
 function SourceCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <h2 className="text-sm font-medium text-zinc-100">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
     </section>

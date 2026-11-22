@@ -100,8 +100,8 @@ export function MonitoringDashboard() {
   return (
     <div>
       <PageHeader
-        title="Monitoring"
-        description="Freshness is the age of a stored timestamp. Consumer lag is the ingestion group, separate from Spark checkpoint progress. A historical failure stays in the table after a later success."
+        title="System monitoring"
+        description="Pipeline health and measurable operational signals"
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {overview.freshness.map((stage) => (
@@ -132,7 +132,7 @@ export function MonitoringDashboard() {
         </StatusBadge>
         {overview.model_serving ? <StatusBadge tone="neutral">Forecast {overview.model_serving}</StatusBadge> : null}
       </div>
-      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="Execution history"
           detail="Running rows older than 15 minutes without a finish time are stale. A finished running marker is status unknown. Recovered means a later success exists for the same job in this page."

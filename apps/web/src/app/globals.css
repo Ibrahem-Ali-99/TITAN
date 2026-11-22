@@ -2,8 +2,18 @@
 
 :root {
   color-scheme: dark;
-  --background: #0e1116;
-  --foreground: #f4f4f5;
+  --background: #07111b;
+  --foreground: #e7eef6;
+  --sidebar: #0b1622;
+  --surface: #111d2b;
+  --surface-2: #162536;
+  --line: #26394b;
+  --muted: #8ea0b5;
+  --accent: #3b82f6;
+  --teal: #2dd4bf;
+  --ok: #34d399;
+  --warn: #f5b942;
+  --bad: #f87171;
 }
 
 @theme inline {
@@ -20,6 +30,6 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

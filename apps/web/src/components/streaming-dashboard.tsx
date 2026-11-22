@@ -76,8 +76,8 @@ export function StreamingDashboard() {
   return (
     <div>
       <PageHeader
-        title="Streaming"
-        description="These counts are durable PostgreSQL outcomes. They are not Kafka broker throughput. Consumer lag is on Monitoring."
+        title="Event streaming"
+        description="Delivery, deduplication and quarantine"
       />
       {error ? <Notice>The latest refresh failed. Figures below are the previous response. {error}</Notice> : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -86,7 +86,7 @@ export function StreamingDashboard() {
         <Kpi label="Order conflicts" value={formatCount(stats.order_conflicts)} hint={stats.metric_definitions.order_conflicts} />
         <Kpi label="Quarantined" value={formatCount(stats.quarantined_records)} hint={stats.metric_definitions.quarantined_records} />
       </div>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <SectionTitle title="Quarantine" detail="Filter applies to the returned page. Malformed payloads stay here with topic, partition, and offset." />
           <label className="text-xs text-zinc-400">
@@ -136,7 +136,7 @@ export function StreamingDashboard() {
           </DataTable>
         )}
       </section>
-      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="Replay history"
           detail="This page lists attempts. Creating a replay requires the admin token and returns 401 when that token is missing or wrong."

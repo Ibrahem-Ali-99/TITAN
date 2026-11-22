@@ -11,9 +11,12 @@ import {
   Kpi,
   LoadingState,
   Notice,
+  MetaList,
   PageHeader,
+  Panel,
+  ScopeBar,
   SectionTitle,
-  StatusBadge,
+  StatusPill,
   Td,
   TechnicalDetails,
   Th,
@@ -40,6 +43,8 @@ type Snapshot = {
   warehouse: WarehouseStatus | null;
   warehouseError: string | null;
   quality: QualityRun | null;
+  lag: { available: boolean; total: number | null; detail: string } | null;
+  serving: string | null;
   fetchedAt: string;
 };
 
@@ -58,6 +63,22 @@ export function OverviewDashboard() {
         let warehouse: WarehouseStatus | null = null;
         let warehouseError: string | null = null;
         let quality: QualityRun | null = null;
+        let lag: Snapshot["lag"] = null;
+        let serving: string | null = null;
+        try {
+          const monitor = await getJson<{
+            ingestion_lag: { available: boolean; total_lag: number | null; detail: string };
+            model_serving: string | null;
+          }>("/api/v1/monitoring/overview");
+          lag = {
+            available: monitor.ingestion_lag.available,
+            total: monitor.ingestion_lag.total_lag,
+            detail: monitor.ingestion_lag.detail,
+          };
+          serving = monitor.model_serving;
+        } catch {
+          lag = null;
+        }
         try {
           warehouse = await getJson<WarehouseStatus>("/api/v1/warehouse/status");
         } catch (error) {
@@ -75,7 +96,7 @@ export function OverviewDashboard() {
         if (cancelled) {
           return;
         }
-        setSnapshot({ ready, stats, recent, warehouse, warehouseError, quality, fetchedAt: new Date().toISOString() });
+        setSnapshot({ ready, stats, recent, warehouse, warehouseError, quality, lag, serving, fetchedAt: new Date().toISOString() });
         setInitialError(null);
         setRefreshError(null);
       } catch (error) {
@@ -120,30 +141,17 @@ export function OverviewDashboard() {
     return <ErrorState title="Overview unavailable" detail={initialError} />;
   }
 
-  const { stats, warehouse, quality } = snapshot;
+  const { stats, warehouse, quality, lag, serving } = snapshot;
   const activity = stats.recent_activity.map((point) => ({
     label: formatUtc(point.minute).slice(11, 16),
     persisted: point.persisted_events,
   }));
-  const qualityTone = !warehouse?.ready ? "warn" : quality?.status === "passed" ? "ok" : quality ? "bad" : "neutral";
-  const qualityLabel = !warehouse?.ready
-    ? "Warehouse not ready"
-    : quality?.status === "passed"
-      ? "Publication validated"
-      : quality
-        ? "Publication check failed"
-        : "No quality evidence";
-
   return (
     <div>
       <PageHeader
-        title="Overview"
-        description="Accepted orders and published revenue come from the warehouse snapshot. Ingestion counts are PostgreSQL rows, not Kafka throughput. Commerce events are synthetic."
-        aside={
-          <>
-            {refreshError ? "Last successful read" : "Updated"} {formatUtc(snapshot.fetchedAt)} UTC
-          </>
-        }
+        title="Operations overview"
+        description="Live ingestion and validated business intelligence"
+        aside={<StatusPill tone={warehouse?.ready ? "ok" : "warn"}>{warehouse?.ready ? "Warehouse ready" : "Warehouse not ready"}</StatusPill>}
       />
       {refreshError ? (
         <Notice>The latest refresh failed. Figures below are the previous response. {refreshError}</Notice>
@@ -156,20 +164,14 @@ export function OverviewDashboard() {
           footnote={warehouse?.ready ? `Freshness ${formatAge(warehouse.freshness_seconds)}` : warehouse?.reason ?? "Warehouse status was not ready."}
         />
         <Kpi
-          label="Logical orders"
-          value={formatCount(stats.logical_orders)}
-          hint={stats.metric_definitions.logical_orders}
-          footnote="PostgreSQL accepted orders"
-        />
-        <Kpi
-          label="Persisted events"
+          label="Ingested events"
           value={formatCount(stats.persisted_events)}
           hint={stats.metric_definitions.persisted_events}
-          footnote={stats.most_recent_ingested_at ? `Latest ${formatUtc(stats.most_recent_ingested_at)} UTC` : "No ingest timestamp"}
+          footnote="PostgreSQL records"
         />
         <Kpi
-          label="Quality"
-          value={qualityLabel}
+          label="Data quality"
+          value={!warehouse?.ready ? "Unavailable" : quality?.status === "passed" ? "Passed" : quality ? "Failed" : "No evidence"}
           hint="Matched to the serving publication when one exists. A later injected failure on another candidate is not this status."
           footnote={
             quality
@@ -177,14 +179,14 @@ export function OverviewDashboard() {
               : `Postgres ${snapshot.ready.checks.postgres === "ok" ? "ready" : "not ready"}`
           }
         />
+        <Kpi
+          label="Consumer lag"
+          value={lag?.available ? formatCount(lag.total) : "Unavailable"}
+          hint={lag?.detail ?? "Ingestion consumer lag was not returned."}
+          footnote="Reported Kafka lag"
+        />
       </div>
-      <div className="mb-3 flex items-center gap-2">
-        <StatusBadge tone={qualityTone}>{qualityLabel}</StatusBadge>
-        <StatusBadge tone={warehouse?.ready ? "info" : "warn"}>
-          {warehouse?.ready ? "Warehouse ready" : "Warehouse not serving"}
-        </StatusBadge>
-      </div>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4">
         <SectionTitle
           title="Published revenue"
           detail="One amount per currency. These figures are the snapshot, not a live broker rate."
@@ -192,26 +194,33 @@ export function OverviewDashboard() {
         {warehouse?.ready && Object.keys(warehouse.accepted_revenue).length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-3">
             {Object.entries(warehouse.accepted_revenue).map(([currency, amount]) => (
-              <Kpi key={currency} label={currency} value={formatMoney(amount, currency)} />
+              <Kpi key={currency} label={`${currency} revenue`} value={formatMoney(amount, currency)} />
             ))}
           </div>
         ) : (
           <Empty>{snapshot.warehouseError ?? warehouse?.reason ?? "No published revenue is available."}</Empty>
         )}
       </section>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
-          <SectionTitle
-            title="Ingestion activity"
-            detail={stats.metric_definitions.recent_activity}
-          />
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+        <Panel title="Ingestion activity" detail="Persisted events · observed minute buckets" action={<StatusPill tone="info">UTC · recorded</StatusPill>}>
           {activity.length === 0 ? (
             <Empty>No events were persisted in the last {stats.activity_window_minutes} minutes.</Empty>
           ) : (
             <ActivityChart points={activity} />
           )}
-        </section>
-        <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+        </Panel>
+        <Panel title="Platform status">
+          <MetaList
+            rows={[
+              { label: "Warehouse", value: warehouse?.ready ? "Validated publication" : warehouse?.reason ?? "Not serving" },
+              { label: "Silver", value: warehouse?.silver_publication_id ? "Curated snapshot ready" : "No Silver id" },
+              { label: "Forecast serving", value: serving ?? "Not recorded" },
+              { label: "Quarantine", value: `${formatCount(stats.quarantined_records)} records` },
+            ]}
+          />
+        </Panel>
+      </div>
+      <section className="mt-4 min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <SectionTitle title="Recent persisted events" detail="Sorted within the returned page." />
             <label className="text-xs text-zinc-400">
@@ -247,7 +256,7 @@ export function OverviewDashboard() {
             </DataTable>
           )}
         </section>
-      </div>
+      <ScopeBar>Scope: persisted events and published snapshots are distinct. Logical orders {formatCount(stats.logical_orders)}.</ScopeBar>
       <div className="mt-4">
         <TechnicalDetails summary="Publication identifiers">
           <p>

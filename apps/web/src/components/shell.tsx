@@ -11,14 +11,22 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[#0e1116] text-zinc-100">
-      <div className="mx-auto grid min-h-screen max-w-[1440px] md:grid-cols-[232px_1fr]">
-        <aside className="border-b border-white/8 bg-[#12151c] md:border-r md:border-b-0">
-          <div className="px-4 py-5">
-            <p className="text-xs tracking-[0.2em] text-sky-300/80 uppercase">TITAN</p>
-            <p className="mt-1 text-sm text-zinc-300">Operations</p>
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1440px] md:grid-cols-[232px_1fr]">
+        <aside className="flex min-w-0 flex-col border-b border-[var(--line)] bg-[var(--sidebar)] md:min-h-screen md:border-r md:border-b-0">
+          <div className="flex items-center gap-2 px-4 pt-5 pb-4">
+            <span className="grid size-7 place-items-center rounded-md border border-[var(--line)] text-sky-300" aria-hidden>
+              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M8 1.5 14 8 8 14.5 2 8 8 1.5Z" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-semibold tracking-[0.14em]">TITAN</p>
+              <p className="text-[10px] tracking-[0.16em] text-sky-400">DATA INTELLIGENCE</p>
+            </div>
           </div>
-          <nav className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:px-2" aria-label="Primary">
+          <p className="px-4 pb-2 text-[10px] tracking-[0.18em] text-[var(--muted)]">WORKSPACE</p>
+          <nav className="flex w-full gap-1 overflow-x-auto px-2 pb-3 md:flex-1 md:flex-col" aria-label="Primary">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -28,8 +36,8 @@ export function Shell({ children }: { children: ReactNode }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100",
-                    active && "bg-sky-950/70 text-sky-50",
+                    "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:bg-white/5 hover:text-[var(--foreground)]",
+                    active && "bg-[var(--surface-2)] text-[var(--foreground)]",
                   )}
                 >
                   <Icon className="size-4" aria-hidden />
@@ -38,20 +46,16 @@ export function Shell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+          <div className="border-t border-[var(--line)] px-4 py-4">
+            <p className="text-[10px] tracking-[0.16em] text-[var(--muted)]">LOCAL ENVIRONMENT</p>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--foreground)]">
+              <span className="size-1.5 rounded-full bg-sky-400" aria-hidden />
+              Synthetic dataset
+            </p>
+          </div>
         </aside>
         <div className="min-w-0">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3 md:px-6">
-            <div>
-              <p className="text-sm text-zinc-400">Local environment</p>
-              <p className="text-xs text-amber-200/90">
-                Business events are synthetic. They are not live store traffic.
-              </p>
-            </div>
-            <span className="rounded-md border border-amber-900/80 bg-amber-950/40 px-2 py-1 text-xs text-amber-200">
-              synthetic data
-            </span>
-          </header>
-          <main className="px-4 py-6 md:px-6">{children}</main>
+          <main className="px-4 py-5 md:px-6 md:py-6">{children}</main>
         </div>
       </div>
     </div>

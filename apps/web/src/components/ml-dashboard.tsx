@@ -146,8 +146,8 @@ export function MlDashboard() {
   return (
     <div>
       <PageHeader
-        title="ML and predictions"
-        description="The served method is the stored decision. Held-out one-step rows are an evaluation, not a future forecast. The series is synthetic, so a lower error here is not evidence about a real catalog."
+        title="Demand intelligence"
+        description="Product-level demand forecasts. Held-out one-step rows are an evaluation, not a future forecast."
       />
       {serving === null ? (
         <Empty>{reason ?? "Training has not produced a serving run."}</Empty>
@@ -170,7 +170,7 @@ export function MlDashboard() {
           {serving.decision_rationale ? (
             <p className="mb-4 max-w-3xl text-sm leading-6 text-zinc-300">{serving.decision_rationale}</p>
           ) : null}
-          <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+          <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <SectionTitle title="Held-out error" detail="Lower is better. WAPE is omitted by the API when the actual sum is zero." />
             {comparison.length === 0 ? (
               <Empty>The serving run did not include comparable MAE or WAPE values.</Empty>
@@ -178,7 +178,7 @@ export function MlDashboard() {
               <MetricCompareChart rows={comparison} candidateName={serving.algorithm} />
             )}
           </section>
-          <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+          <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <SectionTitle
                 title="One-step evaluation"
@@ -214,7 +214,7 @@ export function MlDashboard() {
           </TechnicalDetails>
         </>
       )}
-      <section className="mt-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="Statistical anomalies"
           detail="Rolling median scores on observed history. These are not quality-contract failures and they are not forecast errors."

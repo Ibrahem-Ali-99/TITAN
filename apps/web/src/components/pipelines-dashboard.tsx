@@ -92,13 +92,13 @@ export function PipelinesDashboard() {
   return (
     <div>
       <PageHeader
-        title="Pipelines"
-        description="Silver is curated from PostgreSQL dispositions. Bronze evidence is recorded in parallel and is not a prerequisite shown here as a gate. Status text is the stored job state, not a control."
+        title="Pipeline orchestration"
+        description="Versioned materializations and recovery history. Silver is authoritative from PostgreSQL. Bronze is an independent evidence path."
       />
       {error ? <p className="mb-3 text-sm text-amber-100">The latest refresh failed. {error}</p> : null}
       <ol className="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {STAGES.map((stage, index) => (
-          <li key={stage} className="rounded-lg border border-white/8 bg-[#151922] px-3 py-3">
+          <li key={stage} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3">
             <p className="text-xs text-zinc-500">{index + 1}</p>
             <p className="mt-1 text-sm font-medium text-zinc-100">{stage}</p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">{stageNote[stage]}</p>
@@ -115,7 +115,7 @@ export function PipelinesDashboard() {
           footnote={warehouse?.ready ? `${formatCount(warehouse.order_count)} published orders` : warehouse?.reason ?? "Status was not returned"}
         />
       </div>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="Accepted revenue on the Silver version" detail="Currencies are not added together. This is the Silver publication revenue, which can differ from the serving warehouse until the next exchange." />
         {current && Object.keys(current.accepted_revenue).length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-3">
@@ -130,7 +130,7 @@ export function PipelinesDashboard() {
           Identifier conflicts on that Silver run: {formatCount(current?.identifier_conflict_count)}. Bronze rows {formatCount(current?.bronze_record_count)}. Distinct offsets {formatCount(current?.bronze_distinct_offsets)}.
         </p>
       </section>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="Recorded attempts" />
         {runs.length === 0 ? (
           <Empty>No warehouse or Dagster attempt is in the returned page.</Empty>
@@ -164,7 +164,7 @@ export function PipelinesDashboard() {
           </DataTable>
         )}
       </section>
-      <section className="rounded-lg border border-white/8 bg-[#151922] p-4 text-sm text-zinc-300">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm text-zinc-300">
         <SectionTitle title="Lineage" />
         <p>Silver <CopyId value={current?.publication_id ?? null} /></p>
         <p className="mt-2">Warehouse <CopyId value={warehouse?.warehouse_publication_id ?? null} /></p>

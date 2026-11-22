@@ -4,6 +4,60 @@ import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+export function StatusPill({ tone, children }: { tone: "ok" | "warn" | "bad" | "info" | "neutral"; children: ReactNode }) {
+  const dot = { ok: "bg-[var(--ok)]", warn: "bg-[var(--warn)]", bad: "bg-[var(--bad)]", info: "bg-[var(--accent)]", neutral: "bg-[var(--muted)]" }[tone];
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--foreground)]">
+      <span className={cn("size-1.5 rounded-full", dot)} aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+export function ScopeBar({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">{children}</p>
+  );
+}
+
+export function Panel({
+  title,
+  detail,
+  action,
+  children,
+}: {
+  title: string;
+  detail?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-medium text-[var(--foreground)]">{title}</h2>
+          {detail ? <p className="mt-1 text-xs text-[var(--muted)]">{detail}</p> : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function MetaList({ rows }: { rows: { label: string; value: ReactNode }[] }) {
+  return (
+    <dl className="space-y-3">
+      {rows.map((row) => (
+        <div key={row.label}>
+          <dt className="text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase">{row.label}</dt>
+          <dd className="mt-1 text-sm text-[var(--foreground)]">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function PageHeader({
   title,
   description,
@@ -16,8 +70,8 @@ export function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="max-w-3xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{title}</h1>
-        <p className="mt-1 text-sm leading-6 text-zinc-400">{description}</p>
+        <h1 className="text-[1.65rem] font-semibold tracking-tight text-[var(--foreground)]">{title}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
       </div>
       {aside ? <div className="text-xs text-zinc-500">{aside}</div> : null}
     </div>
@@ -36,13 +90,13 @@ export function Kpi({
   footnote?: string;
 }) {
   return (
-    <section className="rounded-lg border border-white/8 bg-[#151922] px-4 py-3">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
       <div className="flex items-center gap-2">
-        <h2 className="text-xs font-medium tracking-wide text-zinc-400 uppercase">{label}</h2>
+        <h2 className="text-[11px] font-medium tracking-[0.14em] text-[var(--muted)] uppercase">{label}</h2>
         {hint ? <Hint text={hint} /> : null}
       </div>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-50">{value}</p>
-      {footnote ? <p className="mt-1 text-xs text-zinc-500">{footnote}</p> : null}
+      <p className="mt-2 text-[1.65rem] leading-none font-semibold tracking-tight text-[var(--foreground)]">{value}</p>
+      {footnote ? <p className="mt-2 text-xs text-[var(--muted)]">{footnote}</p> : null}
     </section>
   );
 }
@@ -82,7 +136,7 @@ export function StatusBadge({
     neutral: "border-zinc-700 bg-zinc-900 text-zinc-300",
   }[tone];
   return (
-    <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium", toneClass)}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium", toneClass)}>
       {children}
     </span>
   );
@@ -150,7 +204,7 @@ export function CopyId({ value }: { value: string | null }) {
 
 export function TechnicalDetails({ summary, children }: { summary: string; children: ReactNode }) {
   return (
-    <details className="rounded-lg border border-white/8 bg-[#12151c] px-4 py-3 text-sm text-zinc-300">
+    <details className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]">
       <summary className="cursor-pointer text-sm font-medium text-zinc-200">{summary}</summary>
       <div className="mt-3 space-y-2">{children}</div>
     </details>
@@ -160,15 +214,15 @@ export function TechnicalDetails({ summary, children }: { summary: string; child
 export function SectionTitle({ title, detail }: { title: string; detail?: string }) {
   return (
     <div className="mb-3">
-      <h2 className="text-sm font-medium text-zinc-200">{title}</h2>
-      {detail ? <p className="mt-1 text-xs leading-5 text-zinc-500">{detail}</p> : null}
+      <h2 className="text-sm font-medium text-[var(--foreground)]">{title}</h2>
+      {detail ? <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{detail}</p> : null}
     </div>
   );
 }
 
 export function DataTable({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div className="overflow-x-auto" role="region" aria-label={label} tabIndex={0}>
+    <div className="max-w-full min-w-0 overflow-x-auto" role="region" aria-label={label} tabIndex={0}>
       <table className="w-full min-w-[720px] text-left text-sm">{children}</table>
     </div>
   );
@@ -179,7 +233,7 @@ export function Th({ children }: { children: ReactNode }) {
 }
 
 export function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn("border-t border-white/8 py-2 pr-3 align-top text-zinc-300", className)}>{children}</td>;
+  return <td className={cn("border-t border-[var(--line)] py-2 pr-3 align-top text-[var(--foreground)]", className)}>{children}</td>;
 }
 
 export function Segmented<T extends string>({

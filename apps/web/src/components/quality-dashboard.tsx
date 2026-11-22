@@ -131,7 +131,7 @@ export function QualityDashboard() {
     <div>
       <PageHeader
         title="Data quality"
-        description="The top status is the check recorded for the warehouse that is serving now. Older failures, including intentional injections, stay in the history and are not the live publication."
+        description="Current validation separated from audit history"
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
@@ -158,7 +158,7 @@ export function QualityDashboard() {
                 : "Serving publication has no stored quality run"}
         </StatusBadge>
       </div>
-      <section className="mb-4 rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="Execution history" detail="Newest first. Injected rows are test faults, not the serving defect list." />
         {runs.length === 0 ? (
           <Empty>No quality run has been recorded.</Empty>
@@ -211,7 +211,7 @@ export function QualityDashboard() {
           </div>
         ) : null}
       </section>
-      <section className="rounded-lg border border-white/8 bg-[#151922] p-4">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="Failed checks, grouped"
           detail="Each row is one rule across the returned failed findings. Occurrence count includes historical and injected runs."
