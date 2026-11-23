@@ -2,6 +2,7 @@
   "fixture_messages": 5,
   "source_topic": "titan.recovery.source",
   "restored_topic": "recovery.titan.recovery.source",
+  "committed_next_offsets": {"0": 2, "1": 2, "2": 1},
   "prepare_duration_ms": 2889,
   "before_restart": {
     "commerce_dispositions": {
