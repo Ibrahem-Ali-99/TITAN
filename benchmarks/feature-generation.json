@@ -1,0 +1,17 @@
+{
+  "benchmark": "ml_feature_generation",
+  "workload": {
+    "products": 100,
+    "days_per_product": 365,
+    "input_rows": 36500
+  },
+  "output_rows": 36500,
+  "elapsed_seconds": 0.015826,
+  "rows_per_second": 2306258.491,
+  "python": "3.12.13",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "gpu": {
+    "status": "not evaluated",
+    "reason": "feature benchmark is CPU-only"
+  }
+}

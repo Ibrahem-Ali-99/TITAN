@@ -37,12 +37,14 @@ def feature_rows(panel: list[tuple[str, date, int]]) -> list[dict[str, object]]:
     for product_id, series in grouped.items():
         series.sort()
         quantities = [quantity for _, quantity in series]
+        rolling_sum = 0
         for index, (activity_date, quantity) in enumerate(series):
-            history = quantities[:index]
-            lag_1 = history[-1] if history else 0
+            # Keep the feature window bounded.  Rebuilding ``quantities[:index]``
+            # for every row made this path quadratic for long product histories.
+            lag_1 = quantities[index - 1] if index else 0
             lag_7 = quantities[index - 7] if index >= 7 else 0
-            window = history[-7:]
-            rolling = sum(window) / len(window) if window else 0.0
+            window_size = min(index, 7)
+            rolling = rolling_sum / window_size if window_size else 0.0
             rows.append(
                 {
                     "product_id": product_id,
@@ -54,6 +56,9 @@ def feature_rows(panel: list[tuple[str, date, int]]) -> list[dict[str, object]]:
                     "day_of_week": activity_date.weekday(),
                 }
             )
+            rolling_sum += quantity
+            if index >= 7:
+                rolling_sum -= quantities[index - 7]
     return rows
 
 
