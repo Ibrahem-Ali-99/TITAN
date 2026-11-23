@@ -16,10 +16,12 @@ RUN apt-get update \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL -o "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-        "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-    && curl -fsSL -o /tmp/spark.sha512 \
-        "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512" \
+RUN curl --fail --show-error --location --connect-timeout 20 --max-time 900 \
+        -o "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
+        "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
+    && curl --fail --show-error --location --connect-timeout 20 --max-time 60 \
+        -o /tmp/spark.sha512 \
+        "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512" \
     && cd /tmp && sha512sum -c spark.sha512 \
     && tar -xzf "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" -C /opt \
     && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" /opt/spark \
