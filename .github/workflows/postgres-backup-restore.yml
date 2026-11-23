@@ -78,7 +78,7 @@ jobs:
           cp "$backup_dir/manifest.json" "$RUNNER_TEMP/corrupt-manifest.json"
           sed -i "s#titan-postgres.dump#corrupt.dump#" "$RUNNER_TEMP/corrupt-manifest.json"
           mkdir "$RUNNER_TEMP/corrupt-backup"
-          mv "$RUNNER_TEMP/corrupt.dump" "$RUNNER_TEMP/corrupt-backup/titan-postgres.dump"
+          mv "$RUNNER_TEMP/corrupt.dump" "$RUNNER_TEMP/corrupt-backup/corrupt.dump"
           mv "$RUNNER_TEMP/corrupt-manifest.json" "$RUNNER_TEMP/corrupt-backup/manifest.json"
           if uv run python scripts/postgres_dr.py verify --backup "$RUNNER_TEMP/corrupt-backup"; then
             echo 'corrupt backup was accepted' >&2
