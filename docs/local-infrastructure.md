@@ -8,15 +8,15 @@ This stack does not include Spark, orchestration, or a warehouse load. ClickHous
 
 | Service | Host port | Container address | Published? |
 | --- | --- | --- | --- |
-| Kafka clients on the host | 9092 | `localhost:9092` (`PLAINTEXT_HOST`) | yes |
+| Kafka clients on the host | 9092 | `127.0.0.1:9092` (`PLAINTEXT_HOST`) | yes, loopback only |
 | Kafka clients in Compose | — | `kafka:19092` (`PLAINTEXT`) | no |
 | Kafka controller | — | `kafka:29093` | no |
-| PostgreSQL | 5435 | `postgres:5432` | yes |
-| ClickHouse HTTP | 8123 | `clickhouse:8123` | yes |
-| MinIO API | 9000 | `minio:9000` | yes |
-| MinIO console | 9001 | `minio:9001` | yes |
-| FastAPI | 8000 | `api:8000` | yes |
-| Next.js | 3000 | `web:3000` | yes |
+| PostgreSQL | 5435 | `postgres:5432` | yes, loopback only |
+| ClickHouse HTTP | 8123 | `clickhouse:8123` | yes, loopback only |
+| MinIO API | 9000 | `minio:9000` | yes, loopback only |
+| MinIO console | 9001 | `minio:9001` | yes, loopback only |
+| FastAPI | 8000 | `api:8000` | yes, loopback only |
+| Next.js | 3000 | `web:3000` | yes, loopback only |
 
 Host tools must use `localhost:9092`. Containers must use `kafka:19092`. A container that uses `localhost` reaches itself, not Kafka.
 
@@ -44,7 +44,7 @@ Limits in the Compose file: Kafka 768 MiB, PostgreSQL 512 MiB, MinIO 256 MiB, Cl
 
 Profiles: `generate` for the containerized producer, `processing` for Spark, `orchestration` for the optional Dagster daemon. The daemon is off by default so the hourly warehouse job does not publish on its own. The first `processing` command builds `titan-spark:4.0.1`.
 
-Set `TITAN_ADMIN_TOKEN` in `.env` and recreate the API before replay or CSV resume. `.env.example` contains the local placeholder `local-demo-token`. An empty token makes those two calls return 401. REST publication and CSV upload stay open on localhost.
+Set `TITAN_READ_TOKEN`, `TITAN_WRITE_TOKEN`, and `TITAN_ADMIN_TOKEN` in the ignored `.env` file and recreate the API and web services before using the dashboard or protected operations. Empty protected tokens fail closed. The base Compose file binds every published development service to loopback; the dashboard proxy also requires `TITAN_DASHBOARD_LOCAL_ONLY=true`. These are local-development boundaries, not production authentication or secret management.
 
 ## Isolated checkout
 

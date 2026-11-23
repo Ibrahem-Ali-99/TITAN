@@ -129,6 +129,12 @@ The API now applies fail-closed bearer authentication through a central middlewa
 
 The Next.js dashboard uses a server-side catch-all proxy. Read/write tokens are injected into the server-side proxy environment and are never exposed as `NEXT_PUBLIC_*` values or accepted from browser headers. The proxy is explicitly disabled unless `TITAN_DASHBOARD_LOCAL_ONLY=true`, only permits the health-readiness and `/api/v1/` paths, and only permits the `http://api:8000` or localhost upstream. The base Compose project binds both API and dashboard ports to loopback, making this an intentional local-only access boundary rather than an authentication mechanism for network exposure. Administrative resume is deliberately unavailable through the browser proxy and remains an operator-client action. CI Compose overrides provide disposable read/write/admin tokens.
 
+## Upgrade 5C remediation status
+
+The base development Compose file now binds Kafka, PostgreSQL, ClickHouse, MinIO, FastAPI, Next.js, Prometheus, and Grafana host ports to `127.0.0.1`; Tempo no longer publishes a host port because it is consumed through the internal Compose network. Container-to-container endpoints remain unchanged (`kafka:19092`, `postgres:5432`, `clickhouse:8123`, and `minio:9000`). Kafka's host listener still advertises the loopback host endpoint while its internal listener advertises `kafka:19092`.
+
+The committed environment template continues to contain local placeholders only. They are explicitly documented as local-only and are not suitable for a non-loopback deployment. CI and recovery overrides retain disposable credentials and isolated project names. Existing volumes and database credentials were not rotated; changing them requires a planned migration and rollback procedure. The Docker socket mounted for the optional Dagster daemon remains a high-risk local-development trust boundary, and production secret management, TLS, and service-level network segmentation remain outstanding.
+
 ## Conclusion
 
 The repository is suitable for controlled local development and has meaningful recovery/CI isolation controls. It should be treated as **not approved for network-exposed or production use** until SEC-01 and SEC-02 are addressed and the image, secret, and backup controls are strengthened. This audit intentionally makes no broad infrastructure changes.

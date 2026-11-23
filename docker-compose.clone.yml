@@ -11,31 +11,31 @@
 services:
   kafka:
     ports: !override
-      - "29092:9092"
+      - "127.0.0.1:29092:9092"
     environment:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:29092,PLAINTEXT://kafka:19092
 
   postgres:
     ports: !override
-      - "25435:5432"
+      - "127.0.0.1:25435:5432"
 
   clickhouse:
     ports: !override
-      - "28123:8123"
+      - "127.0.0.1:28123:8123"
 
   minio:
     ports: !override
-      - "29000:9000"
-      - "29001:9001"
+      - "127.0.0.1:29000:9000"
+      - "127.0.0.1:29001:9001"
 
   api:
     ports: !override
-      - "28000:8000"
+      - "127.0.0.1:28000:8000"
     environment:
       CORS_ORIGINS: http://localhost:23000
 
   web:
     ports: !override
-      - "23000:3000"
+      - "127.0.0.1:23000:3000"
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:28000
