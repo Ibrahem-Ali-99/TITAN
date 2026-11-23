@@ -1,12 +1,13 @@
 name: full-pipeline-ci
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [master]
+  workflow_run:
+    workflows: [Build TITAN Spark image]
+    types: [completed]
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: full-pipeline-${{ github.ref }}
@@ -17,6 +18,7 @@ jobs:
     name: Spark and warehouse integration
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    if: github.event.workflow_run.conclusion == 'success'
     env:
       COMPOSE_PROJECT_NAME: titan-full-ci
       COMPOSE_FILE: docker-compose.yml:.github/docker-compose.full-pipeline.yml
@@ -34,6 +36,7 @@ jobs:
       MINIO_ACCESS_KEY: titan
       MINIO_SECRET_KEY: titan_full_ci_password
       LAKE_BUCKET: titan-lake
+      SPARK_IMAGE_TAG: ghcr.io/${{ github.repository_owner }}/titan-spark:4.0.1-${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -42,28 +45,19 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync --frozen --all-packages
-      - uses: actions/cache@v4
+      - uses: docker/login-action@v3
         with:
-          path: .ci-cache/spark
-          key: spark-distribution-4.0.1-hadoop3-v1
-      - name: Fetch and verify cached Spark distribution
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve and pull immutable Spark image
         shell: bash
         run: |
-          mkdir -p .ci-cache/spark
-          archive=".ci-cache/spark/spark-4.0.1-bin-hadoop3.tgz"
-          checksum="${archive}.sha512"
-          if [[ ! -s "$archive" || ! -s "$checksum" ]]; then
-            curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 --progress-bar \
-              -o "$archive" \
-              https://archive.apache.org/dist/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz
-            curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 60 \
-              -o "$checksum" \
-              https://archive.apache.org/dist/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz.sha512
-          else
-            echo "Spark distribution cache hit"
-          fi
-          (cd .ci-cache/spark && sha512sum -c "spark-4.0.1-bin-hadoop3.tgz.sha512")
-      - uses: docker/setup-buildx-action@v3
+          docker pull "$SPARK_IMAGE_TAG"
+          digest=$(docker image inspect "$SPARK_IMAGE_TAG" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
+          test -n "$digest"
+          echo "TITAN_SPARK_IMAGE=ghcr.io/${{ github.repository_owner }}/titan-spark@$digest" >> "$GITHUB_ENV"
+          echo "Using Spark image digest $digest"
       - name: Assert full-pipeline isolation
         shell: bash
         run: |
@@ -77,12 +71,8 @@ jobs:
           docker compose --project-name "$COMPOSE_PROJECT_NAME"
           -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
           up --build --detach --wait kafka postgres clickhouse minio
-      - name: Build Spark image
-        run: >-
-          docker buildx build --load --tag titan-spark:4.0.1
-          --file infrastructure/docker/spark.Dockerfile
-          --cache-from type=gha,scope=titan-spark
-          --cache-to type=gha,mode=max,scope=titan-spark .
+      - name: Verify pinned Spark image
+        run: docker image inspect "$TITAN_SPARK_IMAGE" >/dev/null
       - name: Initialize disposable schemas and lake
         run: |
           timeout 180s docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --no-deps --rm migrate

@@ -13,7 +13,7 @@ x-python: &python-image
   logging: *default-logging
 
 x-spark: &spark-image
-  image: titan-spark:4.0.1
+  image: ${TITAN_SPARK_IMAGE:-titan-spark:4.0.1}
   build:
     context: .
     dockerfile: infrastructure/docker/spark.Dockerfile
