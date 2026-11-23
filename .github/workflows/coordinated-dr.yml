@@ -25,12 +25,12 @@ jobs:
       SOURCE_PROJECT: titan-coordinated-source-ci
       DEST_PROJECT: titan-coordinated-dest-ci
       SOURCE_KAFKA_PORT: "45192"
-      SOURCE_POSTGRES_PORT: "45436"
+      SOURCE_POSTGRES_PORT: "0"
       SOURCE_CLICKHOUSE_PORT: "48124"
       SOURCE_MINIO_PORT: "45100"
       SOURCE_MINIO_CONSOLE_PORT: "45101"
       DEST_KAFKA_PORT: "45292"
-      DEST_POSTGRES_PORT: "45437"
+      DEST_POSTGRES_PORT: "0"
       DEST_CLICKHOUSE_PORT: "48125"
       DEST_MINIO_PORT: "45200"
       DEST_MINIO_CONSOLE_PORT: "45201"
@@ -74,6 +74,8 @@ jobs:
           export TITAN_KAFKA_PORT="$SOURCE_KAFKA_PORT" TITAN_POSTGRES_PORT="$SOURCE_POSTGRES_PORT"
           export TITAN_CLICKHOUSE_PORT="$SOURCE_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$SOURCE_MINIO_PORT" TITAN_MINIO_CONSOLE_PORT="$SOURCE_MINIO_CONSOLE_PORT"
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" up --detach --wait kafka postgres clickhouse minio
+          SOURCE_POSTGRES_PORT="$("${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" port postgres 5432 | awk -F: '{print $NF}')"
+          test "$SOURCE_POSTGRES_PORT" -gt 0
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm migrate
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm lake-init
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" up --build --detach --wait ingestion
@@ -105,6 +107,8 @@ jobs:
           export POSTGRES_DB=titan_restore POSTGRES_USER=titan POSTGRES_PASSWORD="$PASSWORD"
           export TITAN_KAFKA_PORT="$DEST_KAFKA_PORT" TITAN_POSTGRES_PORT="$DEST_POSTGRES_PORT" TITAN_CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$DEST_MINIO_PORT" TITAN_MINIO_CONSOLE_PORT="$DEST_MINIO_CONSOLE_PORT"
           "${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" up --detach --wait kafka postgres clickhouse minio
+          DEST_POSTGRES_PORT="$("${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" port postgres 5432 | awk -F: '{print $NF}')"
+          test "$DEST_POSTGRES_PORT" -gt 0
           for topic in titan.commerce.order-events titan.commerce.payment-events titan.commerce.inventory-events \
             restored.titan.commerce.order-events restored.titan.commerce.payment-events restored.titan.commerce.inventory-events; do
             docker exec "${DEST_PROJECT}-kafka-1" /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic "$topic" --partitions 3 --replication-factor 1
