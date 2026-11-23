@@ -3,21 +3,28 @@
 TITAN is a local commerce data platform. Synthetic events move through one path:
 
 ```mermaid
-flowchart LR
-  sources["Synthetic generator, REST, CSV"] --> kafka["Kafka KRaft"]
+flowchart TB
+  sources["Generator, REST, CSV"] --> kafka["Kafka KRaft"]
   kafka --> ingest["Ingestion consumer"]
   ingest --> pg["PostgreSQL"]
   kafka --> bronze["Spark Bronze"]
   pg --> silver["Spark Silver"]
   bronze --> minio["MinIO Parquet"]
   silver --> minio
-  silver --> ch["ClickHouse facts"]
-  ch --> dbt["dbt tests and models"]
-  dbt --> pointer["wh_active"]
-  pointer --> api["FastAPI"]
+  silver --> load["Warehouse load"]
+  load --> ch["ClickHouse"]
+  ch --> dbt["dbt"]
+  dbt --> gate["Quality gate"]
+  gate --> active["wh_active"]
+  active --> api["FastAPI"]
   api --> web["Next.js"]
-  pg --> dagster["Dagster"]
-  dagster --> ch
+  active --> ml["Demand training"]
+  ml --> api
+  dagster["Dagster"] -.-> silver
+  dagster -.-> load
+  dagster -.-> dbt
+  dagster -.-> gate
+  dagster -.-> active
 ```
 
 Dagster orders the jobs. It does not transform rows. dbt builds the models readers query. The API serves analytics only for the publication recorded in both PostgreSQL and `wh_active`.

@@ -19,4 +19,4 @@ Demand training compares a fixed gradient-boosting model with a seasonal naive b
 
 ## Limits
 
-The data is synthetic. The benchmark is one producer-acknowledgement sample on a side topic, on a workstation, with other containers running. Spark JVM kill, a two-member consumer rebalance, and a MinIO outage during a write were not executed in this milestone. The dashboard was not driven in a browser in this session.
+The data is synthetic. The benchmark is one producer-acknowledgement sample on a side topic, on a workstation, with other containers running. Spark `kill -9` recovery is recorded in [../audits/spark-crash-recovery.md](../audits/spark-crash-recovery.md). A live two-member consumer rebalance and a MinIO outage during a write were not executed. Console screenshots captured later are in [screenshots.md](screenshots.md).

@@ -1,18 +1,28 @@
 # Architecture
 
 ```mermaid
-flowchart LR
-  sources["Generator, REST, CSV"] --> kafka["Kafka"]
-  kafka --> ingest["Ingestion"]
+flowchart TB
+  sources["Generator, REST, CSV"] --> kafka["Kafka KRaft"]
+  kafka --> ingest["Ingestion consumer"]
   ingest --> pg["PostgreSQL"]
   kafka --> bronze["Spark Bronze"]
   pg --> silver["Spark Silver"]
-  bronze --> minio["MinIO"]
+  bronze --> minio["MinIO Parquet"]
   silver --> minio
-  silver --> ch["ClickHouse"]
-  ch --> dbt["dbt and quality gate"]
-  dbt --> api["FastAPI"]
+  silver --> load["Warehouse load"]
+  load --> ch["ClickHouse"]
+  ch --> dbt["dbt"]
+  dbt --> gate["Quality gate"]
+  gate --> active["wh_active"]
+  active --> api["FastAPI"]
   api --> web["Next.js"]
+  active --> ml["Demand training"]
+  ml --> api
+  dagster["Dagster"] -.-> silver
+  dagster -.-> load
+  dagster -.-> dbt
+  dagster -.-> gate
+  dagster -.-> active
 ```
 
 Day 1 is one vertical slice plus two idle infrastructure services.

@@ -22,7 +22,7 @@ Malformed JSON, schema violations, inconsistent totals, a missing key, and a key
 
 If the quarantine insert fails because the database is down, the offset is not committed.
 
-Records are truncated for storage. The table is a minimal quarantine, not a replay product. Replay tooling is a later milestone.
+Records are truncated for storage. The table is a minimal quarantine, not a second copy of the accepted order. Replay of a stored record is specified in [ingestion-hub.md](ingestion-hub.md).
 
 ## What the API counts
 

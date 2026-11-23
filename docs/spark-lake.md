@@ -4,7 +4,7 @@ Day 3 adds a single-node Spark reader beside the existing ingestion consumer. It
 
 ## Ownership
 
-Kafka is the log of emitted records. PostgreSQL is authoritative for acceptance and for `accepted`, `duplicate_operation`, and `conflict`. Bronze Parquet in MinIO keeps the raw Kafka record, including invalid values and duplicate deliveries. Silver is a validated snapshot of the rows PostgreSQL has already classified. ClickHouse is still unused.
+Kafka is the log of emitted records. PostgreSQL is authoritative for acceptance and for `accepted`, `duplicate_operation`, and `conflict`. Bronze Parquet in MinIO keeps the raw Kafka record, including invalid values and duplicate deliveries. Silver is a validated snapshot of the rows PostgreSQL has already classified. Spark does not write ClickHouse. The later warehouse load is described in [warehouse.md](warehouse.md).
 
 The Spark query and the `titan-ingestion` group are independent. A record can be in Bronze before PostgreSQL has classified it. That state is `pending`. It is not an accepted order and it is not a rejection. Arrival order is not assumed to match.
 

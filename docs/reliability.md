@@ -16,7 +16,7 @@ Readers use `bronze_batch_commits`. A prefix is visible only after the copy retu
 
 Silver publication still takes the advisory lock. An older Silver snapshot cannot replace a warehouse built from a later one.
 
-A forced JVM `kill -9` during a microbatch was not executed. The tested Spark boundary remains checkpoint resume and the committed-batch table from the existing lake tests.
+A forced container `kill -9` during a Bronze microbatch, after the Parquet copy and before the batch commit, is recorded in [audits/spark-crash-recovery.md](audits/spark-crash-recovery.md). Restart on the same checkpoint committed that batch once. Readers still require `bronze_batch_commits`.
 
 ## Warehouse pointer
 
