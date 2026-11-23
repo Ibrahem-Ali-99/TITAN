@@ -32,4 +32,99 @@ That image runs as the `minio` user. A fresh Docker named volume is owned by roo
 
 ## Reset
 
-`docker compose down -v` deletes Kafka, Postgres, ClickHouse, and MinIO volumes. The Kafka cluster id is fixed so a restart without `-v` reuses the formatted log directory.
+`docker compose down` stops the `titan` containers and keeps the named volumes. `docker compose down -v` also deletes Kafka, Postgres, ClickHouse, MinIO, the Spark checkpoint, and Dagster data. The Kafka cluster id is fixed so a restart without `-v` reuses the formatted log directory.
+
+Do not add `-v` unless that deletion is intentional.
+
+## Compose memory limits
+
+The file sets `name: titan`. A second checkout that runs `docker compose up` without another project name attaches the development volumes `titan_*`.
+
+Limits in the Compose file: Kafka 768 MiB, PostgreSQL 512 MiB, MinIO 256 MiB, ClickHouse 1536 MiB, Spark 1536 MiB, ingestion 512 MiB, API 512 MiB, web 768 MiB, Dagster daemon 768 MiB. Spark and the daemon run only with their profiles. **8 GB** of Docker memory is the comfortable setting for this file. Host tools read `.env` from the repository root. Compose reads that file for interpolation. `COMPOSE_PROJECT_NAME` and `COMPOSE_FILE` must be set in the shell for the isolated overlay, because Compose does not take its file list from `.env`.
+
+Profiles: `generate` for the containerized producer, `processing` for Spark, `orchestration` for the optional Dagster daemon. The daemon is off by default so the hourly warehouse job does not publish on its own. The first `processing` command builds `titan-spark:4.0.1`.
+
+Set `TITAN_ADMIN_TOKEN` in `.env` and recreate the API before replay or CSV resume. `.env.example` contains the local placeholder `local-demo-token`. An empty token makes those two calls return 401. REST publication and CSV upload stay open on localhost.
+
+## Isolated checkout
+
+Use this when the development stack is already up, or when the demonstration must start from empty volumes. The checkout directory must not contain a copied `.env`, `.venv`, database dump, or `node_modules`.
+
+```powershell
+$env:COMPOSE_PROJECT_NAME = "titan-clone"
+$env:COMPOSE_FILE = "docker-compose.yml;docker-compose.clone.yml"
+copy .env.clone.example .env
+docker compose up --build -d
+docker compose run --rm --build migrate
+uv sync --all-packages
+uv sync --group orchestration
+uv run python scripts/verify_infrastructure.py
+```
+
+`verify_infrastructure.py` checks Postgres, Kafka, ClickHouse, and MinIO on the ports in `.env`. For any project name other than `titan`, it also requires the Postgres container to mount `<project>_postgres_data` and refuses `titan_postgres_data`.
+
+| Service | Clone host port |
+| --- | --- |
+| Kafka | localhost:29092 |
+| PostgreSQL | localhost:25435 |
+| ClickHouse | localhost:28123 |
+| MinIO | localhost:29000 |
+| API | http://localhost:28000 |
+| Console | http://localhost:23000 |
+
+Stop the clone without touching development volumes:
+
+```powershell
+$env:COMPOSE_PROJECT_NAME = "titan-clone"
+$env:COMPOSE_FILE = "docker-compose.yml;docker-compose.clone.yml"
+docker compose down
+```
+
+`docker compose -p titan-clone down -v` deletes only `titan-clone_*` volumes. Do not run `down -v` while `COMPOSE_PROJECT_NAME` is unset or `titan`.
+
+## Local checks
+
+```powershell
+uv run ruff check
+uv run ruff format --check
+uv run mypy
+uv run pytest -m "not integration"
+uv run python scripts/scan_secrets.py
+docker compose --profile processing run --rm --no-deps spark-tests
+uv run --group orchestration dbt build --no-partial-parse --project-dir warehouse/dbt --profiles-dir warehouse/dbt
+$env:DAGSTER_HOME = (Resolve-Path pipelines/dagster/home)
+$env:PYTHONPATH = "pipelines/warehouse/src;pipelines/quality/src;pipelines/ml/src;pipelines/dagster/src"
+uv run --group orchestration dagster definitions validate -w pipelines/dagster/workspace.yaml
+```
+
+Live scripts, each of which needs the stack:
+
+```powershell
+uv run python scripts/verify_day7.py
+uv run python scripts/demo_day7.py
+$env:TITAN_WEB_BASE_URL = "http://localhost:3000"
+uv run --with playwright python scripts/audit_a11y.py
+```
+
+`audit_a11y.py` opens the eight console routes at 1440×900, 1024×768, 768×1024, and 390×844 after the page has finished loading. Point `TITAN_WEB_BASE_URL` at the console you started. The clone console is `http://localhost:23000`. The first run needs Playwright Chromium (`uvx --from playwright playwright install chromium`).
+
+`verify_day7.py` stops Kafka, checks that the warehouse status stays ready, starts Kafka, and runs reconcile. Day 2 through Day 6 scripts remain in `scripts/` for the earlier milestones.
+
+The 5,000-event acknowledgement sample:
+
+```powershell
+$env:TITAN_BENCH_COUNT = "5000"
+$env:TITAN_BENCH_SEED = "71022"
+uv run python scripts/benchmark_ingestion.py
+```
+
+## Troubleshooting
+
+- `docker compose up` in a second directory changes the development containers. The file sets `name: titan`. Export `COMPOSE_PROJECT_NAME` and `COMPOSE_FILE` before every Compose command in that shell.
+- `verify_infrastructure.py` reports `FAIL postgres container ... is not inspectable` when the project name in `.env` does not match the containers that are running.
+- A variable already set in the shell hides the same name in `.env`. The loaders use `setdefault`. Clear `DATABASE_URL`, `CLICKHOUSE_PORT`, and `S3_ENDPOINT` in that shell before the clone checks, or the commands talk to another project's ports.
+- Postgres `localhost` can spend the whole connect timeout on IPv6. `.env.clone.example` uses `127.0.0.1` for `DATABASE_URL`. Kafka, ClickHouse, and MinIO stay on `localhost` with their clone ports.
+- `/api/v1/warehouse/status` stays `ready: false` until Silver, dbt, and the quality gate have promoted a publication. `scripts/demo_day7.py` exits in that state. Run the first-publication commands in the repository README.
+- Replay or CSV resume returns 401 when `TITAN_ADMIN_TOKEN` is empty. Set the placeholder, then `docker compose up -d --force-recreate api`.
+- dbt or the warehouse command cannot reach ClickHouse when `CLICKHOUSE_PORT` is still `8123` while the clone publishes `28123`. Use `.env.clone.example` with the clone overlay.
+- The first Spark command spends several minutes building `titan-spark:4.0.1`. Later runs reuse the image.

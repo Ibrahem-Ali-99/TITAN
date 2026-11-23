@@ -7,12 +7,12 @@ The development volumes were already populated. This capture did not reset them 
 | File | Route | Heading confirmed on the page |
 | --- | --- | --- |
 | [overview.png](../assets/overview.png) | `/` | Operations overview |
-| [data-sources.png](../assets/data-sources.png) | `/data-sources` | Data sources |
-| [streaming.png](../assets/streaming.png) | `/streaming` | Event streaming |
-| [pipelines.png](../assets/pipelines.png) | `/pipelines` | Pipeline orchestration |
 | [warehouse.png](../assets/warehouse.png) | `/warehouse` | Warehouse analytics |
-| [data-quality.png](../assets/data-quality.png) | `/data-quality` | Data quality |
+| [pipelines.png](../assets/pipelines.png) | `/pipelines` | Pipeline orchestration |
 | [ml.png](../assets/ml.png) | `/ml` | Demand intelligence |
+| [data-quality.png](../assets/data-quality.png) | `/data-quality` | Data quality |
 | [monitoring.png](../assets/monitoring.png) | `/monitoring` | System monitoring |
+| [streaming.png](../assets/streaming.png) | `/streaming` | Event streaming |
+| [data-sources.png](../assets/data-sources.png) | `/data-sources` | Data sources |
 
 The frames show the publication id, separate currency totals, and `seasonal_naive`. They do not show a token or a password. A later `scripts/demo_day7.py` run replaces the publication id; recapture after that run instead of reusing these files.

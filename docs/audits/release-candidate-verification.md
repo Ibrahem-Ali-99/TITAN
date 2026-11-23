@@ -120,7 +120,7 @@ No Critical defect was found in this pass.
 - An empty Docker daemon was not used. The four project images were rebuilt with `--no-cache --pull`. The four upstream images were already local.
 - `pytest -m integration` was not repeated.
 - A live two-member Kafka rebalance and a MinIO outage during a write remain unexecuted.
-- The web container runs the Next.js dev server. Node's module-type warning and the Starlette TestClient warning remain.
+- The web container runs the Next.js dev server. At this candidate, Node printed `MODULE_TYPELESS_PACKAGE_JSON` and pytest printed the Starlette `TestClient` warning. Both were resolved in `bbd6a2d`: the web package sets `"type": "module"`, and the dev group installs `httpx2`.
 - Dagster still mounts the host Docker socket. That is required for the Compose-backed jobs.
 
 ## 9. What needs authorization

@@ -65,6 +65,9 @@ FastAPI  --->  Next.js warehouse, pipelines, overview
 | `packages/store` | SQLAlchemy models and Alembic migrations |
 | `services/event-generator` | Synthetic producer and Kafka acknowledgements |
 | `services/ingestion` | Consume, validate, persist, then commit offsets |
+| `pipelines/spark` | Bronze evidence and a Silver version |
+| `pipelines/quality` | Blocking publication checks |
+| `pipelines/ml` | Demand training and the serving choice |
 | `apps/api` | Read models over the operational tables |
 | `apps/web` | Operations overview and the published warehouse |
 | `pipelines/warehouse` | Silver to ClickHouse load and publication pointer |
