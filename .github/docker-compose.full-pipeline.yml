@@ -1,0 +1,52 @@
+# CI-only full-pipeline override. All state is scoped to the project name
+# supplied by the workflow and uses ports that cannot target development.
+services:
+  kafka:
+    ports: !override
+      - "39092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:39092,PLAINTEXT://kafka:19092
+  postgres:
+    ports: !override
+      - "35435:5432"
+    environment:
+      POSTGRES_PASSWORD: titan_full_ci_password
+  clickhouse:
+    ports: !override
+      - "38123:8123"
+    environment:
+      CLICKHOUSE_PASSWORD: titan_full_ci_password
+  minio:
+    ports: !override
+      - "39000:9000"
+      - "39001:9001"
+    environment:
+      MINIO_ROOT_PASSWORD: titan_full_ci_password
+  migrate:
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_full_ci_password@postgres:5432/titan
+  ingestion:
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_full_ci_password@postgres:5432/titan
+  api:
+    ports: !override
+      - "38000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_full_ci_password@postgres:5432/titan
+      TITAN_ADMIN_TOKEN: full-ci-only-token
+      CLICKHOUSE_PASSWORD: titan_full_ci_password
+  lake-init:
+    environment:
+      DATABASE_URL: postgresql://titan:titan_full_ci_password@postgres:5432/titan
+      S3_SECRET_KEY: titan_full_ci_password
+      MINIO_SECRET_KEY: titan_full_ci_password
+  spark-bronze:
+    environment:
+      DATABASE_URL: postgresql://titan:titan_full_ci_password@postgres:5432/titan
+      S3_SECRET_KEY: titan_full_ci_password
+      MINIO_SECRET_KEY: titan_full_ci_password
+  spark-silver:
+    environment:
+      DATABASE_URL: postgresql://titan:titan_full_ci_password@postgres:5432/titan
+      S3_SECRET_KEY: titan_full_ci_password
+      MINIO_SECRET_KEY: titan_full_ci_password

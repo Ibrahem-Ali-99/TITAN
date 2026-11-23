@@ -1,0 +1,105 @@
+name: full-pipeline-ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spark-warehouse:
+    name: Spark and warehouse integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: titan-full-ci
+      COMPOSE_FILE: docker-compose.yml:.github/docker-compose.full-pipeline.yml
+      DATABASE_URL: postgresql://titan:titan_full_ci_password@127.0.0.1:35435/titan
+      KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:39092
+      CLICKHOUSE_HOST: 127.0.0.1
+      CLICKHOUSE_PORT: "38123"
+      CLICKHOUSE_USER: titan
+      CLICKHOUSE_PASSWORD: titan_full_ci_password
+      CLICKHOUSE_DATABASE: titan
+      S3_ENDPOINT: http://127.0.0.1:39000
+      S3_ACCESS_KEY: titan
+      S3_SECRET_KEY: titan_full_ci_password
+      MINIO_ENDPOINT: 127.0.0.1:39000
+      MINIO_ACCESS_KEY: titan
+      MINIO_SECRET_KEY: titan_full_ci_password
+      LAKE_BUCKET: titan-lake
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Assert full-pipeline isolation
+        shell: bash
+        run: |
+          [[ "$COMPOSE_PROJECT_NAME" == "titan-full-ci" ]]
+          [[ "$DATABASE_URL" != *:5435/* ]]
+          [[ "$KAFKA_BOOTSTRAP_SERVERS" != *:9092 ]]
+          [[ "$CLICKHOUSE_PORT" != "8123" ]]
+          [[ "$S3_ENDPOINT" != *:9000 ]]
+      - name: Start disposable data services
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          up --build --detach --wait kafka postgres clickhouse minio
+      - name: Initialize disposable schemas and lake
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm migrate
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm lake-init
+      - name: Start ingestion and API
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          up --build --detach --wait ingestion api
+      - name: Publish deterministic fixture and verify PostgreSQL
+        run: uv run --group orchestration python scripts/full_pipeline_ci.py
+      - name: Run Spark Bronze
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          run --rm spark-bronze
+      - name: Run Spark Silver
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          run --rm spark-silver
+      - name: Verify interrupted publication stays inactive
+        shell: bash
+        run: |
+          set +e
+          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse --crash-after tested
+          status=$?
+          set -e
+          test "$status" -ne 0
+          uv run --group orchestration python -c "import psycopg, os; c=psycopg.connect(os.environ['DATABASE_URL']); assert c.execute(\"select count(*) from warehouse_loads where status='failed'\").fetchone()[0] >= 1"
+      - name: Publish warehouse and verify serving reconciliation
+        run: |
+          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
+          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse --reconcile
+          uv run --group orchestration python scripts/verify_full_pipeline.py
+      - name: Run Spark regression tests
+        run: uv run --group orchestration pytest -q pipelines/spark/tests
+      - name: Diagnostics
+        if: always()
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml ps
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml logs --no-color --tail=250 spark-bronze spark-silver ingestion clickhouse minio
+      - name: Tear down disposable full-pipeline stack
+        if: always()
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          down --volumes --remove-orphans

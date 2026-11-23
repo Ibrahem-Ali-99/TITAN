@@ -1,0 +1,36 @@
+{
+  "event_count": 256,
+  "unique_event_ids": 256,
+  "persisted_rows": 256,
+  "dispositions": {
+    "accepted": 256
+  },
+  "expected_order_revenue_by_currency": {
+    "EUR": "2308.38",
+    "GBP": "2171.39",
+    "USD": "1995.90"
+  },
+  "published_load": {
+    "status": "published",
+    "order_count": 86,
+    "payment_count": 86,
+    "inventory_count": 84,
+    "item_count": 86,
+    "revenue_json": "{\"EUR\": \"2308.38\", \"GBP\": \"2171.39\", \"USD\": \"1995.90\"}"
+  },
+  "failed_loads_before_recovery": 1,
+  "active_pointer": "685a32fb-39b0-4ce3-bfd8-2770547883f0",
+  "active_counts": [
+    86,
+    86,
+    84,
+    86
+  ],
+  "unique_clickhouse_orders": 86,
+  "clickhouse_revenue_by_currency": {
+    "EUR": "2308.38",
+    "GBP": "2171.39",
+    "USD": "1995.90"
+  },
+  "minio_silver_parquet_objects": 10
+}
