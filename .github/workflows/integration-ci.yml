@@ -1,0 +1,80 @@
+name: integration-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kafka-postgres:
+    name: Kafka to PostgreSQL integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: titan-ci
+      COMPOSE_FILE: docker-compose.yml:.github/docker-compose.integration.yml
+      DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@127.0.0.1:15435/titan
+      KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:19092
+      API_BASE_URL: http://127.0.0.1:18000
+      POSTGRES_USER: titan
+      POSTGRES_PASSWORD: titan_ci_password
+      POSTGRES_DB: titan
+      POSTGRES_HOST_PORT: "15435"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+
+      - run: uv sync --frozen --all-packages
+
+      - name: Assert CI isolation
+        shell: bash
+        run: |
+          [[ "$COMPOSE_PROJECT_NAME" != "titan" ]]
+          [[ "$DATABASE_URL" != *:5435/* ]]
+          [[ "$KAFKA_BOOTSTRAP_SERVERS" != *:9092 ]]
+          [[ "$API_BASE_URL" != *:8000 ]]
+
+      - name: Start disposable integration stack
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          up --build --detach --wait kafka postgres migrate ingestion api
+
+      - name: Run Kafka/PostgreSQL integration suite
+        run: uv run pytest -m integration -q --tb=short
+
+      - name: Verify recovery after ingestion restart
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml -f .github/docker-compose.integration.yml \
+            restart ingestion
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml -f .github/docker-compose.integration.yml \
+            up --detach --wait ingestion
+          uv run pytest tests/integration/test_pipeline.py -q --tb=short
+
+      - name: Capture integration diagnostics
+        if: always()
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml -f .github/docker-compose.integration.yml ps
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml -f .github/docker-compose.integration.yml logs --no-color --tail=200 ingestion kafka postgres
+
+      - name: Tear down disposable integration stack
+        if: always()
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          down --volumes --remove-orphans

@@ -5,9 +5,12 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-ISOLATED_DATABASE = "postgresql+psycopg://titan:titan_dev_password@127.0.0.1:15435/titan"
-ISOLATED_BROKERS = "127.0.0.1:19092"
-ISOLATED_API = "http://127.0.0.1:18000"
+ISOLATED_DATABASE = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+psycopg://titan:titan_ci_password@127.0.0.1:15435/titan",
+)
+ISOLATED_BROKERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:19092")
+ISOLATED_API = os.environ.get("API_BASE_URL", "http://127.0.0.1:18000")
 
 
 def _open(port: int) -> bool:

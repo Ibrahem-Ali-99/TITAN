@@ -14,8 +14,8 @@ from pathlib import Path
 
 import psycopg
 
-from event_generator.generator import generate_orders  # type: ignore[import-untyped]
-from event_generator.producer import publish_one  # type: ignore[import-untyped]
+from event_generator.generator import generate_orders
+from event_generator.producer import publish_one
 from titan_messaging.admin import ensure_commerce_topics
 from titan_messaging.producer import connect_producer
 

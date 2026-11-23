@@ -1,0 +1,31 @@
+# CI-only override. The project name is supplied by the workflow, so all
+# anonymous/named volumes are scoped to titan-ci and cannot touch titan_*.
+services:
+  kafka:
+    ports: !override
+      - "19092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:19092,PLAINTEXT://kafka:19092
+
+  postgres:
+    ports: !override
+      - "15435:5432"
+    environment:
+      POSTGRES_PASSWORD: titan_ci_password
+
+  migrate:
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@postgres:5432/titan
+
+  ingestion:
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@postgres:5432/titan
+
+  api:
+    ports: !override
+      - "18000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@postgres:5432/titan
+      TITAN_ADMIN_TOKEN: ci-only-token
+      CORS_ORIGINS: http://localhost:13000
+
