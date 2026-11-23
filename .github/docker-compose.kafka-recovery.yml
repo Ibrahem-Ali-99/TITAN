@@ -1,0 +1,5 @@
+services:
+  ingestion:
+    environment:
+      INGESTION_TOPICS: recovery.titan.recovery.source
+      INGESTION_CONSUMER_GROUP: titan-recovery-ingestion

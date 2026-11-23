@@ -21,8 +21,22 @@
     "source_topic_replay_refused_when_nonempty": true
   },
   "replay": {
-    "postgres_idempotency": "not-run; requires ingestion consumer and disposable PostgreSQL",
-    "quarantine_and_conflict": "covered by existing ingestion integration suite"
+    "postgres_idempotency": "passed against disposable PostgreSQL",
+    "quarantine_and_conflict": "passed against real ingestion consumer",
+    "fixture_messages": 5,
+    "restored_topic": "recovery.titan.recovery.source",
+    "commerce_dispositions": {
+      "accepted": 2,
+      "conflict": 1
+    },
+    "quarantined": 1,
+    "duplicate_observations": 1,
+    "consumer_group": "titan-recovery-ingestion",
+    "lag_before_restart": 0,
+    "lag_after_restart": 0,
+    "restart_idempotent": true,
+    "prepare_duration_ms": 2889,
+    "verification_duration_ms": 1423
   },
   "limitations": [
     "Kafka retention and quiescence are required for a consistent export",

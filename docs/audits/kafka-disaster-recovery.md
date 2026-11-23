@@ -38,6 +38,27 @@ proceed. The resulting Kafka offsets must be treated as new positions; replaying
 the same commerce payloads through the normal ingestion consumer is safe only when
 the disposable PostgreSQL database contains the same deduplication constraints.
 
+## Kafka-to-PostgreSQL recovery integration
+
+`scripts/kafka_postgres_recovery.py` prepares five deterministic records across
+three partitions: two accepted orders, one duplicate event ID, one new event ID
+with a conflicting order business key, and one malformed JSON value. It exports the
+source topic, restores it to `recovery.titan.recovery.source`, and starts the real
+ingestion consumer with `INGESTION_CONSUMER_GROUP=titan-recovery-ingestion` and a
+dedicated topic list. The verification waits until all five records have a durable
+commerce or quarantine disposition, committed offsets reach the restored high
+watermarks, and lag is zero. It then restarts the consumer and requires the same
+database counts and classifications. The disposable CI workflow is
+`.github/workflows/kafka-postgres-recovery.yml`.
+
+The local disposable run processed exactly five restored messages: two accepted
+commerce rows, one conflict row, one quarantine row (`malformed_json`), and one
+duplicate-delivery observation. The recovery group committed through the restored
+high watermarks and reported zero lag before and after an ingestion restart. The
+accepted event IDs remained unique and the durable classification counts were
+unchanged after restart. Preparation took 2,889 ms and verification including the
+restart took 1,423 ms. Evidence is recorded in `benchmarks/kafka-dr.json`.
+
 ## Recovery-point and RTO limitations
 
 This export is a logical snapshot, not point-in-time recovery. The recovery point

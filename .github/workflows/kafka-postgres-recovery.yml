@@ -1,0 +1,87 @@
+name: kafka-postgres-recovery
+
+on:
+  push:
+    paths:
+      - scripts/kafka_dr.py
+      - scripts/kafka_postgres_recovery.py
+      - .github/docker-compose.kafka-recovery.yml
+      - .github/workflows/kafka-postgres-recovery.yml
+      - services/ingestion/**
+      - packages/store/**
+  pull_request:
+    paths:
+      - scripts/kafka_dr.py
+      - scripts/kafka_postgres_recovery.py
+      - .github/docker-compose.kafka-recovery.yml
+      - .github/workflows/kafka-postgres-recovery.yml
+      - services/ingestion/**
+      - packages/store/**
+
+permissions:
+  contents: read
+
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: titan-kafka-postgres-recovery-ci
+      DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@127.0.0.1:15435/titan
+      KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:19092
+      POSTGRES_USER: titan
+      POSTGRES_PASSWORD: titan_ci_password
+      POSTGRES_DB: titan
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Assert isolated endpoints
+        shell: bash
+        run: |
+          [[ "$COMPOSE_PROJECT_NAME" != "titan" ]]
+          [[ "$DATABASE_URL" != *:5435/* ]]
+          [[ "$KAFKA_BOOTSTRAP_SERVERS" != *:9092 ]]
+      - name: Start disposable Kafka and PostgreSQL
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          -f .github/docker-compose.kafka-recovery.yml
+          up --build --detach --wait kafka postgres migrate
+      - name: Prepare and restore Kafka event log
+        run: uv run python scripts/kafka_postgres_recovery.py prepare --evidence benchmarks/kafka-postgres-recovery.json
+      - name: Start real ingestion consumer
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          -f .github/docker-compose.kafka-recovery.yml
+          up --build --detach --wait ingestion
+      - name: Verify durable recovery and restart idempotency
+        run: uv run python scripts/kafka_postgres_recovery.py verify --evidence benchmarks/kafka-postgres-recovery.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: kafka-postgres-recovery-evidence
+          path: benchmarks/kafka-postgres-recovery.json
+          if-no-files-found: ignore
+      - name: Diagnostics
+        if: always()
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          -f .github/docker-compose.kafka-recovery.yml
+          ps && docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          -f .github/docker-compose.kafka-recovery.yml
+          logs --no-color --tail=250 ingestion kafka postgres
+      - name: Tear down isolated stack
+        if: always()
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.integration.yml
+          -f .github/docker-compose.kafka-recovery.yml
+          down --volumes --remove-orphans

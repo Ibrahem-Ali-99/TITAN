@@ -1,0 +1,26 @@
+{
+  "fixture_messages": 5,
+  "source_topic": "titan.recovery.source",
+  "restored_topic": "recovery.titan.recovery.source",
+  "prepare_duration_ms": 2889,
+  "before_restart": {
+    "commerce_dispositions": {
+      "accepted": 2,
+      "conflict": 1
+    },
+    "quarantined": 1,
+    "duplicate_observations": 1,
+    "lag": 0
+  },
+  "after_restart": {
+    "commerce_dispositions": {
+      "accepted": 2,
+      "conflict": 1
+    },
+    "quarantined": 1,
+    "duplicate_observations": 1,
+    "lag": 0
+  },
+  "restart_idempotent": true,
+  "verify_duration_ms": 1423
+}

@@ -45,7 +45,8 @@ def _configs(bootstrap: str, topics: list[str]) -> dict[str, dict[str, str]]:
         admin.ConfigResource(admin.RESOURCE_TOPIC, topic)  # type: ignore[attr-defined]
         for topic in topics
     ]
-    futures = _client(bootstrap).describe_configs(resources)
+    client = _client(bootstrap)
+    futures = client.describe_configs(resources)
     configs: dict[str, dict[str, str]] = {}
     for resource, future in futures.items():
         values = future.result(timeout=10)
