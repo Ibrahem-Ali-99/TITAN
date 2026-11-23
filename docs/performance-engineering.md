@@ -9,7 +9,7 @@ as unavailable; no throughput or latency is inferred from configuration.
 - Windows workstation, 32 GB RAM (user-provided).
 - Python 3.12 virtual environment and the repository test dependencies.
 - CUDA frameworks detected in the local environment: PyTorch, cuDF, and XGBoost were not installed.
-- Docker Engine was unavailable during this run, so no stateful benchmark was started.
+- Docker Engine 29.4.3 was reachable through Codex's approved elevated execution path.
 
 ## Reproduction
 
@@ -33,25 +33,47 @@ implementation maintains a bounded seven-day rolling sum and direct lag
 lookups, making feature generation linear in the number of rows.
 
 The current machine-readable service-free result is in
-`benchmarks/feature-generation.json`. Stateful Kafka, PostgreSQL, Spark,
-MinIO, ClickHouse, dbt, API, and end-to-end results remain unavailable because
-Docker Engine was not reachable. No figures are fabricated for those stages.
+`benchmarks/feature-generation.json`. The isolated stateful run is recorded in
+`benchmarks/performance-engineering-2026-11-23.json`.
+
+Measured isolated results using project `titan-clone` and `titan-clone_*`
+volumes:
+
+- Kafka acknowledgements: 250 messages at 196.65 ack/s; p50 0.907 ms, p95
+  1.158 ms, p99 1.579 ms. This topic is not consumed by ingestion.
+- Kafka-to-PostgreSQL persistence: 30 deterministic orders acknowledged in
+  0.913 s; logical orders increased from 187 to 217.
+- Spark Bronze availableNow succeeded and processed 576 distinct Kafka offsets;
+  its wrapper timer output was not captured.
+- Spark Silver succeeded in 14.555 s and produced publication
+  `4992f5fd-d946-4342-9eb4-75b97ff64a89`.
+- Warehouse publication including ClickHouse, dbt, tests, and promotion took
+  16.413 s; dbt/model execution accounted for 15.786 s.
+- API `/api/v1/ingestion/stats` over 100 requests: p50 10.717 ms, p95
+  11.339 ms, p99 12.171 ms.
+- Resource snapshot: Kafka 376.9 MiB/768 MiB, ClickHouse 244.5 MiB/1.5 GiB,
+  API 106.4 MiB/512 MiB, ingestion 57.36 MiB/512 MiB, PostgreSQL 34.89
+  MiB/512 MiB, and MinIO 84.72 MiB/256 MiB.
+
+Serving reported 217 orders, 217 items, 187 payments, and currency-separated
+revenue of EUR 9,215.39, GBP 7,640.95, and USD 9,029.21. No duplicate
+analytical facts or currency merging was observed. Counts include clone seed
+data plus the 30 new orders.
 
 ## GPU compatibility
 
-`nvidia-smi` confirms that the host can see the RTX 5070. That does not prove
-Python or Docker CUDA access. Because the local CUDA ML frameworks were absent
-and Docker Engine was unavailable, no CPU/GPU training comparison was run and
-no GPU model was integrated. The existing scikit-learn serving policy is
-unchanged.
+`nvidia-smi` confirms that the host can see the RTX 5070. Docker GPU passthrough
+was also verified with an ephemeral CUDA 12.8 container. Host Python still
+lacks PyTorch, cuDF, and XGBoost, so no equivalent CPU/GPU training comparison
+was run. No GPU model was integrated and the existing scikit-learn serving
+policy is unchanged.
 
 ## Correctness and limitations
 
 The feature optimization preserves the existing lag, rolling-window, ordering,
 and zero-history semantics; the full test suite remains the correctness gate.
-The remaining bottlenecks to measure in an isolated environment are producer
-acknowledgement versus persistence, consumer commit/persistence throughput,
-Spark Bronze/Silver, object-store writes, ClickHouse publication, dbt, API
-latency, and ML training. GPU Spark/RAPIDS integration should not be attempted
-until official version compatibility is established for the deployed Spark,
-Java, CUDA, and GPU stack.
+The observed bottleneck is dbt/model execution at 15.786 s of the 16.413 s
+warehouse publication. Kafka acknowledgement is not the bottleneck in this
+sample. GPU Spark/RAPIDS integration should not be attempted until official
+version compatibility is established for the deployed Spark, Java, CUDA, and
+GPU stack.

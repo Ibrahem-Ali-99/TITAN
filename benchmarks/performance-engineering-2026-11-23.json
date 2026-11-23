@@ -1,0 +1,65 @@
+{
+  "measured_at": "2026-11-23T12:33:20Z",
+  "project": "titan-clone",
+  "isolation": {
+    "volumes_prefix": "titan-clone_",
+    "development_volumes_prefix_preserved": "titan_",
+    "development_project_modified": false
+  },
+  "kafka_acknowledgement": {
+    "count": 250,
+    "topic": "titan.benchmark.acks",
+    "acknowledged_per_second": 196.65,
+    "p50_ms": 0.907,
+    "p95_ms": 1.158,
+    "p99_ms": 1.579,
+    "logical_orders_before": 187,
+    "logical_orders_after": 187,
+    "ingestion_lag_before": 0,
+    "ingestion_lag_after": 0
+  },
+  "persistence": {
+    "orders": 30,
+    "producer_elapsed_seconds": 0.913,
+    "logical_orders_before": 187,
+    "logical_orders_after": 217,
+    "persisted_delta": 30,
+    "target_reached": true
+  },
+  "spark": {
+    "bronze": {"status": "succeeded", "distinct_offsets": 576, "wall_clock_seconds": null},
+    "silver": {"status": "succeeded", "wall_clock_seconds": 14.555, "publication_id": "4992f5fd-d946-4342-9eb4-75b97ff64a89"}
+  },
+  "warehouse": {
+    "status": "published",
+    "wall_clock_seconds": 16.413,
+    "dbt_models_wall_clock_seconds": 15.786,
+    "warehouse_publication_id": "6c4c9d87-8b72-4bc8-8d9a-450fee223972",
+    "order_count": 217,
+    "payment_count": 187,
+    "item_count": 253,
+    "revenue_by_currency": {"EUR": "9215.39", "GBP": "7640.95", "USD": "9029.21"}
+  },
+  "api_latency": {"endpoint": "/api/v1/ingestion/stats", "samples": 100, "p50_ms": 10.717, "p95_ms": 11.339, "p99_ms": 12.171},
+  "resources": {
+    "kafka": {"memory": "376.9MiB", "limit": "768MiB"},
+    "clickhouse": {"memory": "244.5MiB", "limit": "1.5GiB"},
+    "api": {"memory": "106.4MiB", "limit": "512MiB"},
+    "ingestion": {"memory": "57.36MiB", "limit": "512MiB"},
+    "postgres": {"memory": "34.89MiB", "limit": "512MiB"},
+    "minio": {"memory": "84.72MiB", "limit": "256MiB"}
+  },
+  "gpu": {
+    "docker_passthrough": true,
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "driver": "616.92",
+    "cuda_probe": "12.8",
+    "framework_comparison": "not run; PyTorch, cuDF, and XGBoost absent from host environment",
+    "integrated": false
+  },
+  "limitations": [
+    "Bronze wall-clock timer output was not captured.",
+    "No CPU/GPU training comparison was possible without a supported ML backend.",
+    "The workload used clone seed data plus 30 new orders."
+  ]
+}
