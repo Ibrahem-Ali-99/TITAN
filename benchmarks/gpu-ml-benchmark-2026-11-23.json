@@ -1,0 +1,40 @@
+{
+  "measured_at": "2026-11-23",
+  "seed": 51022,
+  "feature_count": 5,
+  "split": "chronological final 7 days",
+  "cpu": {
+    "python": "3.12.13",
+    "numpy": "2.5.5",
+    "scikit_learn": "1.7.2",
+    "datasets": [
+      {"rows": 180, "train_rows": 138, "test_rows": 42, "feature_preparation_seconds": 0.0000604, "cold_fit_seconds": 0.036415, "warm_train_seconds": 0.0252923, "warm_inference_seconds": 0.0005035, "warm_serialization_seconds": 0.0055571, "mae": 0.433202509, "wape": 0.053917633},
+      {"rows": 100000, "train_rows": 93000, "test_rows": 7000, "feature_preparation_seconds": 0.0063081, "cold_fit_seconds": 0.0800311, "warm_train_seconds": 0.0795166, "warm_inference_seconds": 0.0038408, "warm_serialization_seconds": 0.0055915, "mae": 0.060604458, "wape": 0.007769781},
+      {"rows": 1000000, "train_rows": 993000, "test_rows": 7000, "feature_preparation_seconds": 0.0547298, "cold_fit_seconds": 0.5201928, "warm_train_seconds": 0.5254369, "warm_inference_seconds": 0.0050697, "warm_serialization_seconds": 0.0057070, "mae": 0.055994235, "wape": 0.007178373}
+    ]
+  },
+  "gpu": {
+    "container": "nvidia/cuda:12.8.0-base-ubuntu22.04",
+    "python": "3.10.12",
+    "xgboost": "3.1.3",
+    "numpy": "2.1.3",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "driver": "616.92",
+    "datasets": [
+      {"rows": 180, "train_rows": 138, "test_rows": 42, "feature_preparation_seconds": 0.0000746, "cold_fit_seconds": 0.5246121, "warm_train_seconds": 0.1805171, "warm_inference_seconds": 0.0029244, "warm_serialization_seconds": 0.0005911, "mae": 0.340345542, "wape": 0.042360387, "sampled_vram_mib": 3303},
+      {"rows": 100000, "train_rows": 93000, "test_rows": 7000, "feature_preparation_seconds": 0.0025488, "cold_fit_seconds": 0.1384679, "warm_train_seconds": 0.1351838, "warm_inference_seconds": 0.0032836, "warm_serialization_seconds": 0.0004873, "mae": 0.060683390, "wape": 0.007779901, "sampled_vram_mib": 3305},
+      {"rows": 1000000, "train_rows": 993000, "test_rows": 7000, "feature_preparation_seconds": 0.0581827, "cold_fit_seconds": 0.3011095, "warm_train_seconds": 0.3069675, "warm_inference_seconds": 0.0035298, "warm_serialization_seconds": 0.0004784, "mae": 0.052956517, "wape": 0.006788943, "sampled_vram_mib": 3216}
+    ],
+    "device_mismatch_warning": true
+  },
+  "recommendation": "do_not_integrate_gpu_for_current_titan_workload",
+  "production_model_changed": false,
+  "production_artifacts_changed": false,
+  "cpu_peak_ram": null,
+  "notes": [
+    "GPU candidate is XGBoost, not the identical HistGradientBoosting implementation.",
+    "Current XGBoost 3.4.x documentation requires CUDA >=12.9; the experiment used 3.1.3 on CUDA 12.8.",
+    "The 1M-row GPU result is faster, but the current TITAN-like workload is small and GPU is slower there."
+  ]
+}
