@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict
 
 
 def _run(command: list[str], *, capture: bool = True) -> subprocess.CompletedProcess[str]:
@@ -48,6 +49,16 @@ def _scalar(row: tuple[Any, ...] | None) -> Any:
 
 def _manifest_path(directory: Path) -> Path:
     return directory / "manifest.json"
+
+
+def _assert_safe_restore_destination(dsn: str) -> None:
+    info = conninfo_to_dict(dsn)
+    host = str(info.get("host", "localhost")).lower()
+    database = str(info.get("dbname", "")).lower()
+    if host not in {"localhost", "127.0.0.1", "::1"}:
+        raise SystemExit("restore destination must be a local disposable PostgreSQL host")
+    if not (database.endswith("_restore") or database.endswith("_dr")):
+        raise SystemExit("restore destination database must end in _restore or _dr")
 
 
 def backup(args: argparse.Namespace) -> None:
@@ -191,6 +202,7 @@ def integrity(dsn: str) -> dict[str, Any]:
 
 def restore(args: argparse.Namespace) -> None:
     started = time.perf_counter()
+    _assert_safe_restore_destination(args.dsn)
     backup_dir = args.backup.resolve()
     evidence = verify_backup(backup_dir)
     with psycopg.connect(args.dsn) as connection:

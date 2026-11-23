@@ -13,8 +13,9 @@ uv run python scripts/postgres_dr.py restore --backup .tmp-backup\2026-11-23 --d
 ```
 
 Backups use `pg_dump -Fc --no-owner --no-acl`, include a SHA-256 manifest, and
-never include credentials. Restore refuses a destination containing tables
-unless `--allow-nonempty` is explicitly supplied. The verification output
+never include credentials. Restore only permits local destinations whose
+database name ends in `_restore` or `_dr`, and refuses a destination containing
+tables unless `--allow-nonempty` is explicitly supplied. The verification output
 includes migration version, row counts, a stable event-ID digest, dispositions,
 duplicate Kafka-position checks, checkpoint metadata presence, and currency
 aggregates. Restore is always demonstrated against a separate disposable
