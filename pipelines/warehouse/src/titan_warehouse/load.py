@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -62,19 +63,28 @@ def run_warehouse_pipeline(
         started_load = datetime.now(UTC)
         try:
             client = _clickhouse()
+            phase_started = time.perf_counter()
             _ensure_tables(client)
+            clickhouse_phases = {"ensure_tables_seconds": time.perf_counter() - phase_started}
+            phase_started = time.perf_counter()
             frames = _read_silver(silver["version_uri"])
+            clickhouse_phases["read_silver_seconds"] = time.perf_counter() - phase_started
+            phase_started = time.perf_counter()
             _insert_frames(client, warehouse_id, frames)
+            clickhouse_phases["insert_frames_seconds"] = time.perf_counter() - phase_started
             if crash_after == "inserted":
                 raise WarehouseError("crash after the ClickHouse insert and before publication")
+            phase_started = time.perf_counter()
             summary = _validate(client, warehouse_id, frames)
+            clickhouse_phases["validate_seconds"] = time.perf_counter() - phase_started
+            summary["clickhouse_phases_seconds"] = clickhouse_phases
             _mark(database_url, load_id, "validated", summary)
             if stop_after == "validated":
                 _record("clickhouse_load", "succeeded", load_id, metadata=summary)
                 return load_id
             started_dbt = datetime.now(UTC)
             try:
-                _run_dbt(warehouse_id)
+                dbt_phases = _run_dbt(warehouse_id)
             except Exception as exc:
                 _record(
                     "warehouse_models",
@@ -84,7 +94,13 @@ def run_warehouse_pipeline(
                     started_at=started_dbt,
                 )
                 raise
-            _record("warehouse_models", "succeeded", load_id, started_at=started_dbt)
+            _record(
+                "warehouse_models",
+                "succeeded",
+                load_id,
+                metadata={"dbt_phases_seconds": dbt_phases},
+                started_at=started_dbt,
+            )
             _mark(database_url, load_id, "tested", summary)
             if crash_after == "tested" or stop_after == "tested":
                 if crash_after == "tested":
@@ -97,6 +113,7 @@ def run_warehouse_pipeline(
             ):
                 raise StalePublication("a newer Silver snapshot exists")
             started = datetime.now(UTC)
+            quality_started = time.perf_counter()
             try:
                 from titan_quality.evaluate import QualityGateError, gate_load
 
@@ -118,8 +135,16 @@ def run_warehouse_pipeline(
                     started_at=started,
                 )
                 raise
-            _record("quality_gate", "succeeded", load_id, started_at=started)
+            _record(
+                "quality_gate",
+                "succeeded",
+                load_id,
+                metadata={"quality_gate_seconds": time.perf_counter() - quality_started},
+                started_at=started,
+            )
+            promote_started = time.perf_counter()
             _promote(client, warehouse_id, silver, summary)
+            summary["promotion_seconds"] = time.perf_counter() - promote_started
             if crash_after == "exchanged":
                 raise WarehouseError(
                     "crash after the ClickHouse pointer exchange and before the PostgreSQL row"
@@ -535,10 +560,16 @@ def _plain(amount: object) -> str:
     return format(Decimal(str(amount)).quantize(Decimal("0.01")), "f")
 
 
-def _run_dbt(warehouse_id: str) -> None:
+def _run_dbt(warehouse_id: str) -> dict[str, float]:
     variables = json.dumps({"warehouse_publication_id": warehouse_id})
+    phases: dict[str, float] = {}
+    started = time.perf_counter()
     _dbt(["build", "--select", "path:models/serving"])
+    phases["serving_build_seconds"] = time.perf_counter() - started
+    started = time.perf_counter()
     _dbt(["build", "--select", "path:models/candidate", "--vars", variables])
+    phases["candidate_build_seconds"] = time.perf_counter() - started
+    started = time.perf_counter()
     _dbt(
         [
             "test",
@@ -555,6 +586,8 @@ def _run_dbt(warehouse_id: str) -> None:
             variables,
         ]
     )
+    phases["candidate_tests_seconds"] = time.perf_counter() - started
+    return phases
 
 
 def _dbt(args: list[str]) -> None:

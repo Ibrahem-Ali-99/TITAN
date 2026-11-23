@@ -40,6 +40,39 @@
     "item_count": 253,
     "revenue_by_currency": {"EUR": "9215.39", "GBP": "7640.95", "USD": "9029.21"}
   },
+  "warehouse_phase_repetitions": {
+    "same_silver_publication": "4992f5fd-d946-4342-9eb4-75b97ff64a89",
+    "wall_clock_seconds": [14.707, 14.376, 15.686],
+    "dbt_seconds": [15.786, 14.126, 13.810, 15.059],
+    "dbt_phase_seconds": [
+      {"serving_build": 4.839, "candidate_build": 4.725, "candidate_tests": 4.562},
+      {"serving_build": 4.746, "candidate_build": 4.589, "candidate_tests": 4.476},
+      {"serving_build": 5.125, "candidate_build": 5.039, "candidate_tests": 4.895}
+    ],
+    "clickhouse_phase_seconds": {
+      "ensure_tables": [0.007, 0.006, 0.007],
+      "read_silver": [0.111, 0.103, 0.112],
+      "insert_frames": [0.141, 0.127, 0.137],
+      "validate": [0.017, 0.017, 0.016],
+      "promotion": [0.075, 0.072, 0.070]
+    },
+    "quality_gate_seconds": [0.052, 0.062, 0.083],
+    "optimization_applied": false,
+    "decision": "dbt startup/orchestration dominates; no speculative SQL or dbt ordering change"
+  },
+  "population_reconciliation": {
+    "bronze_rows": 576,
+    "bronze_valid_rows": 575,
+    "bronze_invalid_rows": 1,
+    "bronze_valid_distinct_event_ids": 574,
+    "postgres_commerce_events": 574,
+    "postgres_quarantine_rows": 1,
+    "postgres_accepted": 573,
+    "postgres_conflicts": 1,
+    "postgres_duplicate_operations": 0,
+    "pending_event_count": 0,
+    "explanation": "one malformed JSON Bronze row and one duplicate delivery of a valid event ID"
+  },
   "api_latency": {"endpoint": "/api/v1/ingestion/stats", "samples": 100, "p50_ms": 10.717, "p95_ms": 11.339, "p99_ms": 12.171},
   "resources": {
     "kafka": {"memory": "376.9MiB", "limit": "768MiB"},
@@ -60,6 +93,7 @@
   "limitations": [
     "Bronze wall-clock timer output was not captured.",
     "No CPU/GPU training comparison was possible without a supported ML backend.",
-    "The workload used clone seed data plus 30 new orders."
+    "The workload used clone seed data plus 30 new orders.",
+    "The pre-instrumentation baseline and instrumented repetitions are comparable workload runs, but no optimization was applied between them."
   ]
 }

@@ -49,6 +49,11 @@ volumes:
   `4992f5fd-d946-4342-9eb4-75b97ff64a89`.
 - Warehouse publication including ClickHouse, dbt, tests, and promotion took
   16.413 s; dbt/model execution accounted for 15.786 s.
+- Instrumented repeat publications on the same Silver snapshot measured
+  14.707 s, 14.376 s, and 15.686 s wall time. The dbt phases were respectively
+  4.839/4.725/4.562 s, 4.746/4.589/4.476 s, and 5.125/5.039/4.895 s for
+  serving build/candidate build/candidate tests. ClickHouse phases stayed below
+  0.15 s each, and quality gates stayed below 0.09 s.
 - API `/api/v1/ingestion/stats` over 100 requests: p50 10.717 ms, p95
   11.339 ms, p99 12.171 ms.
 - Resource snapshot: Kafka 376.9 MiB/768 MiB, ClickHouse 244.5 MiB/1.5 GiB,
@@ -59,6 +64,21 @@ Serving reported 217 orders, 217 items, 187 payments, and currency-separated
 revenue of EUR 9,215.39, GBP 7,640.95, and USD 9,029.21. No duplicate
 analytical facts or currency merging was observed. Counts include clone seed
 data plus the 30 new orders.
+
+The Bronze/persistence difference is intentional and accounted for: 576 Bronze
+rows contain 575 valid rows and one malformed JSON row. The 575 valid rows have
+574 distinct event IDs because one event ID was delivered twice. PostgreSQL
+therefore contains 574 canonical commerce events plus one quarantine row;
+Silver's pending count is zero. ClickHouse EXPLAIN on the serving staging view
+uses the `warehouse_publication_id` primary key and reads 1 of 3 granules.
+
+The phase evidence identifies dbt process/orchestration startup and repeated
+dbt invocation overhead as the dominant cost, not ClickHouse query execution or
+network transfer. The three dbt invocations each take roughly 4.5–5.1 seconds
+while the ClickHouse load phases are roughly 0.3 seconds in total. No SQL,
+ClickHouse schema, dbt model, or pointer-publication optimization was made:
+the measurements do not justify a speculative change, and combining dbt phases
+would risk changing model/test ordering and publication safety.
 
 ## GPU compatibility
 
