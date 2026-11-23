@@ -161,10 +161,14 @@ def _factory(backend: str) -> Callable[[], Any]:
 
 def _vram_mib() -> int | None:
     try:
-        value = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-            text=True,
-        ).strip().splitlines()[0]
+        value = (
+            subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+                text=True,
+            )
+            .strip()
+            .splitlines()[0]
+        )
         return int(value)
     except (OSError, subprocess.CalledProcessError, ValueError, IndexError):
         return None

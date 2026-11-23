@@ -7,8 +7,7 @@ def test_tracking_distinguishes_preexisting_ids_from_new_persistence() -> None:
     now = datetime.now(UTC)
     event_ids = ["old-1", "old-2", "new-1", "new-2"]
     before = {
-        event_id: {"disposition": "accepted", "ingested_at": now}
-        for event_id in event_ids[:2]
+        event_id: {"disposition": "accepted", "ingested_at": now} for event_id in event_ids[:2]
     }
     after = {
         **before,

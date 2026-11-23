@@ -32,13 +32,16 @@ def main() -> None:
         default=str(ROOT / "benchmarks" / "sustained-load-2026-11-23.json"),
     )
     parser.add_argument("--seed", type=int, default=20261123)
-    parser.add_argument(
-        "--api", default=os.environ.get("API_BASE_URL", "http://localhost:8000")
-    )
+    parser.add_argument("--api", default=os.environ.get("API_BASE_URL", "http://localhost:8000"))
     parser.add_argument(
         "--bootstrap", default=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
     )
-    parser.add_argument("--database", default=os.environ.get("DATABASE_URL", "postgresql://titan:titan_dev_password@localhost:5435/titan"))
+    parser.add_argument(
+        "--database",
+        default=os.environ.get(
+            "DATABASE_URL", "postgresql://titan:titan_dev_password@localhost:5435/titan"
+        ),
+    )
     args = parser.parse_args()
     report = {
         "measured_at": datetime.now(UTC).isoformat(),
@@ -186,10 +189,7 @@ def _event_dispositions(database: str, event_ids: list[str]) -> dict[str, dict[s
             """,
             (event_ids,),
         ).fetchall()
-    return {
-        str(row[0]): {"disposition": str(row[1]), "ingested_at": row[2]}
-        for row in rows
-    }
+    return {str(row[0]): {"disposition": str(row[1]), "ingested_at": row[2]} for row in rows}
 
 
 def _disposition_summary(events: dict[str, dict[str, object]]) -> dict[str, int]:
