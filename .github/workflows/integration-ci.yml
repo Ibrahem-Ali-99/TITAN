@@ -22,6 +22,9 @@ jobs:
       DATABASE_URL: postgresql+psycopg://titan:titan_ci_password@127.0.0.1:15435/titan
       KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:19092
       API_BASE_URL: http://127.0.0.1:18000
+      TITAN_READ_TOKEN: ci-only-read-token
+      TITAN_WRITE_TOKEN: ci-only-write-token
+      TITAN_ADMIN_TOKEN: ci-only-token
       POSTGRES_USER: titan
       POSTGRES_PASSWORD: titan_ci_password
       POSTGRES_DB: titan
