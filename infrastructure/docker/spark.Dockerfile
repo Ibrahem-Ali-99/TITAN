@@ -16,12 +16,19 @@ RUN apt-get update \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl --fail --show-error --location --connect-timeout 20 --max-time 900 \
-        -o "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-        "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-    && curl --fail --show-error --location --connect-timeout 20 --max-time 60 \
-        -o /tmp/spark.sha512 \
-        "https://dlcdn.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512" \
+COPY .ci-cache/spark/ /opt/spark-cache/
+
+RUN if [ -f "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz" ]; then \
+        cp "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz" "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz"; \
+        cp "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512" /tmp/spark.sha512; \
+    else \
+        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 --progress-bar \
+            -o "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
+            "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz"; \
+        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 60 \
+            -o /tmp/spark.sha512 \
+            "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512"; \
+    fi \
     && cd /tmp && sha512sum -c spark.sha512 \
     && tar -xzf "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" -C /opt \
     && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" /opt/spark \
@@ -36,8 +43,8 @@ RUN set -eu \
     && download() { \
         file="$1"; \
         url="$2"; \
-        curl -fsSL -o "/opt/spark/jars/${file}" "${url}"; \
-        curl -fsSL -o "/tmp/${file}.sha1" "${url}.sha1"; \
+        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 --progress-bar -o "/opt/spark/jars/${file}" "${url}"; \
+        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 30 -o "/tmp/${file}.sha1" "${url}.sha1"; \
         expected="$(tr -d '[:space:]' < "/tmp/${file}.sha1" | cut -c1-40)"; \
         echo "${expected}  /opt/spark/jars/${file}" | sha1sum -c -; \
         rm "/tmp/${file}.sha1"; \

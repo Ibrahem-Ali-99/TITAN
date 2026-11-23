@@ -42,6 +42,28 @@ jobs:
           python-version: "3.12"
           enable-cache: true
       - run: uv sync --frozen --all-packages
+      - uses: actions/cache@v4
+        with:
+          path: .ci-cache/spark
+          key: spark-distribution-4.0.1-hadoop3-v1
+      - name: Fetch and verify cached Spark distribution
+        shell: bash
+        run: |
+          mkdir -p .ci-cache/spark
+          archive=".ci-cache/spark/spark-4.0.1-bin-hadoop3.tgz"
+          checksum="${archive}.sha512"
+          if [[ ! -s "$archive" || ! -s "$checksum" ]]; then
+            curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 --progress-bar \
+              -o "$archive" \
+              https://archive.apache.org/dist/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz
+            curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 60 \
+              -o "$checksum" \
+              https://archive.apache.org/dist/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz.sha512
+          else
+            echo "Spark distribution cache hit"
+          fi
+          (cd .ci-cache/spark && sha512sum -c "spark-4.0.1-bin-hadoop3.tgz.sha512")
+      - uses: docker/setup-buildx-action@v3
       - name: Assert full-pipeline isolation
         shell: bash
         run: |
@@ -57,9 +79,10 @@ jobs:
           up --build --detach --wait kafka postgres clickhouse minio
       - name: Build Spark image
         run: >-
-          docker compose --project-name "$COMPOSE_PROJECT_NAME"
-          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
-          build spark-bronze spark-silver
+          docker buildx build --load --tag titan-spark:4.0.1
+          --file infrastructure/docker/spark.Dockerfile
+          --cache-from type=gha,scope=titan-spark
+          --cache-to type=gha,mode=max,scope=titan-spark .
       - name: Initialize disposable schemas and lake
         run: |
           timeout 180s docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --no-deps --rm migrate
