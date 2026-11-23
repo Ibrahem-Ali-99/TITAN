@@ -49,6 +49,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Allocate isolated host ports
+        shell: bash
+        run: |
+          suffix=$((GITHUB_RUN_ID % 1000))
+          {
+            echo "TITAN_KAFKA_PORT=$((30000 + suffix))"
+            echo "TITAN_POSTGRES_PORT=$((31000 + suffix))"
+            echo "TITAN_CLICKHOUSE_PORT=$((32000 + suffix))"
+            echo "TITAN_MINIO_PORT=$((33000 + suffix))"
+            echo "TITAN_MINIO_CONSOLE_PORT=$((34000 + suffix))"
+            echo "TITAN_API_PORT=$((35000 + suffix))"
+            echo "DATABASE_URL=postgresql://titan:titan_full_ci_password@127.0.0.1:$((31000 + suffix))/titan"
+            echo "KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:$((30000 + suffix))"
+            echo "CLICKHOUSE_PORT=$((32000 + suffix))"
+            echo "S3_ENDPOINT=http://127.0.0.1:$((33000 + suffix))"
+            echo "MINIO_ENDPOINT=127.0.0.1:$((33000 + suffix))"
+          } >> "$GITHUB_ENV"
       - name: Resolve and pull immutable Spark image
         shell: bash
         run: |

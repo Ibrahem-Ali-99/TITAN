@@ -5,8 +5,8 @@ Upgrade 3B adds `.github/workflows/spark-image.yml` and
 that prepares Spark. The integration workflow runs after a successful image
 publication and never downloads the Spark distribution.
 
-The workflow uses a dedicated Compose project (`titan-full-ci`), ports 39092,
-35435, 38123, 39000 and 38000, and disposable named volumes. Kafka, PostgreSQL,
+The workflow uses a dedicated Compose project (`titan-full-ci`), run-specific
+host ports, and disposable named volumes. Kafka, PostgreSQL,
 ClickHouse, MinIO, the migration, ingestion and API services are started first.
 The deterministic 14-day history fixture (seed 33031) is published twice to
 exercise idempotency. Spark Bronze and Silver then run from the existing images,
