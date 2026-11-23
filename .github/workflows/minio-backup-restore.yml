@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 10
     services:
       minio:
-        image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+        image: alpine/minio@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
         env:
           MINIO_ROOT_USER: titan_dr
           MINIO_ROOT_PASSWORD: titan_dr_ci_password
