@@ -1,0 +1,148 @@
+name: coordinated-disaster-recovery
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Build TITAN Spark image]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  restore:
+    name: Coordinated artifact restore
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOURCE_PROJECT: titan-coordinated-source-ci
+      DEST_PROJECT: titan-coordinated-dest-ci
+      SOURCE_KAFKA_PORT: "39192"
+      SOURCE_POSTGRES_PORT: "35436"
+      SOURCE_CLICKHOUSE_PORT: "38124"
+      SOURCE_MINIO_PORT: "39100"
+      DEST_KAFKA_PORT: "39292"
+      DEST_POSTGRES_PORT: "35437"
+      DEST_CLICKHOUSE_PORT: "38125"
+      DEST_MINIO_PORT: "39200"
+      PASSWORD: titan_coordinated_ci_password
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve immutable Spark image
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="${{ github.event.workflow_run.head_sha || github.sha }}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark:4.0.1-${head_sha}"
+          docker pull "$image"
+          digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)"
+          test -n "$digest"
+          echo "TITAN_SPARK_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark@$digest" >> "$GITHUB_ENV"
+      - name: Restore from verified artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          compose=(docker compose --profile processing)
+          source_compose=(-f docker-compose.yml -f .github/docker-compose.full-pipeline.yml)
+          dest_compose=(-f docker-compose.yml -f .github/docker-compose.full-pipeline.yml)
+          export TITAN_SPARK_IMAGE
+
+          export TITAN_KAFKA_PORT="$SOURCE_KAFKA_PORT" TITAN_POSTGRES_PORT="$SOURCE_POSTGRES_PORT"
+          export TITAN_CLICKHOUSE_PORT="$SOURCE_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$SOURCE_MINIO_PORT"
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" up --detach --wait kafka postgres clickhouse minio
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm migrate
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm lake-init
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" up --build --detach --wait ingestion
+
+          export DATABASE_URL="postgresql://titan:$PASSWORD@127.0.0.1:$SOURCE_POSTGRES_PORT/titan"
+          export KAFKA_BOOTSTRAP_SERVERS="127.0.0.1:$SOURCE_KAFKA_PORT"
+          export CLICKHOUSE_HOST=127.0.0.1 CLICKHOUSE_PORT="$SOURCE_CLICKHOUSE_PORT" CLICKHOUSE_USER=titan CLICKHOUSE_PASSWORD="$PASSWORD" CLICKHOUSE_DATABASE=titan
+          export S3_ENDPOINT="http://127.0.0.1:$SOURCE_MINIO_PORT" S3_ACCESS_KEY=titan S3_SECRET_KEY="$PASSWORD" MINIO_ENDPOINT="127.0.0.1:$SOURCE_MINIO_PORT" MINIO_ACCESS_KEY=titan MINIO_SECRET_KEY="$PASSWORD" LAKE_BUCKET=titan-lake
+          uv run --group orchestration python scripts/full_pipeline_ci.py
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm spark-bronze
+          "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm spark-silver
+          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
+
+          rm -rf .tmp-coordinated-pg .tmp-coordinated-minio .tmp-coordinated-kafka
+          mkdir -p .tmp-coordinated-pg
+          docker run --rm --network "${SOURCE_PROJECT}_default" -v "$PWD:/work" -w /work postgres:18 \
+            pg_dump --format=custom --no-owner --no-acl --dbname "postgresql://titan:$PASSWORD@postgres:5432/titan" \
+            --file /work/.tmp-coordinated-pg/titan-postgres.dump
+          uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
+            backup --bucket titan-lake --output .tmp-coordinated-minio
+          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" \
+            backup --topic titan.commerce.order-events --topic titan.commerce.payment-events --topic titan.commerce.inventory-events \
+            --output .tmp-coordinated-kafka
+          docker run --rm -v "$PWD:/work" -w /work postgres:18 pg_restore --list /work/.tmp-coordinated-pg/titan-postgres.dump >/dev/null
+          uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio >/dev/null
+          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka >/dev/null
+
+          export POSTGRES_DB=titan_restore POSTGRES_USER=titan POSTGRES_PASSWORD="$PASSWORD"
+          export TITAN_KAFKA_PORT="$DEST_KAFKA_PORT" TITAN_POSTGRES_PORT="$DEST_POSTGRES_PORT" TITAN_CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$DEST_MINIO_PORT"
+          "${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" up --detach --wait kafka postgres clickhouse minio
+          for topic in titan.commerce.order-events titan.commerce.payment-events titan.commerce.inventory-events \
+            restored.titan.commerce.order-events restored.titan.commerce.payment-events restored.titan.commerce.inventory-events; do
+            docker exec "${DEST_PROJECT}-kafka-1" /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --create --if-not-exists --topic "$topic" --partitions 3 --replication-factor 1
+          done
+          docker run --rm --network "${DEST_PROJECT}_default" -v "$PWD:/work" -w /work postgres:18 pg_restore --exit-on-error --no-owner --no-acl \
+            --dbname "postgresql://titan:$PASSWORD@postgres:5432/titan_restore" /work/.tmp-coordinated-pg/titan-postgres.dump
+          uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
+            restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore
+          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$DEST_KAFKA_PORT" restore --backup .tmp-coordinated-kafka --topic-prefix restored.
+          cp -a .tmp-coordinated-minio .tmp-coordinated-minio-missing
+          missing="$(find .tmp-coordinated-minio-missing/objects -name '*.parquet' -print -quit)"
+          rm -f "$missing"
+          if uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio-missing; then exit 1; fi
+          cp -a .tmp-coordinated-kafka .tmp-coordinated-kafka-invalid
+          printf '\n{"invalid":true}\n' >> .tmp-coordinated-kafka-invalid/records.jsonl
+          if uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka-invalid; then exit 1; fi
+          pg_sha256="$(sha256sum .tmp-coordinated-pg/titan-postgres.dump | cut -d' ' -f1)"
+          cp .tmp-coordinated-pg/titan-postgres.dump .tmp-coordinated-pg/corrupt.dump
+          truncate -s -64 .tmp-coordinated-pg/corrupt.dump
+          test "$pg_sha256" != "$(sha256sum .tmp-coordinated-pg/corrupt.dump | cut -d' ' -f1)"
+          if uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore; then exit 1; fi
+          docker exec "${DEST_PROJECT}-postgres-1" psql -U titan -d titan_restore -c \
+            "update lake_publications set version_uri=replace(version_uri,'s3a://titan-lake/','s3a://titan-lake-restore/') where status='published'"
+          "${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" run --build --detach --no-deps \
+            -e DATABASE_URL="postgresql+psycopg://titan:$PASSWORD@postgres:5432/titan_restore" \
+            -e KAFKA_BOOTSTRAP_SERVERS=kafka:19092 \
+            -e INGESTION_TOPICS=restored.titan.commerce.order-events,restored.titan.commerce.payment-events,restored.titan.commerce.inventory-events \
+            -e INGESTION_CONSUMER_GROUP=titan-coordinated-recovery ingestion
+          sleep 10
+          export DATABASE_URL="postgresql://titan:$PASSWORD@127.0.0.1:$DEST_POSTGRES_PORT/titan_restore"
+          export CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" S3_ENDPOINT="http://127.0.0.1:$DEST_MINIO_PORT" MINIO_ENDPOINT="127.0.0.1:$DEST_MINIO_PORT" LAKE_BUCKET=titan-lake-restore
+          uv run --group orchestration python scripts/clickhouse_dr_recovery.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coordinated-disaster-recovery-evidence
+          path: benchmarks/coordinated-*.json
+          if-no-files-found: ignore
+      - name: Diagnostics
+        if: always()
+        shell: bash
+        run: |
+          docker compose --project-name "$SOURCE_PROJECT" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml ps || true
+          docker compose --project-name "$DEST_PROJECT" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml ps || true
+          docker compose --project-name "$DEST_PROJECT" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml logs --no-color --tail=200 ingestion || true
+      - name: Cleanup disposable projects
+        if: always()
+        shell: bash
+        run: |
+          docker compose --project-name "$SOURCE_PROJECT" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml down --volumes --remove-orphans || true
+          docker compose --project-name "$DEST_PROJECT" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml down --volumes --remove-orphans || true
