@@ -57,8 +57,8 @@ jobs:
           up --build --detach --wait kafka postgres clickhouse minio
       - name: Initialize disposable schemas and lake
         run: |
-          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm migrate
-          docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm lake-init
+          timeout 180s docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --no-deps --rm migrate
+          timeout 180s docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --no-deps --rm lake-init
       - name: Start ingestion and API
         run: >-
           docker compose --project-name "$COMPOSE_PROJECT_NAME"
