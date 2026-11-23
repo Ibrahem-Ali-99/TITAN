@@ -6,7 +6,8 @@ Stats come from those tables. A failed query returns an error, not zeros.
 """
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -18,7 +19,7 @@ from sqlalchemy.orm import Session
 from titan_api.config import ApiSettings
 from titan_api.lake import LakeStatus, load_lake_status
 from titan_api.logging_config import configure_logging
-from titan_api.metrics import install_metrics
+from titan_api.metrics import OperationalCollector, collector_enabled, install_metrics
 from titan_api.platform import (
     AnomaliesResponse,
     FindingsResponse,
@@ -44,7 +45,7 @@ from titan_api.platform import (
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
 from titan_api.routes import register_routes
 from titan_api.schemas import HealthLive, HealthReady, IngestionStats, RecentEventsResponse
-from titan_api.tracing import maybe_enable_tracing
+from titan_api.tracing import maybe_enable_tracing, shutdown_tracing
 from titan_api.warehouse import (
     AnalyticsOverview,
     OrdersResponse,
@@ -117,7 +118,24 @@ def get_session(request: Request) -> Iterator[Session]:
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
     resolved = settings or ApiSettings()
     configure_logging(resolved.log_level)
-    app = FastAPI(title="TITAN API", version="0.1.0")
+    engine = create_db_engine(resolved.database_url)
+    session_factory = create_session_factory(engine)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        collector: OperationalCollector | None = None
+        if collector_enabled(resolved):
+            collector = OperationalCollector(session_factory, resolved)
+            collector.start()
+            app.state.metrics_collector = collector
+        try:
+            yield
+        finally:
+            if collector is not None:
+                collector.stop()
+            shutdown_tracing()
+
+    app = FastAPI(title="TITAN API", version="0.1.0", lifespan=lifespan)
     origins = [origin.strip() for origin in resolved.cors_origins.split(",") if origin.strip()]
     app.add_middleware(
         CORSMiddleware,
@@ -126,10 +144,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Accept", "Content-Type", "traceparent", "tracestate"],
     )
-    engine = create_db_engine(resolved.database_url)
     app.state.settings = resolved
     app.state.engine = engine
-    app.state.session_factory = create_session_factory(engine)
+    app.state.session_factory = session_factory
 
     def publish_event(event: CommerceEvent) -> PublishResult:
         try:
@@ -170,7 +187,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             )
         return HealthReady(status="ready", checks={"postgres": "ok"})
 
-    install_metrics(app, resolved, get_session)
+    install_metrics(app)
 
     @app.get("/api/v1/ingestion/stats", response_model=IngestionStats)
     def ingestion_stats(session: Session = Depends(get_session)) -> IngestionStats:

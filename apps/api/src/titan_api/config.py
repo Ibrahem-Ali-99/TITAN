@@ -15,3 +15,4 @@ class ApiSettings(BaseSettings):
     clickhouse_database: str = "titan"
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = ""
+    metrics_collector_enabled: bool = True

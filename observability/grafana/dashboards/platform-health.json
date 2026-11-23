@@ -30,12 +30,12 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Metrics refresh ok",
+      "title": "Operational metrics fresh",
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "decimals": 0 } },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "refId": "A", "expr": "titan_metrics_refresh_ok" }]
+      "targets": [{ "refId": "A", "expr": "titan_operational_metrics_fresh" }]
     },
     {
       "id": 4,

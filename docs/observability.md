@@ -13,7 +13,9 @@ kafka-exporter ────────► Prometheus
 FastAPI OTLP HTTP ─────► OpenTelemetry Collector ──► Tempo ──► Grafana
 ```
 
-The API gauges are computed from records the API already reads:
+`/metrics` renders the in-process counters and the last collected gauges. It does not query PostgreSQL, ClickHouse, or Kafka. One background thread collects those readings every 15 seconds. A second collection does not start while the first is still running. The thread is not started for SQLite unit tests.
+
+The collected gauges use the same reads the API already has:
 
 | Gauge | Source |
 | --- | --- |
@@ -29,6 +31,24 @@ Spark jobs are one-shot. There is no Spark UI scrape. ClickHouse is not given a 
 Kafka 4.4 in this Compose file has no Prometheus endpoint. `kafka-exporter` is a separate client. It does not change the broker process. Consumer lag on the dashboards is the API's ingestion-group lag, not a second consumer group and not the Spark checkpoint.
 
 A scrape that fails inside an exporter, or a trace export that fails, stays in that process. The API still returns the HTTP response. Prometheus keeps the last sample and marks the target down.
+
+## Collection and freshness
+
+A finished collection attempt sets `titan_operational_metrics_fresh` to 1 for 45 seconds. That is three scrape intervals. `titan_operational_metrics_age_seconds` is the age of that attempt, computed when `/metrics` is rendered. If the thread stops, the fresh gauge returns to 0 and `TitanMetricsStale` can fire. The fresh gauge does not mean every dependency succeeded.
+
+Each signal has a separate known gauge. A failed read sets that known gauge to 0 and leaves the previous value in place. Zero is written only when a read succeeded and the recorded value is zero. A missing quality run does not become zero failures. An unavailable lag does not become zero lag. A warehouse query that throws does not become "not ready".
+
+| Situation | What is stored |
+| --- | --- |
+| Lag query returns 0 | `titan_kafka_lag_measured` 1 and lag 0 |
+| Lag query fails | `titan_kafka_lag_measured` 0, previous lag unchanged |
+| Warehouse read returns not ready | `titan_warehouse_status_known` 1 and `titan_warehouse_ready` 0 |
+| Warehouse read throws | `titan_warehouse_status_known` 0, previous ready value unchanged |
+| Publication age is present | `titan_warehouse_freshness_known` 1 and the age |
+| Publication age is absent or the read throws | `titan_warehouse_freshness_known` 0, previous age unchanged |
+| PostgreSQL readiness check fails | `titan_api_ready_known` 1 and `titan_api_ready` 0, because the check completed |
+
+`titan_metrics_collection_ok` is 1 only when every signal in that attempt was read. `titan_metrics_collection_duration_seconds` is the duration of the attempt. `titan_metrics_scrape_duration_seconds` is the previous `/metrics` render and does not include collection.
 
 ## Versions
 
@@ -140,12 +160,14 @@ Tracked pipeline jobs: `bronze_stream`, `silver_publication`, `clickhouse_load`,
 | Alert | Expression | For | Severity |
 | --- | --- | --- | --- |
 | `TitanApiDown` | `up{job="titan-api"} == 0` | 1m | critical |
-| `TitanWarehouseNotReady` | `titan_warehouse_ready == 0` | 2m | critical |
-| `TitanDataStale` | `titan_warehouse_freshness_seconds > 21600` | 5m | warning |
+| `TitanWarehouseNotReady` | warehouse status known and `titan_warehouse_ready == 0` | 2m | critical |
+| `TitanDataStale` | freshness over 21600 seconds and the freshness sample is known | 5m | warning |
 | `TitanConsumerLag` | lag measured and `titan_kafka_consumer_lag_records > 100` | 5m | warning |
-| `TitanPublicationFailed` | newest `quality_gate`, `analytics_ready`, or `warehouse_models` attempt failed | 1m | critical |
-| `TitanQualityFailed` | `titan_quality_latest_failed == 1` | 1m | critical |
+| `TitanPublicationFailed` | pipeline status known and the newest blocking job failed | 1m | critical |
+| `TitanQualityFailed` | quality status known and the latest run failed without an injected fault | 1m | critical |
 | `TitanPostgresExporterDown` | `up{job="postgres"} == 0` | 30s | warning |
+| `TitanMetricsStale` | `titan_operational_metrics_fresh == 0` | 2m | warning |
+| `TitanMetricsCollectionFailed` | `titan_metrics_collection_ok == 0` | 2m | warning |
 
 21600 seconds is the existing quality-gate freshness window. An injected quality failure sets `titan_quality_latest_injected` and does not set `titan_quality_latest_failed`. A lag sample that could not be measured does not page on a stale lag value.
 
@@ -153,7 +175,7 @@ Prometheus evaluates the rules. Grafana does not add a second set. There is no p
 
 ## Tracing
 
-Coverage is FastAPI requests on `titan-api` when `OTEL_ENABLED` is true. The SDK uses a batch exporter to `http://otel-collector:4318/v1/traces`. The collector forwards OTLP HTTP to Tempo. CORS allows `traceparent` and `tracestate`.
+Coverage is FastAPI requests on `titan-api` when `OTEL_ENABLED` is true. The sampler is parent-based and samples a local root. A sampled `traceparent` stays the parent of the server span. The SDK uses a batch exporter to `http://otel-collector:4318/v1/traces`. The collector forwards OTLP HTTP to Tempo. CORS allows `traceparent` and `tracestate`. The process flushes the exporter on shutdown.
 
 Kafka consumers, Spark, dbt, Dagster, and the browser are not instrumented. There is no trace across the ingestion path.
 
@@ -185,7 +207,8 @@ On the 2026-11-23 check, the development publication was about 64403 seconds old
 ## Limits
 
 - One Kafka broker and one Postgres instance. The exporter memory limits are 128 MiB each. Prometheus is 512 MiB, Grafana 384 MiB, Tempo 384 MiB, and the collector 192 MiB.
-- Every API scrape recalculates warehouse status and ingestion lag. One measured `GET /metrics` took 118.4 ms. `GET /health/ready` in the same run, 10 sequential calls, was 4.3 / 5.0 / 19.4 ms min / p50 / max. That ready sample used `urllib` after the process was warm. It is not a before-and-after against the earlier 46 / 48 / 52 ms audit sample, and it is not a capacity test.
+- Collection still reads the warehouse and the ingestion lag every 15 seconds. That work is off the request path. On 2026-11-23, ten in-process `urllib` calls to `GET /metrics` took 49.6 / 119.4 / 146.2 ms min / p50 / max while collection ran inside the request. After the background collector, the same measurement was 3.4 / 13.4 / 29.7 ms. The last collection duration reported by Prometheus in that run was 0.100 seconds. API memory stayed about 120 MiB of the 512 MiB limit. This is not a capacity test.
+- `pytest -m integration` refuses `COMPOSE_PROJECT_NAME` `titan` and the development ports 5435, 9092, and 8000. It runs only against an isolated project such as `titan-e2e`. `scripts/verify_observability.py` is read-only against the development API. It stops and starts `postgres-exporter` only.
 - The Postgres exporter config only sets `auth_modules: {}`. The DSN comes from `DATA_SOURCE_NAME`. `stat_statements` is disabled because this Postgres image does not load that extension.
 - Tempo logs an idle scheduler `NotFound` while it has no compaction job. Traces were still stored and queried.
 - Day 5 and Day 6 notes that say those milestones did not add Prometheus describe those milestones. This profile is the later addition.
@@ -222,4 +245,23 @@ Same-day suites after the change:
 | `pytest -m integration` | 1 passed, 63 deselected, 3.07 s |
 | `npm test` in `apps/web` | 10 passed |
 
-The integration test publishes through the live broker into the existing PostgreSQL volume. It does not reset volumes and it does not republish the warehouse. The serving snapshot stayed ready.
+That integration run published through the development broker before the isolation guard existed. The serving snapshot stayed ready. The guard added afterward skips that test unless `COMPOSE_PROJECT_NAME` names another project and the connection targets are not ports 5435, 9092, and 8000.
+
+## Verification after the collector change
+
+`uv run python scripts/verify_observability.py` exited 0. It reads the development API and stops only `postgres-exporter`.
+
+| Check | Result |
+| --- | --- |
+| Prometheus targets | `prometheus`, `titan-api`, `postgres`, and `kafka` were `up` |
+| Grafana query for `titan_warehouse_ready` | `1` |
+| `GET /metrics` in-process, 10 calls | 3.4 / 13.4 / 29.7 ms min / p50 / max |
+| Collection duration | 0.100 seconds |
+| `titan_operational_metrics_fresh` | 1 |
+| Warehouse known and freshness known | both 1 |
+| Ingestion lag | Monitoring API 0 and the lag gauge 0 |
+| `TitanPostgresExporterDown` | inactive, then firing, then inactive |
+| `TitanDataStale` | pending after the rule reload at `2026-11-23T11:52:05Z`, then firing with value about 66106 seconds |
+| Trace | `4bf92f3577b34da6a3ce929d0e0e4736`, server span `GET /health/live`, parent `00f067aa0ba902b7` |
+
+Same-day suites for this change: ruff passed, mypy passed for 89 files, `pytest -m "not integration"` 73 passed and 1 deselected in 2.88 seconds, `pytest -m integration` 1 skipped and 73 deselected, secret scan passed, and `docker compose --profile observability config --quiet` passed. The workstation has an NVIDIA GeForce RTX 5070. Collection is database and broker latency, so the collector stays on CPU.

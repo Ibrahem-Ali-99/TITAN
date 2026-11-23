@@ -1,8 +1,13 @@
+import os
 import socket
 
 import pytest
 
 pytestmark = pytest.mark.integration
+
+ISOLATED_DATABASE = "postgresql+psycopg://titan:titan_dev_password@127.0.0.1:15435/titan"
+ISOLATED_BROKERS = "127.0.0.1:19092"
+ISOLATED_API = "http://127.0.0.1:18000"
 
 
 def _open(port: int) -> bool:
@@ -14,8 +19,14 @@ def _open(port: int) -> bool:
 
 
 def test_kafka_postgres_api_pipeline() -> None:
-    if not (_open(9092) and _open(5435) and _open(8000)):
-        pytest.skip("Kafka, PostgreSQL, and the API are not all reachable on localhost")
+    project = os.environ.get("COMPOSE_PROJECT_NAME", "").strip()
+    if project in {"", "titan"}:
+        pytest.skip("requires an isolated COMPOSE_PROJECT_NAME, not the development project")
+    if not (_open(19092) and _open(15435) and _open(18000)):
+        pytest.skip("isolated Kafka, PostgreSQL, and API are not reachable")
+    os.environ["DATABASE_URL"] = ISOLATED_DATABASE
+    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = ISOLATED_BROKERS
+    os.environ["API_BASE_URL"] = ISOLATED_API
     from pipeline_flow import run_pipeline_check
 
     report = run_pipeline_check()

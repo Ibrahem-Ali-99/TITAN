@@ -6,6 +6,7 @@ Postgres exporter so one alert can fire and clear without changing business data
 
 from __future__ import annotations
 
+import base64
 import json
 import subprocess
 import time
@@ -85,6 +86,46 @@ def wait_for_alert(name: str, wanted: str, timeout_s: int) -> str:
             return seen
         time.sleep(5)
     return seen
+
+
+def _b64_hex(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    try:
+        return base64.b64decode(value).hex()
+    except ValueError:
+        return ""
+
+
+def trace_has_parent(body: bytes, trace_id: str, parent: str) -> bool:
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return False
+    batches = payload.get("batches")
+    if not isinstance(batches, list):
+        return False
+    for batch in batches:
+        if not isinstance(batch, dict):
+            continue
+        scopes = batch.get("scopeSpans")
+        if not isinstance(scopes, list):
+            continue
+        for scope in scopes:
+            if not isinstance(scope, dict):
+                continue
+            spans = scope.get("spans")
+            if not isinstance(spans, list):
+                continue
+            for span in spans:
+                if not isinstance(span, dict) or span.get("kind") != "SPAN_KIND_SERVER":
+                    continue
+                if (
+                    _b64_hex(span.get("traceId")) == trace_id
+                    and _b64_hex(span.get("parentSpanId")) == parent
+                ):
+                    return True
+    return False
 
 
 def counter(path: str) -> float:
@@ -179,17 +220,21 @@ def main() -> None:
         "after_start": resolved,
     }
 
-    traced = False
-    trace_status, trace_body = get(f"{API}/health/live")
+    trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
+    parent = "00f067aa0ba902b7"
+    trace_status, _trace_body = get(
+        f"{API}/health/live",
+        {"traceparent": f"00-{trace_id}-{parent}-01"},
+    )
     evidence["trace_response"] = trace_status
-    if trace_status == 200 and b"traceparent" not in trace_body:
-        time.sleep(12)
-        query = urllib.parse.quote('{resource.service.name="titan-api"}')
-        tempo_status, tempo_body = get(f"{TEMPO}/api/search?q={query}&limit=5")
-        evidence["tempo_status"] = tempo_status
-        evidence["tempo_body"] = tempo_body[:500].decode(errors="replace")
-        traced = tempo_status == 200 and b"titan-api" in tempo_body
-    evidence["trace_found"] = traced
+    time.sleep(8)
+    tempo_status, tempo_body = get(
+        f"{TEMPO}/api/traces/{trace_id}",
+        {"Accept": "application/json"},
+    )
+    evidence["tempo_status"] = tempo_status
+    evidence["tempo_body"] = tempo_body[:500].decode(errors="replace")
+    evidence["trace_found"] = tempo_status == 200 and trace_has_parent(tempo_body, trace_id, parent)
 
     timings: list[float] = []
     for _ in range(10):
@@ -202,9 +247,21 @@ def main() -> None:
         "p50": round(timings[len(timings) // 2], 1),
         "max": round(timings[-1], 1),
     }
-    started = time.perf_counter()
-    get(f"{API}/metrics", timeout=30)
-    evidence["metrics_latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    scrape_ms: list[float] = []
+    for _ in range(10):
+        started = time.perf_counter()
+        get(f"{API}/metrics", timeout=30)
+        scrape_ms.append((time.perf_counter() - started) * 1000)
+    scrape_ms.sort()
+    evidence["metrics_latency_ms"] = {
+        "min": round(scrape_ms[0], 1),
+        "p50": round(scrape_ms[len(scrape_ms) // 2], 1),
+        "max": round(scrape_ms[-1], 1),
+    }
+    evidence["collection_duration_seconds"] = sample("titan_metrics_collection_duration_seconds")
+    evidence["operational_fresh"] = sample("titan_operational_metrics_fresh")
+    evidence["warehouse_known"] = sample("titan_warehouse_status_known")
+    evidence["freshness_known"] = sample("titan_warehouse_freshness_known")
     evidence["freshness_seconds"] = sample("titan_warehouse_freshness_seconds")
     evidence["data_stale_alert"] = alert_state("TitanDataStale")
     print(json.dumps(evidence, indent=2, default=str))
@@ -220,6 +277,11 @@ def main() -> None:
         and len(evidence["dashboards"]) >= 7
         and evidence["grafana_query_status"] == 200
         and evidence["trace_found"]
+        and evidence["operational_fresh"] == 1
+        and evidence["warehouse_known"] == 1
+        and evidence["freshness_known"] == 1
+        and evidence["metrics_latency_ms"]["p50"] < 40
+        and evidence["data_stale_alert"] in {"pending", "firing"}
     )
     if not required:
         raise SystemExit(1)

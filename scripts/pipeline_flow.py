@@ -74,8 +74,41 @@ def _get_json(path: str) -> dict[str, object]:
     return body
 
 
+def assert_state_change_is_isolated() -> None:
+    """Refuse the development project and its published ports.
+
+    Isolated projects use their own volumes, broker, and database. A longer
+    port such as 15435 or 19092 is not treated as the development port.
+    """
+    project = os.environ.get("COMPOSE_PROJECT_NAME", "").strip()
+    if project in {"", "titan"}:
+        raise RuntimeError(
+            "state-changing checks require COMPOSE_PROJECT_NAME to name an isolated project"
+        )
+    if _uses_development_endpoint(_database_url(), _brokers(), _api_base()):
+        raise RuntimeError("state-changing checks refuse development ports 5435, 9092, and 8000")
+
+
+def _uses_development_endpoint(database: str, brokers: str, api: str) -> bool:
+    return _has_port(database, 5435) or _has_port(brokers, 9092) or _has_port(api, 8000)
+
+
+def _has_port(value: str, port: int) -> bool:
+    needle = f":{port}"
+    start = 0
+    while True:
+        found = value.find(needle, start)
+        if found < 0:
+            return False
+        end = found + len(needle)
+        if end >= len(value) or not value[end].isdigit():
+            return True
+        start = end
+
+
 def run_pipeline_check() -> PipelineReport:
     load_env_file(ROOT / ".env")
+    assert_state_change_is_isolated()
     engine = create_engine(_database_url(), pool_pre_ping=True)
     detail: dict[str, object] = {}
     try:

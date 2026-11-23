@@ -10,7 +10,7 @@ groups:
           summary: The TITAN API metrics scrape is down.
 
       - alert: TitanWarehouseNotReady
-        expr: titan_warehouse_ready == 0
+        expr: titan_warehouse_status_known == 1 and titan_warehouse_ready == 0
         for: 2m
         labels:
           severity: critical
@@ -18,7 +18,7 @@ groups:
           summary: The serving warehouse publication is not ready.
 
       - alert: TitanDataStale
-        expr: titan_warehouse_freshness_seconds > 21600
+        expr: titan_warehouse_freshness_seconds > 21600 and titan_warehouse_freshness_known == 1
         for: 5m
         labels:
           severity: warning
@@ -34,7 +34,7 @@ groups:
           summary: Ingestion consumer lag has stayed above 100 records.
 
       - alert: TitanPublicationFailed
-        expr: titan_pipeline_latest_failed{job=~"quality_gate|analytics_ready|warehouse_models"} == 1
+        expr: titan_pipeline_status_known == 1 and titan_pipeline_latest_failed{job=~"quality_gate|analytics_ready|warehouse_models"} == 1
         for: 1m
         labels:
           severity: critical
@@ -42,12 +42,28 @@ groups:
           summary: The newest publication attempt for a blocking job failed.
 
       - alert: TitanQualityFailed
-        expr: titan_quality_latest_failed == 1
+        expr: titan_quality_status_known == 1 and titan_quality_latest_failed == 1
         for: 1m
         labels:
           severity: critical
         annotations:
           summary: The latest quality run failed and was not an injected test.
+
+      - alert: TitanMetricsStale
+        expr: titan_operational_metrics_fresh == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Operational metrics have not been collected within 45 seconds.
+
+      - alert: TitanMetricsCollectionFailed
+        expr: titan_metrics_collection_ok == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: The last operational collection could not read every signal.
 
       - alert: TitanPostgresExporterDown
         expr: up{job="postgres"} == 0
