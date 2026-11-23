@@ -40,6 +40,23 @@ def _metadata(bootstrap: str, topics: list[str]) -> dict[str, Any]:
     return result
 
 
+def _configs(bootstrap: str, topics: list[str]) -> dict[str, dict[str, str]]:
+    resources = [
+        admin.ConfigResource(admin.RESOURCE_TOPIC, topic)  # type: ignore[attr-defined]
+        for topic in topics
+    ]
+    futures = _client(bootstrap).describe_configs(resources)
+    configs: dict[str, dict[str, str]] = {}
+    for resource, future in futures.items():
+        values = future.result(timeout=10)
+        configs[str(resource.name)] = {
+            str(key): str(value.value)
+            for key, value in values.items()
+            if key in {"cleanup.policy", "retention.ms", "retention.bytes", "segment.bytes"}
+        }
+    return configs
+
+
 def _watermarks(bootstrap: str, topic: str, partition: int) -> tuple[int, int]:
     consumer = Consumer(
         {"bootstrap.servers": bootstrap, "group.id": f"titan-dr-probe-{time.time_ns()}"}
@@ -59,6 +76,7 @@ def backup(args: argparse.Namespace) -> None:
     if not topics:
         raise SystemExit("provide at least one --topic")
     metadata = _metadata(args.bootstrap, topics)
+    configs = _configs(args.bootstrap, topics)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     records: list[dict[str, Any]] = []
@@ -125,6 +143,7 @@ def backup(args: argparse.Namespace) -> None:
         "created_at": time.time(),
         "bootstrap_source": args.bootstrap,
         "topics": metadata,
+        "topic_configs": configs,
         "ranges": ranges,
         "record_count": len(records),
         "records_sha256": _sha256(payload),
@@ -169,9 +188,7 @@ def verify(args: argparse.Namespace) -> None:
 def restore(args: argparse.Namespace) -> None:
     started = time.perf_counter()
     manifest = verify_backup(args.backup.resolve())
-    topic_map = {
-        topic: f"{args.topic_prefix}{topic}" for topic in manifest["topics"]
-    }
+    topic_map = {topic: f"{args.topic_prefix}{topic}" for topic in manifest["topics"]}
     destination = _metadata(args.bootstrap, list(topic_map.values()))
     for source, target in topic_map.items():
         if destination[target] != manifest["topics"][source]:
@@ -199,6 +216,7 @@ def restore(args: argparse.Namespace) -> None:
             (str(item[0]), base64.b64decode(item[1])) for item in record["headers"]
         ]
         box: dict[str, Any] = {}
+
         def on_delivery(error: Any, delivered: Any, box: dict[str, Any] = box) -> None:
             box.update(error=error, message=delivered)
 
