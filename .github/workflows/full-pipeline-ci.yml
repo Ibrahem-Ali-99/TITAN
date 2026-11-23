@@ -127,6 +127,8 @@ jobs:
           uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
           uv run --group orchestration python scripts/run_pipeline.py titan_warehouse --reconcile
           uv run --group orchestration python scripts/verify_full_pipeline.py
+      - name: Verify ClickHouse disaster recovery rebuild
+        run: uv run --group orchestration python scripts/clickhouse_dr_recovery.py
       - name: Run Spark regression tests
         run: >-
           docker run --rm

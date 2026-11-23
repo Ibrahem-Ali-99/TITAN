@@ -1,0 +1,22 @@
+{
+  "strategy": "rebuild from verified MinIO Silver using PostgreSQL publication metadata",
+  "source_publication_id": "d58ba439-0ee9-4a8f-aa5e-ca908cf53062",
+  "silver_publication_id": "25941ba3-e4ca-4c08-b80a-0e8508196d2a",
+  "recovered_publication_id": "7aee0b75-29db-4a02-be49-ecc0a5b858b9",
+  "counts": {
+    "orders": 86,
+    "payments": 86,
+    "inventory": 84,
+    "items": 86
+  },
+  "revenue_by_currency": {
+    "EUR": "2308.38",
+    "GBP": "2171.39",
+    "USD": "1995.90"
+  },
+  "interrupted_publication_pointer_unchanged": true,
+  "recovery_reconciled": true,
+  "repeated_recovery_idempotent": true,
+  "missing_recovery_input_rejected": true,
+  "duration_ms": 45048
+}
