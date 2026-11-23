@@ -56,9 +56,7 @@ def authenticate(
         "admin": settings.admin_token,
     }
     if not any(configured.values()):
-        return JSONResponse(
-            {"detail": "API authentication is not configured"}, status_code=503
-        )
+        return JSONResponse({"detail": "API authentication is not configured"}, status_code=503)
     supplied = ""
     if authorization and authorization.startswith("Bearer "):
         supplied = authorization[7:].strip()

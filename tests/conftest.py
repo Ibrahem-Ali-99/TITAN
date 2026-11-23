@@ -20,9 +20,7 @@ def _legacy_api_headers(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def request(self, method, url, **kwargs):  # type: ignore[no-untyped-def]
         headers = kwargs.get("headers") or {}
-        if "Authorization" not in headers and not os.environ.get(
-            "TITAN_RAW_AUTH_TEST"
-        ):
+        if "Authorization" not in headers and not os.environ.get("TITAN_RAW_AUTH_TEST"):
             token = (
                 "unit-write-token"
                 if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
