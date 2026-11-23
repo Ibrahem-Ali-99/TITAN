@@ -1,0 +1,24 @@
+{
+  "original_phase": {
+    "seed": 20261123,
+    "acknowledged": 100,
+    "row_delta": 70,
+    "event_ids_found_durable": 100,
+    "preexisting_ids": 30,
+    "new_ids_ingested_during_phase": 70,
+    "unaccounted_ids": 0,
+    "root_cause": "benchmark counted total-row delta instead of event-ID dispositions; deterministic IDs overlapped an earlier attempt"
+  },
+  "kafka_offsets_after_investigation": {
+    "topic": "titan.commerce.order-events",
+    "partitions": {"0": {"high_watermark": 737, "committed": 737}, "1": {"high_watermark": 679, "committed": 679}, "2": {"high_watermark": 726, "committed": 726}},
+    "consumer_group": "titan-ingestion",
+    "lag": 0
+  },
+  "corrected_runs": [
+    {"condition": "warm_reused_ids", "seed": 20261124, "acknowledged": 100, "preexisting": 100, "newly_persisted": 0, "accounted": 100, "max_lag": 1, "final_lag": 0},
+    {"condition": "cold_ingestion_restart", "seed": 20261201, "acknowledged": 100, "preexisting": 0, "newly_persisted": 100, "accounted": 100, "ack_p50_ms": 44.933, "ack_to_persistence_p50_ms": -0.506, "max_lag": 1, "final_lag": 0},
+    {"condition": "warm_unique_ids", "seed": 20261202, "acknowledged": 100, "preexisting": 0, "newly_persisted": 100, "accounted": 100, "ack_p50_ms": 1.154, "ack_to_persistence_p50_ms": 0.248, "max_lag": 5, "final_lag": 0}
+  ],
+  "loss_confirmed": false
+}
