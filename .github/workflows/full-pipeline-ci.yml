@@ -129,6 +129,10 @@ jobs:
           uv run --group orchestration python scripts/verify_full_pipeline.py
       - name: Verify ClickHouse disaster recovery rebuild
         run: uv run --group orchestration python scripts/clickhouse_dr_recovery.py
+      - name: Capture and verify coordinated recovery boundary
+        run: |
+          uv run --group orchestration python scripts/coordinated_dr.py capture --output benchmarks/coordinated-dr.json
+          uv run --group orchestration python scripts/coordinated_dr.py verify --manifest benchmarks/coordinated-dr.json
       - name: Run Spark regression tests
         run: >-
           docker run --rm

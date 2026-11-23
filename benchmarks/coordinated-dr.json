@@ -1,0 +1,190 @@
+{
+  "contract": "quiesced-bounded-recovery-point-v1",
+  "captured_at": 1795462126.7357962,
+  "kafka": {
+    "topics": {
+      "titan.commerce.order-events": [
+        {
+          "partition": 0,
+          "low": 0,
+          "high": 54
+        },
+        {
+          "partition": 1,
+          "low": 0,
+          "high": 54
+        },
+        {
+          "partition": 2,
+          "low": 0,
+          "high": 64
+        }
+      ],
+      "titan.commerce.payment-events": [
+        {
+          "partition": 0,
+          "low": 0,
+          "high": 70
+        },
+        {
+          "partition": 1,
+          "low": 0,
+          "high": 58
+        },
+        {
+          "partition": 2,
+          "low": 0,
+          "high": 44
+        }
+      ],
+      "titan.commerce.inventory-events": [
+        {
+          "partition": 0,
+          "low": 0,
+          "high": 56
+        },
+        {
+          "partition": 1,
+          "low": 0,
+          "high": 84
+        },
+        {
+          "partition": 2,
+          "low": 0,
+          "high": 28
+        }
+      ]
+    }
+  },
+  "postgres": {
+    "event_count": 256,
+    "event_ids_sha256": "da4a184b8b81e1ba3098d78343a58a24823fc63780598d4709e24b572e3c5883",
+    "dispositions": {
+      "accepted": 256
+    },
+    "silver": {
+      "publication_id": "80c99450-3829-4692-9760-bc3875859457",
+      "version_uri": "s3a://titan-lake/silver/versions/80c99450-3829-4692-9760-bc3875859457",
+      "finished_at": "2026-11-23T19:27:36.036594+00:00"
+    },
+    "warehouse": {
+      "publication_id": "72219618-df2d-4da2-81e5-c073353e72d3",
+      "silver_publication_id": "80c99450-3829-4692-9760-bc3875859457",
+      "counts": [
+        86,
+        86,
+        84,
+        86
+      ],
+      "revenue_by_currency": {
+        "EUR": "2308.38",
+        "GBP": "2171.39",
+        "USD": "1995.90"
+      }
+    }
+  },
+  "minio": {
+    "bucket": "titan-lake",
+    "objects": [
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/inventory/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/inventory/_SUCCESS",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/inventory/part-00000-3683988c-79ca-4c61-916b-28338afb9cd9-c000.snappy.parquet",
+        "size": 9059,
+        "sha256": "98436ef11b35de06208d5cf70bfa4871b147d24bbed7c83bb0a4c5a476d2b0d1"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_items/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_items/_SUCCESS",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_items/part-00000-e703627f-bcb5-4865-b07b-deca2523ec3f-c000.snappy.parquet",
+        "size": 8259,
+        "sha256": "aa50581ea6b14e949b4e4429a3b8a6ebfaf4b08ad3a84bddb29ca23bfec347a5"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_metrics/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_metrics/_SUCCESS",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/order_metrics/part-00000-4a46d0d8-c50a-4672-91aa-319f5cde3232-c000.snappy.parquet",
+        "size": 2462,
+        "sha256": "4da418dd3d3eea61764b518353eed7578e6c8a54ec87d2d9a35a6ec4e29b09d5"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/orders/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/orders/_SUCCESS",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/orders/part-00000-3d36103f-dd06-4218-8345-3d2adbbb43e6-c000.snappy.parquet",
+        "size": 9690,
+        "sha256": "18ff5cc075b3b36bfe9e3ca17e52e5ad4ed98b86e8a1c83663673e2958fefb6b"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/payments/",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/payments/_SUCCESS",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "key": "silver/versions/80c99450-3829-4692-9760-bc3875859457/payments/part-00000-86b3bdba-9587-4c90-8901-aaee099c1e1f-c000.snappy.parquet",
+        "size": 11562,
+        "sha256": "0a52faab103686f1b01a7b121e484e18f773f75cc0eb5596bf517d92f5da7e36"
+      }
+    ]
+  },
+  "clickhouse": {
+    "active": {
+      "publication_id": "72219618-df2d-4da2-81e5-c073353e72d3",
+      "silver_publication_id": "80c99450-3829-4692-9760-bc3875859457",
+      "counts": [
+        86,
+        86,
+        84,
+        86
+      ],
+      "revenue_by_currency": {
+        "EUR": "2308.38",
+        "GBP": "2171.39",
+        "USD": "1995.90"
+      }
+    }
+  },
+  "checkpoint_policy": "Spark checkpoints are not restored; derived data is replayed from the selected verified Silver boundary.",
+  "manifest_sha256": "f4e1a7031e6fcdd49d29524fd926ea12de35af13e9c531436a3f214ef41a44d7"
+}
