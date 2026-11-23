@@ -28,3 +28,27 @@ are remapped on replay; Spark checkpoints are not portable recovery state;
 PostgreSQL, MinIO and ClickHouse require lineage checks; and observed laboratory
 timings are not production RTO/RPO guarantees. A missing or corrupt component
 backup must stop recovery before serving activation.
+
+## Actual artifact restore
+
+The local completion test used two separate Compose projects, `titan-4e-source`
+and `titan-4e-dest`, with separate Kafka, PostgreSQL, MinIO, ClickHouse and
+checkpoint volumes. Actual PostgreSQL, MinIO and Kafka backup artifacts were
+created and verified before restoration.
+
+The destination restored PostgreSQL into `titan_restore`, MinIO into
+`titan-lake-restore`, and Kafka into three empty `restored.*` topics. The real
+ingestion consumer replayed the records with a new consumer group; source
+offsets were not copied. All 256 event IDs remained unique and accepted, while
+512 replayed messages were durably recorded as duplicate observations. The
+existing ClickHouse loader rebuilt and activated 86 orders, 86 payments, 84
+inventory rows and 86 items after dbt and quality checks. Currency totals were
+EUR 2308.38, GBP 2171.39 and USD 1995.90.
+
+Negative tests rejected a missing MinIO object, invalid Kafka records, a
+nonempty MinIO destination, and a corrupted PostgreSQL archive checksum was
+detected before restore. An
+interrupted ClickHouse rebuild left the active pointer unchanged. Evidence is
+in `benchmarks/coordinated-restore.json`. PostgreSQL restore wall time was not
+instrumented by the existing utility; other measured timings and checksums are
+recorded in the evidence file.

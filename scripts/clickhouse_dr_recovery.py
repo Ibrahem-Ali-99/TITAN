@@ -15,6 +15,7 @@ import clickhouse_connect
 import psycopg
 
 ROOT = Path(__file__).resolve().parents[1]
+SQL_PATH = ROOT / "warehouse" / "clickhouse" / "001_tables.sql"
 
 
 def _db() -> str:
@@ -29,6 +30,12 @@ def _ch() -> Any:
         password=os.environ["CLICKHOUSE_PASSWORD"],
         database=os.environ["CLICKHOUSE_DATABASE"],
     )
+
+
+def _ensure_tables(client: Any) -> None:
+    for statement in SQL_PATH.read_text(encoding="utf-8").split(";"):
+        if statement.strip():
+            client.command(statement)
 
 
 def _metadata() -> tuple[str, str, dict[str, str], list[int]]:
@@ -61,6 +68,16 @@ def _active(client: Any) -> list[Any]:
     if len(rows) != 1:
         raise RuntimeError(f"expected one active pointer, found {len(rows)}")
     return cast(list[Any], rows[0])
+
+
+def _active_optional(client: Any) -> list[Any] | None:
+    rows = client.query(
+        "select warehouse_publication_id, silver_publication_id, order_count, "
+        "payment_count, inventory_count, item_count, revenue_json from wh_active"
+    ).result_rows
+    if len(rows) > 1:
+        raise RuntimeError(f"expected at most one active pointer, found {len(rows)}")
+    return None if not rows else cast(list[Any], rows[0])
 
 
 def _facts(client: Any, publication_id: str) -> tuple[list[int], dict[str, str]]:
@@ -109,8 +126,9 @@ def main() -> None:
     started = time.perf_counter()
     publication_id, silver_id, expected_revenue, expected_counts = _metadata()
     client = _ch()
-    before = _active(client)
-    before_pointer = str(before[0])
+    _ensure_tables(client)
+    before = _active_optional(client)
+    before_pointer = None if before is None else str(before[0])
     try:
         failed = subprocess.run(
             [
@@ -124,7 +142,9 @@ def main() -> None:
             env=os.environ.copy(),
             check=False,
         )
-        if failed.returncode == 0 or str(_active(client)[0]) != before_pointer:
+        after_failed = _active_optional(client)
+        after_failed_pointer = None if after_failed is None else str(after_failed[0])
+        if failed.returncode == 0 or after_failed_pointer != before_pointer:
             raise RuntimeError("interrupted publication changed the active pointer")
 
         for table in ("wh_orders", "wh_order_items", "wh_payments", "wh_inventory", "wh_active"):

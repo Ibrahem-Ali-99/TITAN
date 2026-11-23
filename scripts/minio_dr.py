@@ -60,7 +60,9 @@ def backup(args: argparse.Namespace) -> None:
     entries: list[dict[str, Any]] = []
     payload_root = output / "objects"
     for obj in _objects(client, args.bucket, prefixes):
-        if obj.object_name.startswith(tuple(p + ".__temporary__" for p in prefixes)):
+        if obj.object_name.endswith("/") or obj.object_name.startswith(
+            tuple(p + ".__temporary__" for p in prefixes)
+        ):
             continue
         data, metadata = _get_bytes(client, args.bucket, obj.object_name)
         target = payload_root / obj.object_name

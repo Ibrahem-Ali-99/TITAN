@@ -1,0 +1,12 @@
+{
+  "status": "locally-verified",
+  "source_project": "titan-4e-source",
+  "destination_project": "titan-4e-dest",
+  "postgres_backup": {"archive_bytes": 76937, "sha256": "5f370ca06e91ebe45a7e2c474e94dc1819cef0587b8aadd8bc5c361f234030aa", "restored_database": "titan_restore", "checksum_verified": true},
+  "minio_backup": {"source_bucket": "titan-lake", "destination_bucket": "titan-lake-restore", "object_count": 16, "payload_bytes": 95027, "backup_duration_ms": 65, "restore_duration_ms": 106, "checksums_verified": true, "completion_marker_after_verification": true},
+  "kafka_backup": {"record_count": 512, "records_sha256": "68247561337795171bac18d4e9c46211d50271129c09cef5e7ad873c5f5767e5", "backup_duration_ms": 1696, "restore_duration_ms": 24591, "source_offsets_preserved": false, "destination_topics": 3, "offset_mapping_verified": true},
+  "postgres_reconciliation": {"event_count": 256, "unique_event_ids": 256, "event_ids_sha256": "da4a184b8b81e1ba3098d78343a58a24823fc63780598d4709e24b572e3c5883", "dispositions": {"accepted": 256}, "restored_duplicate_observations": 512, "restored_quarantine_rows": 0},
+  "clickhouse_reconciliation": {"orders": 86, "payments": 86, "inventory": 84, "items": 86, "revenue_by_currency": {"EUR": "2308.38", "GBP": "2171.39", "USD": "1995.90"}, "recovery_duration_ms": 47279, "unique_order_keys": true, "lineage_verified": true, "serving_activation_safe": true},
+  "negative_tests": {"corrupt_postgres_checksum_detected": true, "missing_minio_object_rejected": true, "invalid_kafka_backup_rejected": true, "nonempty_minio_destination_rejected": true, "interrupted_warehouse_pointer_unchanged": true, "repeated_recovery_idempotent": true},
+  "limitations": ["PostgreSQL restore wall time was not instrumented by the existing pg_dump utility.", "This is a single-broker laboratory recovery; Kafka replication and production retention are not demonstrated.", "Spark checkpoints were intentionally not restored; Bronze/Silver must be replayed or selected from verified objects.", "The source and destination were coordinated by operator ordering, not an atomic distributed snapshot."]
+}
