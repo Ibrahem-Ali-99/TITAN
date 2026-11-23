@@ -1,0 +1,7 @@
+services:
+  dagster-daemon:
+    # Explicit local-development opt-in. The Docker socket grants root-equivalent
+    # control over the Docker daemon; never include this override in protected or
+    # shared deployments.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

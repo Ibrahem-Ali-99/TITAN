@@ -44,7 +44,13 @@ $env:DAGSTER_HOME = (Resolve-Path "pipelines/dagster/home")
 uv run --group orchestration dagster-daemon run -w pipelines/dagster/workspace.yaml
 ```
 
-`docker compose --profile orchestration up -d dagster-daemon` starts the same daemon in Compose. The container needs the Docker socket so a scheduled run can launch Spark. The manual command above is enough for a local publication.
+`docker compose --profile orchestration up -d dagster-daemon` starts the daemon without Docker daemon access. This is the protected/default Compose posture and is suitable only for schedules whose Spark execution is provided outside the daemon. The current Dagster assets launch Spark through Compose, so the supported workstation command is an explicit local-only opt-in:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dagster-local.yml --profile orchestration up -d dagster-daemon
+```
+
+That override mounts `/var/run/docker.sock` and gives the daemon root-equivalent Docker control. Never use it for a shared, hosted, or production-like deployment. The manual host `uv run --group orchestration dagster-daemon ...` path remains available and avoids the socket when Spark is launched separately by the operator.
 
 A scheduled run loads the latest Silver version. The promote step refuses a candidate older than the current Silver snapshot or the current warehouse publication.
 

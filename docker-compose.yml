@@ -378,7 +378,6 @@ services:
       - ./pipelines:/app/pipelines
       - ./warehouse:/app/warehouse
       - dagster_home:/var/lib/titan/dagster
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
