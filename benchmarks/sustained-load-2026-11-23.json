@@ -1,0 +1,748 @@
+{
+  "measured_at": "2026-11-23T13:12:10.322918+00:00",
+  "api": "http://localhost:28000",
+  "bootstrap": "localhost:29092",
+  "rates": [
+    10.0,
+    50.0,
+    100.0
+  ],
+  "duration_seconds": 10.0,
+  "phases": [
+    {
+      "phase": 0,
+      "target_rate_per_second": 10.0,
+      "duration_seconds": 10.0,
+      "attempted": 100,
+      "acknowledged": 100,
+      "producer_elapsed_seconds": 10.000626,
+      "ack_latency_seconds": {
+        "count": 100,
+        "p50": 0.042665,
+        "p95": 0.046818,
+        "p99": 0.04905
+      },
+      "persisted_delta": 70,
+      "persistence_wait_seconds": 90.136449,
+      "dispositions_before": {
+        "commerce_events": 574,
+        "quarantine": 1,
+        "accepted": 573,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "dispositions_after": {
+        "commerce_events": 644,
+        "quarantine": 1,
+        "accepted": 643,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "api_stats_before": {
+        "persisted_events": 574,
+        "persisted_order_created_events": 218,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 576,
+        "logical_orders": 217,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 1,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T12:30:41.346256Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "api_stats_after": {
+        "persisted_events": 644,
+        "persisted_order_created_events": 288,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 696,
+        "logical_orders": 287,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 51,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T13:12:20.688589Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          },
+          {
+            "minute": "2026-11-23T13:12:00Z",
+            "persisted_events": 70
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "monitoring_before": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T12:30:41.346256Z",
+            "age_seconds": 2489,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2398,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 1961,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "monitoring_after": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T13:12:20.688589Z",
+            "age_seconds": 90,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2499,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 2062,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "lag_samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "max_sampled_lag": 0,
+      "lag_recovered_to": 0
+    },
+    {
+      "phase": 1,
+      "target_rate_per_second": 50.0,
+      "duration_seconds": 10.0,
+      "attempted": 500,
+      "acknowledged": 500,
+      "producer_elapsed_seconds": 23.155785,
+      "ack_latency_seconds": {
+        "count": 500,
+        "p50": 0.044068,
+        "p95": 0.048206,
+        "p99": 0.049505
+      },
+      "persisted_delta": 500,
+      "persistence_wait_seconds": 0.032717,
+      "dispositions_before": {
+        "commerce_events": 644,
+        "quarantine": 1,
+        "accepted": 643,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "dispositions_after": {
+        "commerce_events": 1144,
+        "quarantine": 1,
+        "accepted": 1143,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "api_stats_before": {
+        "persisted_events": 644,
+        "persisted_order_created_events": 288,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 696,
+        "logical_orders": 287,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 51,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T13:12:20.688589Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          },
+          {
+            "minute": "2026-11-23T13:12:00Z",
+            "persisted_events": 70
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "api_stats_after": {
+        "persisted_events": 1144,
+        "persisted_order_created_events": 788,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 1196,
+        "logical_orders": 787,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 51,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T13:14:14.344242Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          },
+          {
+            "minute": "2026-11-23T13:12:00Z",
+            "persisted_events": 70
+          },
+          {
+            "minute": "2026-11-23T13:13:00Z",
+            "persisted_events": 183
+          },
+          {
+            "minute": "2026-11-23T13:14:00Z",
+            "persisted_events": 317
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "monitoring_before": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T13:12:20.688589Z",
+            "age_seconds": 90,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2499,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 2062,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "monitoring_after": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T13:14:14.344242Z",
+            "age_seconds": 0,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2522,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 2085,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "lag_samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "max_sampled_lag": 1,
+      "lag_recovered_to": 0
+    },
+    {
+      "phase": 2,
+      "target_rate_per_second": 100.0,
+      "duration_seconds": 10.0,
+      "attempted": 1000,
+      "acknowledged": 1000,
+      "producer_elapsed_seconds": 10.000566,
+      "ack_latency_seconds": {
+        "count": 1000,
+        "p50": 0.000879,
+        "p95": 0.001314,
+        "p99": 0.002395
+      },
+      "persisted_delta": 1000,
+      "persistence_wait_seconds": 0.010826,
+      "dispositions_before": {
+        "commerce_events": 1144,
+        "quarantine": 1,
+        "accepted": 1143,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "dispositions_after": {
+        "commerce_events": 2144,
+        "quarantine": 1,
+        "accepted": 2143,
+        "conflict": 1,
+        "duplicate_operation": 0
+      },
+      "api_stats_before": {
+        "persisted_events": 1144,
+        "persisted_order_created_events": 788,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 1196,
+        "logical_orders": 787,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 51,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T13:14:14.344242Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          },
+          {
+            "minute": "2026-11-23T13:12:00Z",
+            "persisted_events": 70
+          },
+          {
+            "minute": "2026-11-23T13:13:00Z",
+            "persisted_events": 183
+          },
+          {
+            "minute": "2026-11-23T13:14:00Z",
+            "persisted_events": 317
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "api_stats_after": {
+        "persisted_events": 2144,
+        "persisted_order_created_events": 1788,
+        "quarantined_records": 1,
+        "kafka_consumed_events": 2196,
+        "logical_orders": 1787,
+        "order_conflicts": 1,
+        "duplicate_operations": 0,
+        "duplicate_deliveries": 51,
+        "accepted_payments": 187,
+        "payment_conflicts": 0,
+        "inventory_updates": 169,
+        "rest_events_published": 5,
+        "rest_events_rejected": 0,
+        "csv_rows_accepted": 0,
+        "csv_rows_rejected": 0,
+        "csv_rows_publish_failed": 0,
+        "replays_published": 0,
+        "replays_refused": 0,
+        "most_recent_ingested_at": "2026-11-23T13:14:24.594050Z",
+        "most_recent_error_at": "2026-11-22T21:42:49.172678Z",
+        "recent_activity": [
+          {
+            "minute": "2026-11-23T12:30:00Z",
+            "persisted_events": 30
+          },
+          {
+            "minute": "2026-11-23T13:12:00Z",
+            "persisted_events": 70
+          },
+          {
+            "minute": "2026-11-23T13:13:00Z",
+            "persisted_events": 183
+          },
+          {
+            "minute": "2026-11-23T13:14:00Z",
+            "persisted_events": 1317
+          }
+        ],
+        "activity_window_minutes": 60,
+        "metric_definitions": {
+          "persisted_events": "Count of rows in commerce_events. This is not Kafka broker throughput.",
+          "persisted_order_created_events": "Count of commerce_events rows whose event_type is order_created, including conflicts and duplicate operations.",
+          "quarantined_records": "Invalid Kafka records stored in ingestion_quarantine. They were not applied as business events.",
+          "kafka_consumed_events": "persisted_events + quarantined_records + duplicate_deliveries. Numerator is durable consumer outcomes. Denominator is not used. Scope is this PostgreSQL database. This is not broker throughput.",
+          "logical_orders": "order_created rows whose disposition is accepted. Conflicts and duplicate operations are excluded so they are not extra orders.",
+          "order_conflicts": "order_created rows stored as evidence with disposition conflict.",
+          "duplicate_operations": "Rows whose payload matches an already accepted business key but whose event_id is new.",
+          "duplicate_deliveries": "ingestion_observations rows for a repeated event_id. One row per Kafka position, so a retry of the same position does not increase the count.",
+          "accepted_payments": "payment_completed rows with disposition accepted.",
+          "payment_conflicts": "payment_completed rows with disposition conflict.",
+          "inventory_updates": "inventory_updated rows. Each new event_id is a state change.",
+          "rest_events_published": "source_submissions with channel rest and status published. Kafka acknowledgement, not PostgreSQL persistence.",
+          "rest_events_rejected": "source_submissions with channel rest and status rejected.",
+          "csv_rows_accepted": "csv_import_rows with status published. Kafka acknowledgement only.",
+          "csv_rows_rejected": "csv_import_rows that failed validation and were not published.",
+          "csv_rows_publish_failed": "csv_import_rows whose broker acknowledgement failed.",
+          "replays_published": "replay_attempts whose outcome is published. Persistence is separate.",
+          "replays_refused": "replay_attempts refused because the record cannot be replayed as-is.",
+          "most_recent_ingested_at": "Latest ingested_at among persisted commerce events, or null when the table is empty. This is database write time, not the business occurred_at.",
+          "most_recent_error_at": "Latest quarantine received_at or failed source submission time. Null when there are none.",
+          "recent_activity": "Persisted commerce events bucketed by the UTC minute of ingested_at over the last 60 minutes. Minutes with zero events are omitted. This is not Kafka throughput."
+        }
+      },
+      "monitoring_before": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T13:14:14.344242Z",
+            "age_seconds": 0,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2522,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 2085,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "monitoring_after": {
+        "freshness": [
+          {
+            "stage": "ingestion",
+            "observed_at": "2026-11-23T13:14:24.594050Z",
+            "age_seconds": 0,
+            "detail": "most recent ingested_at, not occurred_at"
+          },
+          {
+            "stage": "silver",
+            "observed_at": "2026-11-23T12:32:11.513751Z",
+            "age_seconds": 2533,
+            "detail": "latest published Silver finished_at"
+          },
+          {
+            "stage": "warehouse",
+            "observed_at": "2026-11-23T12:39:28.556295Z",
+            "age_seconds": 2096,
+            "detail": "latest published warehouse finished_at"
+          }
+        ],
+        "ingestion_lag": {
+          "consumer_group": "titan-ingestion",
+          "available": true,
+          "total_lag": 0,
+          "detail": "sum of high watermark minus committed offset; not Spark checkpoint lag"
+        },
+        "spark_progress": "succeeded at 2026-11-23T12:31:39.273520+00:00 offsets {\"titan.commerce.order-events\":{\"0\":72,\"1\":68,\"2\":80},\"titan.commerce.payment-events\":{\"0\":53,\"1\":70,\"2\":64},\"titan.commerce.inventory-events\":{\"0\":57,\"1\":84,\"2\":28}}",
+        "latest_failure": "warehouse_load: dbt build --select path:models/serving failed: \u001b[0m12:32:46  [\u001b[31mERROR\u001b[0m]: Encountered an error:\n[Errno 13] Permission denied: 'D:\\\\TITAN\\\\warehouse\\\\dbt\\\\logs\\\\dbt.log'\n\u001b[0m12:32:46  Traceback (most recent call last):\n  File \"D:\\TITAN\\.venv\\Lib\\site-packages\\dbt\\cli\\requires.py\", line 198, in w",
+        "model_serving": "hist_gradient_boosting",
+        "training_publication_id": "82172430-e0a9-477a-9a5d-f66c1362cb2f",
+        "admin_auth": "token"
+      },
+      "lag_samples": [
+        0,
+        10,
+        1,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "max_sampled_lag": 10,
+      "lag_recovered_to": 0
+    }
+  ]
+}

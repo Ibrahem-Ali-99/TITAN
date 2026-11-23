@@ -1,0 +1,14 @@
+{
+  "measured_at": "2026-11-23",
+  "project": "titan-clone",
+  "rates_per_second": [10, 50, 100],
+  "duration_seconds_per_phase": 10,
+  "phases": [
+    {"rate": 10, "attempted": 100, "acknowledged": 100, "persisted_delta_within_timeout": 70, "ack_p50_ms": 42.665, "ack_p95_ms": 46.818, "ack_p99_ms": 49.05, "max_lag": 0, "final_lag": 0},
+    {"rate": 50, "attempted": 500, "acknowledged": 500, "persisted_delta": 500, "ack_p50_ms": 44.068, "ack_p95_ms": 48.206, "ack_p99_ms": 49.505, "max_lag": 1, "final_lag": 0},
+    {"rate": 100, "attempted": 1000, "acknowledged": 1000, "persisted_delta": 1000, "ack_p50_ms": 0.879, "ack_p95_ms": 1.314, "ack_p99_ms": 2.395, "max_lag": 1, "final_lag": 0}
+  ],
+  "downstream_seconds": {"bronze": 20.405, "silver": 15.045, "warehouse_first_success": 16.309, "warehouse_final_republish": 18.557},
+  "final_correctness": {"persisted_events": 2145, "durable_consumer_outcomes": 2198, "quarantined": 1, "order_conflicts": 1, "duplicate_operations": 0, "duplicate_deliveries": 52, "logical_orders": 1788, "lag": 0},
+  "recommendation": "No production optimization justified; repeat with longer phases and peak resource sampling before capacity claims."
+}
