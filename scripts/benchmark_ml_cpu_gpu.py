@@ -18,9 +18,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import joblib  # type: ignore[import-untyped]
+import joblib
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingRegressor  # type: ignore[import-untyped]
+from sklearn.ensemble import HistGradientBoostingRegressor
 
 ROOT = Path(__file__).resolve().parents[1]
 CPU_PARAMS = {

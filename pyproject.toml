@@ -153,3 +153,9 @@ ignore_missing_imports = true
 module = ["pyarrow", "pyarrow.*"]
 follow_imports = "skip"
 ignore_missing_imports = true
+
+# The standalone ML benchmark is optional and its dependencies are installed
+# only in the orchestration environment, not in the default CI typecheck job.
+[[tool.mypy.overrides]]
+module = ["joblib", "numpy", "numpy.*", "sklearn", "sklearn.*"]
+ignore_missing_imports = true
