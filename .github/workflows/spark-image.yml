@@ -6,6 +6,8 @@ on:
     paths:
       - infrastructure/docker/spark.Dockerfile
       - pipelines/spark/**
+      - .github/docker-compose.full-pipeline.yml
+      - .github/workflows/full-pipeline-ci.yml
       - .github/workflows/spark-image.yml
   workflow_dispatch:
 
