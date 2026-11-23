@@ -127,7 +127,7 @@ Not performed: authenticated penetration testing, external network scanning, reg
 
 The API now applies fail-closed bearer authentication through a central middleware. Health endpoints remain public; API reads and metrics require the read scope; ingestion writes require the write scope; and replay/import-resume operations require the admin scope. Token comparison uses `hmac.compare_digest`, missing token configuration returns a closed `503`, invalid credentials return `401`, and valid lower-scope credentials receive `403` for stronger operations.
 
-The Next.js dashboard uses a server-side catch-all proxy. Read/write tokens are injected into the server-side proxy environment and are never exposed as `NEXT_PUBLIC_*` values or accepted from browser headers. Administrative resume is deliberately unavailable through the browser proxy and remains an operator-client action. CI Compose overrides provide disposable read/write/admin tokens.
+The Next.js dashboard uses a server-side catch-all proxy. Read/write tokens are injected into the server-side proxy environment and are never exposed as `NEXT_PUBLIC_*` values or accepted from browser headers. The proxy is explicitly disabled unless `TITAN_DASHBOARD_LOCAL_ONLY=true`, only permits the health-readiness and `/api/v1/` paths, and only permits the `http://api:8000` or localhost upstream. The base Compose project binds both API and dashboard ports to loopback, making this an intentional local-only access boundary rather than an authentication mechanism for network exposure. Administrative resume is deliberately unavailable through the browser proxy and remains an operator-client action. CI Compose overrides provide disposable read/write/admin tokens.
 
 ## Conclusion
 

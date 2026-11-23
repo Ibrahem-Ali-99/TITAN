@@ -233,7 +233,7 @@ services:
       OTEL_ENABLED: ${OTEL_ENABLED:-0}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./packages/store/src:/app/packages/store/src
@@ -268,11 +268,12 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ""
       TITAN_API_INTERNAL_URL: http://api:8000
+      TITAN_DASHBOARD_LOCAL_ONLY: "true"
       TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:-}
       TITAN_WRITE_TOKEN: ${TITAN_WRITE_TOKEN:-}
       WATCHPACK_POLLING: "true"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./apps/web:/app
       - web_node_modules:/app/node_modules

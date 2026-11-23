@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const upstream = process.env.TITAN_API_INTERNAL_URL ?? "http://api:8000";
+const allowedPaths = ["/health/ready", "/api/v1/"];
 
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   return forward(request, context);
@@ -15,7 +16,18 @@ async function forward(
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
-  const target = `${upstream}/${path.join("/")}${request.nextUrl.search}`;
+  if (process.env.TITAN_DASHBOARD_LOCAL_ONLY !== "true") {
+    return NextResponse.json({ detail: "dashboard proxy is disabled outside local mode" }, { status: 503 });
+  }
+  const pathname = `/${path.join("/")}`;
+  if (!allowedPaths.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) {
+    return NextResponse.json({ detail: "dashboard path is not allowed" }, { status: 404 });
+  }
+  const upstreamUrl = new URL(upstream);
+  if (upstreamUrl.protocol !== "http:" || !["api", "localhost"].includes(upstreamUrl.hostname)) {
+    return NextResponse.json({ detail: "dashboard upstream is not allowed" }, { status: 503 });
+  }
+  const target = `${upstreamUrl.origin}${pathname}${request.nextUrl.search}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("authorization");

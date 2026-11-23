@@ -34,6 +34,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
 
 def required_scope(path: str, method: str) -> str | None:
+    if path in {"/health/live", "/health/ready"}:
+        return None
+    if path in {"/docs", "/redoc", "/openapi.json"}:
+        return "read"
     if path == "/metrics" or path.startswith("/api/v1/"):
         if method == "POST" and (path.endswith("/publish") or path.endswith("/replays")):
             return "admin"
