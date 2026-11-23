@@ -7,7 +7,9 @@ from starlette.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)
-def _api_test_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+def _api_test_credentials(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    if request.node.get_closest_marker("integration") is not None:
+        return
     monkeypatch.setenv("TITAN_READ_TOKEN", "unit-read-token")
     monkeypatch.setenv("TITAN_WRITE_TOKEN", "unit-write-token")
     monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin-token")
