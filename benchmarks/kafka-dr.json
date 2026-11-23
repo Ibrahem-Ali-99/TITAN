@@ -1,0 +1,32 @@
+{
+  "status": "locally-validated",
+  "strategy": "bounded logical event-log export and partition-preserving replay",
+  "source_offsets_preserved": false,
+  "records": {
+    "topics": 1,
+    "partitions": 3,
+    "backup_records": 9,
+    "restored_records": 9,
+    "backup_duration_ms": 1607,
+    "verification_duration_ms": 9,
+    "restore_duration_ms": 708,
+    "keys_values_headers_verified": true,
+    "source_positions_unique": true,
+    "offset_mapping_verified": true
+  },
+  "negative_tests": {
+    "corrupt_backup_rejected": true,
+    "incomplete_backup_rejected": true,
+    "nonempty_destination_rejected": true,
+    "source_topic_replay_refused_when_nonempty": true
+  },
+  "replay": {
+    "postgres_idempotency": "not-run; requires ingestion consumer and disposable PostgreSQL",
+    "quarantine_and_conflict": "covered by existing ingestion integration suite"
+  },
+  "limitations": [
+    "Kafka retention and quiescence are required for a consistent export",
+    "consumer group offsets and Spark checkpoints are not restored",
+    "full multi-service disaster recovery is not claimed"
+  ]
+}
