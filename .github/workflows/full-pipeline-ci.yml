@@ -36,7 +36,6 @@ jobs:
       MINIO_ACCESS_KEY: titan
       MINIO_SECRET_KEY: titan_full_ci_password
       LAKE_BUCKET: titan-lake
-      SPARK_IMAGE_TAG: ghcr.io/${{ github.repository_owner }}/titan-spark:4.0.1-${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -53,10 +52,13 @@ jobs:
       - name: Resolve and pull immutable Spark image
         shell: bash
         run: |
-          docker pull "$SPARK_IMAGE_TAG"
-          digest=$(docker image inspect "$SPARK_IMAGE_TAG" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
+          image_owner="${GITHUB_REPOSITORY_OWNER,,}"
+          image_tag="ghcr.io/${image_owner}/titan-spark:4.0.1-${{ github.event.workflow_run.head_sha }}"
+          echo "SPARK_IMAGE_TAG=${image_tag}" >> "$GITHUB_ENV"
+          docker pull "$image_tag"
+          digest=$(docker image inspect "$image_tag" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
           test -n "$digest"
-          echo "TITAN_SPARK_IMAGE=ghcr.io/${{ github.repository_owner }}/titan-spark@$digest" >> "$GITHUB_ENV"
+          echo "TITAN_SPARK_IMAGE=ghcr.io/${image_owner}/titan-spark@$digest" >> "$GITHUB_ENV"
           echo "Using Spark image digest $digest"
       - name: Assert full-pipeline isolation
         shell: bash
