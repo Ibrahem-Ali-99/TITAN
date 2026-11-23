@@ -30,7 +30,6 @@ export function DataSourcesDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [token, setToken] = useState("");
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   const [openImport, setOpenImport] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<{ row_number: number; status: string; error_detail: string | null }[]>([]);
@@ -80,7 +79,7 @@ export function DataSourcesDashboard() {
     setUploadMessage(null);
     const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports`, { method: "POST", body: form });
     const text = await response.text();
-    if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
       setUploadMessage("The import was rejected with 401. CSV upload itself does not use the admin token.");
       return;
     }
@@ -115,17 +114,12 @@ export function DataSourcesDashboard() {
 
   async function resume(importId: string) {
     setResumeMessage(null);
-    if (!token.trim()) {
-      setResumeMessage("Enter the admin token. Resume stays closed without it and was not sent.");
-      return;
-    }
     const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports/${importId}/publish`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token.trim()}` },
     });
     const text = await response.text();
-    if (response.status === 401) {
-      setResumeMessage("Resume returned 401. The admin token is missing on the API or does not match.");
+      if (response.status === 401 || response.status === 403) {
+      setResumeMessage("Resume requires an authenticated operator client and is not available from the browser proxy.");
       return;
     }
     setResumeMessage(response.ok ? "Resume accepted. Rows still marked publishing will be sent to Kafka." : `Resume failed (${response.status}): ${text}`);
@@ -225,14 +219,7 @@ export function DataSourcesDashboard() {
           detail="Resume sends rows still marked publishing. It is an admin call. A missing token is reported as 401 and does not pretend to succeed."
         />
         <label className="mb-3 block text-xs text-zinc-400">
-          Admin token
-          <input
-            className="mt-1 block w-full max-w-sm rounded border border-white/10 bg-[#0e1116] px-2 py-1 text-sm text-zinc-100"
-            type="password"
-            autoComplete="off"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-          />
+          Browser sessions never receive backend bearer tokens. Administrative resume requires an authenticated operator client.
         </label>
         {resumeMessage ? <p className="mb-3 text-xs text-amber-100">{resumeMessage}</p> : null}
         {imports && imports.items.length > 0 ? (

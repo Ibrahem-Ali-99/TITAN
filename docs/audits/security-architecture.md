@@ -123,6 +123,12 @@ Not performed: authenticated penetration testing, external network scanning, reg
 5. Replace the narrow secret scanner with a maintained detector and artifact scan (SEC-06).
 6. Add security regression tests for anonymous API access, default-secret refusal, network binding, archive permissions, and CI permission boundaries.
 
+## Upgrade 5B remediation status
+
+The API now applies fail-closed bearer authentication through a central middleware. Health endpoints remain public; API reads and metrics require the read scope; ingestion writes require the write scope; and replay/import-resume operations require the admin scope. Token comparison uses `hmac.compare_digest`, missing token configuration returns a closed `503`, invalid credentials return `401`, and valid lower-scope credentials receive `403` for stronger operations.
+
+The Next.js dashboard uses a server-side catch-all proxy. Read/write tokens are injected into the server-side proxy environment and are never exposed as `NEXT_PUBLIC_*` values or accepted from browser headers. Administrative resume is deliberately unavailable through the browser proxy and remains an operator-client action. CI Compose overrides provide disposable read/write/admin tokens.
+
 ## Conclusion
 
 The repository is suitable for controlled local development and has meaningful recovery/CI isolation controls. It should be treated as **not approved for network-exposed or production use** until SEC-01 and SEC-02 are addressed and the image, secret, and backup controls are strengthened. This audit intentionally makes no broad infrastructure changes.

@@ -251,7 +251,11 @@ def _database_counts(database: str) -> dict[str, int]:
 
 def _get(api: str, path: str) -> object:
     try:
-        with urllib.request.urlopen(api + path, timeout=5) as response:
+        request = urllib.request.Request(
+            api + path,
+            headers={"Authorization": f"Bearer {os.environ['TITAN_READ_TOKEN']}"},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode())
     except Exception:
         return {}

@@ -27,6 +27,8 @@ services:
       - "18000:8000"
     environment:
       TITAN_ADMIN_TOKEN: e2e-local-admin
+        TITAN_READ_TOKEN: e2e-local-read
+        TITAN_WRITE_TOKEN: e2e-local-write
       CORS_ORIGINS: http://localhost:13000
 
   web:

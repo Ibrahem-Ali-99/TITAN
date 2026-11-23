@@ -34,6 +34,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://titan:titan_full_ci_password@postgres:5432/titan
       TITAN_ADMIN_TOKEN: full-ci-only-token
+      TITAN_READ_TOKEN: full-ci-only-read-token
+      TITAN_WRITE_TOKEN: full-ci-only-write-token
       CLICKHOUSE_PASSWORD: titan_full_ci_password
   lake-init:
     environment:

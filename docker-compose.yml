@@ -222,6 +222,8 @@ services:
       CORS_ORIGINS: http://localhost:3000
       LOG_LEVEL: INFO
       TITAN_ADMIN_TOKEN: ${TITAN_ADMIN_TOKEN:-}
+      TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:-}
+      TITAN_WRITE_TOKEN: ${TITAN_WRITE_TOKEN:-}
       WATCHFILES_FORCE_POLLING: "true"
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
@@ -264,7 +266,10 @@ services:
     logging: *default-logging
     command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_API_BASE_URL: ""
+      TITAN_API_INTERNAL_URL: http://api:8000
+      TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:-}
+      TITAN_WRITE_TOKEN: ${TITAN_WRITE_TOKEN:-}
       WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"

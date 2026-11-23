@@ -67,7 +67,11 @@ def _count_event(session_factory, event_id) -> int:  # type: ignore[no-untyped-d
 
 
 def _get_json(path: str) -> dict[str, object]:
-    with urllib.request.urlopen(f"{_api_base()}{path}", timeout=5) as response:
+    request = urllib.request.Request(
+        f"{_api_base()}{path}",
+        headers={"Authorization": f"Bearer {os.environ['TITAN_READ_TOKEN']}"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
         body = json.loads(response.read().decode("utf-8"))
     if not isinstance(body, dict):
         raise RuntimeError(f"{path} did not return an object")

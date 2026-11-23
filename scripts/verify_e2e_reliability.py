@@ -34,6 +34,8 @@ COMPOSE = [
 ]
 API = "http://localhost:18000"
 ADMIN = "e2e-local-admin"
+READ = "e2e-local-read"
+WRITE = "e2e-local-write"
 EVIDENCE = ROOT / "docs" / "audits" / "e2e-evidence.json"
 CSV_HEADER = (
     "event_type,occurred_at,order_id,customer_id,currency,product_id,quantity,"
@@ -47,6 +49,9 @@ def main() -> None:
     os.environ["DATABASE_URL"] = "postgresql://titan:titan_dev_password@localhost:15435/titan"
     os.environ["KAFKA_BOOTSTRAP_SERVERS"] = "localhost:19092"
     os.environ["API_BASE_URL"] = API
+    os.environ["TITAN_READ_TOKEN"] = READ
+    os.environ["TITAN_WRITE_TOKEN"] = WRITE
+    os.environ["TITAN_ADMIN_TOKEN"] = ADMIN
     os.environ["CLICKHOUSE_HOST"] = "localhost"
     os.environ["CLICKHOUSE_PORT"] = "18123"
     os.environ["CLICKHOUSE_USER"] = "titan"
@@ -673,8 +678,7 @@ def _run(
 
 def _post_json(path: str, payload: dict[str, Any], *, admin: bool = False) -> dict[str, Any]:
     headers = {"Content-Type": "application/json"}
-    if admin:
-        headers["Authorization"] = f"Bearer {ADMIN}"
+    headers["Authorization"] = f"Bearer {ADMIN if admin else WRITE}"
     request = urllib.request.Request(
         API + path,
         data=json.dumps(payload).encode(),
@@ -698,14 +702,22 @@ def _post_csv(raw: bytes) -> dict[str, Any]:
     request = urllib.request.Request(
         API + "/api/v1/ingestion/imports",
         data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Authorization": f"Bearer {WRITE}",
+        },
         method="POST",
     )
     return _read(request)
 
 
 def _get(path: str) -> dict[str, Any]:
-    return _read(urllib.request.Request(API + path))
+    return _read(
+        urllib.request.Request(
+            API + path,
+            headers={"Authorization": f"Bearer {READ}"},
+        )
+    )
 
 
 def _read(request: urllib.request.Request) -> dict[str, Any]:

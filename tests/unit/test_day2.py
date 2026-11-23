@@ -226,11 +226,11 @@ def test_malformed_quarantine_replay_is_refused(monkeypatch: pytest.MonkeyPatch)
         )
         session.commit()
         quarantine_id = session.query(QuarantineRecord.id).one()[0]
-    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin")
+    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin-token")
     response = TestClient(app).post(
         "/api/v1/ingestion/replays",
         json={"quarantine_ids": [quarantine_id]},
-        headers={"Authorization": "Bearer unit-admin"},
+            headers={"Authorization": "Bearer unit-admin-token"},
     )
     assert response.status_code == 200
     item = response.json()["items"][0]
@@ -274,11 +274,11 @@ def test_exact_replay_of_a_persisted_event_does_not_add_a_row(
         )
 
     app.state.publish = publish
-    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin")
+    monkeypatch.setenv("TITAN_ADMIN_TOKEN", "unit-admin-token")
     response = TestClient(app).post(
         "/api/v1/ingestion/replays",
         json={"event_ids": [str(event.event_id)]},
-        headers={"Authorization": "Bearer unit-admin"},
+            headers={"Authorization": "Bearer unit-admin-token"},
     )
     item = response.json()["items"][0]
     assert item["outcome"] == "published"

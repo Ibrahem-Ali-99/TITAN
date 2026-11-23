@@ -110,7 +110,7 @@ def test_replay_is_closed_when_the_admin_token_is_unset(monkeypatch: Any) -> Non
     monkeypatch.delenv("TITAN_ADMIN_TOKEN", raising=False)
     app = create_app(ApiSettings(database_url="sqlite://", cors_origins="http://localhost:3000"))
     denied = TestClient(app).post("/api/v1/ingestion/replays", json={})
-    assert denied.status_code == 401
+    assert denied.status_code == 403
 
 
 def test_replay_requires_a_configured_admin_token() -> None:
@@ -123,7 +123,7 @@ def test_replay_requires_a_configured_admin_token() -> None:
         )
         client = TestClient(app)
         denied = client.post("/api/v1/ingestion/replays", json={})
-        assert denied.status_code == 401
+        assert denied.status_code == 403
         allowed = client.post(
             "/api/v1/ingestion/replays",
             json={},

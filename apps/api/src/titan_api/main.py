@@ -16,6 +16,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from titan_api.auth import AuthenticationMiddleware
 from titan_api.config import ApiSettings
 from titan_api.lake import LakeStatus, load_lake_status
 from titan_api.logging_config import configure_logging
@@ -136,6 +137,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             shutdown_tracing()
 
     app = FastAPI(title="TITAN API", version="0.1.0", lifespan=lifespan)
+    app.add_middleware(AuthenticationMiddleware, settings=resolved)
     origins = [origin.strip() for origin in resolved.cors_origins.split(",") if origin.strip()]
     app.add_middleware(
         CORSMiddleware,
