@@ -28,10 +28,12 @@ jobs:
       SOURCE_POSTGRES_PORT: "35436"
       SOURCE_CLICKHOUSE_PORT: "38124"
       SOURCE_MINIO_PORT: "39100"
+      SOURCE_MINIO_CONSOLE_PORT: "39101"
       DEST_KAFKA_PORT: "39292"
       DEST_POSTGRES_PORT: "35437"
       DEST_CLICKHOUSE_PORT: "38125"
       DEST_MINIO_PORT: "39200"
+      DEST_MINIO_CONSOLE_PORT: "39201"
       PASSWORD: titan_full_ci_password
     steps:
       - uses: actions/checkout@v7
@@ -70,7 +72,7 @@ jobs:
           export TITAN_SPARK_IMAGE
 
           export TITAN_KAFKA_PORT="$SOURCE_KAFKA_PORT" TITAN_POSTGRES_PORT="$SOURCE_POSTGRES_PORT"
-          export TITAN_CLICKHOUSE_PORT="$SOURCE_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$SOURCE_MINIO_PORT"
+          export TITAN_CLICKHOUSE_PORT="$SOURCE_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$SOURCE_MINIO_PORT" TITAN_MINIO_CONSOLE_PORT="$SOURCE_MINIO_CONSOLE_PORT"
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" up --detach --wait kafka postgres clickhouse minio
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm migrate
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm lake-init
@@ -101,7 +103,7 @@ jobs:
           uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka >/dev/null
 
           export POSTGRES_DB=titan_restore POSTGRES_USER=titan POSTGRES_PASSWORD="$PASSWORD"
-          export TITAN_KAFKA_PORT="$DEST_KAFKA_PORT" TITAN_POSTGRES_PORT="$DEST_POSTGRES_PORT" TITAN_CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$DEST_MINIO_PORT"
+          export TITAN_KAFKA_PORT="$DEST_KAFKA_PORT" TITAN_POSTGRES_PORT="$DEST_POSTGRES_PORT" TITAN_CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$DEST_MINIO_PORT" TITAN_MINIO_CONSOLE_PORT="$DEST_MINIO_CONSOLE_PORT"
           "${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" up --detach --wait kafka postgres clickhouse minio
           for topic in titan.commerce.order-events titan.commerce.payment-events titan.commerce.inventory-events \
             restored.titan.commerce.order-events restored.titan.commerce.payment-events restored.titan.commerce.inventory-events; do
