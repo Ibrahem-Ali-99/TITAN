@@ -55,6 +55,11 @@ jobs:
           docker compose --project-name "$COMPOSE_PROJECT_NAME"
           -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
           up --build --detach --wait kafka postgres clickhouse minio
+      - name: Build Spark image
+        run: >-
+          docker compose --project-name "$COMPOSE_PROJECT_NAME"
+          -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml
+          build spark-bronze spark-silver
       - name: Initialize disposable schemas and lake
         run: |
           timeout 180s docker compose --project-name "$COMPOSE_PROJECT_NAME" -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --no-deps --rm migrate
