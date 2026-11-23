@@ -139,6 +139,10 @@ The committed environment template continues to contain local placeholders only.
 
 The base Dagster daemon no longer receives `/var/run/docker.sock`. Static tests and rendered Compose inspection enforce that protected/default orchestration has no Docker API access. The existing Spark-launching asset behavior is preserved only through the explicitly selected `docker-compose.dagster-local.yml` override, which is documented as root-equivalent and local-only. This reduces accidental exposure in protected profiles but does not eliminate the risk when an operator deliberately enables the override. A future host-side Spark launcher remains the path to a complete privilege boundary.
 
+## Upgrade 5E remediation status
+
+All GitHub Actions in the workflows are pinned to verified 40-character upstream commit SHAs. Protected Compose runtime images and Python/Node/uv Docker bases are pinned to recorded immutable digests, while the local Spark build tag remains an explicit documented exception. `scripts/check_supply_chain.py` enforces these policies in CI. Frozen Python and npm lockfile installs, vulnerability scans, checksum-verified Spark connectors, and least-privilege workflow permissions remain in place. Registry provenance/SBOM enforcement and stronger SHA-256 evidence for every Maven artifact remain future work; pinned references alone do not make the platform production-secure.
+
 ## Conclusion
 
 The repository is suitable for controlled local development and has meaningful recovery/CI isolation controls. It should be treated as **not approved for network-exposed or production use** until SEC-01 and SEC-02 are addressed and the image, secret, and backup controls are strengthened. This audit intentionally makes no broad infrastructure changes.

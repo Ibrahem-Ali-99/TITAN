@@ -37,14 +37,14 @@ jobs:
       MINIO_SECRET_KEY: titan_full_ci_password
       LAKE_BUCKET: titan-lake
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           version: "0.12.1"
           python-version: "3.12"
           enable-cache: true
       - run: uv sync --frozen --all-packages
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
