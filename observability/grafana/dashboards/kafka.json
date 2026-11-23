@@ -1,0 +1,43 @@
+{
+  "uid": "titan-kafka",
+  "title": "Kafka ingestion and lag",
+  "tags": ["titan"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Brokers reported",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 0 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "refId": "A", "expr": "kafka_brokers" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Ingestion lag (records)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "refId": "A", "expr": "titan_kafka_consumer_lag_records" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Ingestion consumer lag",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        { "refId": "A", "expr": "titan_kafka_consumer_lag_records", "legendFormat": "records" }
+      ]
+    }
+  ]
+}

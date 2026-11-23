@@ -228,6 +228,8 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-titan}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-titan_dev_password}
       CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-titan}
+      OTEL_ENABLED: ${OTEL_ENABLED:-0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8000:8000"
     volumes:
@@ -393,6 +395,111 @@ services:
         condition: service_healthy
     restart: "no"
 
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.listen-address=0.0.0.0:9090"
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    profiles: ["observability"]
+    environment:
+      GF_SERVER_HTTP_PORT: "3000"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_ADMIN_USER: titan
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-titan_dev_password}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  tempo:
+    image: grafana/tempo:3.1.1
+    profiles: ["observability"]
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.165.0
+    profiles: ["observability"]
+    command: ["--config=/etc/otel/collector.yml"]
+    volumes:
+      - ./observability/otel/collector.yml:/etc/otel/collector.yml:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.21.1
+    profiles: ["observability"]
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=disable
+    command:
+      - "--no-collector.stat_statements"
+      - "--config.file=/etc/postgres_exporter.yml"
+    volumes:
+      - ./observability/postgres/postgres_exporter.yml:/etc/postgres_exporter.yml:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.11.0
+    profiles: ["observability"]
+    command: ["--kafka.server=kafka:19092"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
 volumes:
   kafka_data:
   postgres_data:
@@ -401,3 +508,6 @@ volumes:
   spark_checkpoints:
   web_node_modules:
   dagster_home:
+  prometheus_data:
+  grafana_data:
+  tempo_data:

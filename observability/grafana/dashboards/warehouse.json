@@ -1,0 +1,37 @@
+{
+  "uid": "titan-warehouse",
+  "title": "Warehouse publication readiness",
+  "tags": ["titan"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Serving publication ready",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 0 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "refId": "A", "expr": "titan_warehouse_ready" }]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Publication jobs failed",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "decimals": 0 } },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "titan_pipeline_latest_failed{job=~\"quality_gate|analytics_ready|warehouse_models|warehouse_load|clickhouse_load\"}",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    }
+  ]
+}

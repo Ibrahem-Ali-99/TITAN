@@ -1,0 +1,58 @@
+groups:
+  - name: titan
+    rules:
+      - alert: TitanApiDown
+        expr: up{job="titan-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The TITAN API metrics scrape is down.
+
+      - alert: TitanWarehouseNotReady
+        expr: titan_warehouse_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: The serving warehouse publication is not ready.
+
+      - alert: TitanDataStale
+        expr: titan_warehouse_freshness_seconds > 21600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: The published warehouse is older than 6 hours.
+
+      - alert: TitanConsumerLag
+        expr: titan_kafka_lag_measured == 1 and titan_kafka_consumer_lag_records > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Ingestion consumer lag has stayed above 100 records.
+
+      - alert: TitanPublicationFailed
+        expr: titan_pipeline_latest_failed{job=~"quality_gate|analytics_ready|warehouse_models"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The newest publication attempt for a blocking job failed.
+
+      - alert: TitanQualityFailed
+        expr: titan_quality_latest_failed == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The latest quality run failed and was not an injected test.
+
+      - alert: TitanPostgresExporterDown
+        expr: up{job="postgres"} == 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: The Postgres exporter is not being scraped.

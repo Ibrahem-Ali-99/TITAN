@@ -13,3 +13,5 @@ class ApiSettings(BaseSettings):
     clickhouse_user: str = "titan"
     clickhouse_password: str = "titan_dev_password"
     clickhouse_database: str = "titan"
+    otel_enabled: bool = False
+    otel_exporter_otlp_endpoint: str = ""

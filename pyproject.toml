@@ -91,6 +91,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/api/src/titan_api/main.py" = ["B008"]
+"apps/api/src/titan_api/metrics.py" = ["B008"]
 "apps/api/src/titan_api/routes.py" = ["B008"]
 # The Spark image runs CPython 3.10, which has no datetime.UTC.
 "pipelines/spark/**/*.py" = ["UP017"]

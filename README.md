@@ -129,6 +129,16 @@ uv run python scripts/demo_day7.py
 
 The script adds one order to a warehouse that is already ready and leaves the serving forecast in place. Walkthrough: [DEMO.md](DEMO.md). Narration: [docs/portfolio/demo-script.md](docs/portfolio/demo-script.md).
 
+## Observability
+
+The observability profile is optional. `docker compose up -d` does not start it.
+
+```powershell
+docker compose --profile observability up -d
+```
+
+Prometheus is http://127.0.0.1:9090. Grafana is http://127.0.0.1:3001, user `titan`, with the same local password placeholder as the databases. Request tracing stays off until `OTEL_ENABLED=1` and the API container is recreated. The Next.js Monitoring page is unchanged. Setup, metrics, alerts, and the verification record are in [docs/observability.md](docs/observability.md).
+
 ## Evidence
 
 Each figure names the run that produced it.
@@ -199,6 +209,7 @@ The checks show that this path can classify events, recover a killed Spark batch
 | Dagster daemon off by default. The profile mounts the Docker socket so scheduled jobs can launch Spark | An unattended production scheduler |
 | MinIO community image running as `user: "0:0"` so a named volume can initialize | A production object store or a hardened image |
 | One 5,000-record producer-ack sample and a 10-call API latency sample | Capacity, cost, or a soak test |
+| Optional localhost Prometheus, Grafana, and trace profile | A production on-call system or a measured SLO |
 | Synthetic customers, products, and demand | A real catalog or a measured business result |
 | Hosted CI green for the commits named above | A release sign-off. The audits remain conditional on the gates they mark unverified |
 
@@ -232,5 +243,6 @@ Longer notes: [docs/audits/final-engineering-audit.md](docs/audits/final-enginee
 | [docs/reliability.md](docs/reliability.md) | Recovery and the local admin token |
 | [docs/money-policy.md](docs/money-policy.md) | Currency and decimal rules |
 | [docs/local-infrastructure.md](docs/local-infrastructure.md) | Ports, isolated checkout, checks, troubleshooting |
+| [docs/observability.md](docs/observability.md) | Prometheus, Grafana, traces, and alerts |
 | [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md) | Capture conditions for the eight frames |
 | [docs/audits](docs/audits) | Executed audits and their verdicts |

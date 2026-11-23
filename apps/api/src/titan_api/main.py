@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from titan_api.config import ApiSettings
 from titan_api.lake import LakeStatus, load_lake_status
 from titan_api.logging_config import configure_logging
+from titan_api.metrics import install_metrics
 from titan_api.platform import (
     AnomaliesResponse,
     FindingsResponse,
@@ -43,6 +44,7 @@ from titan_api.platform import (
 from titan_api.queries import StatsUnavailable, load_ingestion_stats, load_recent_events
 from titan_api.routes import register_routes
 from titan_api.schemas import HealthLive, HealthReady, IngestionStats, RecentEventsResponse
+from titan_api.tracing import maybe_enable_tracing
 from titan_api.warehouse import (
     AnalyticsOverview,
     OrdersResponse,
@@ -122,7 +124,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         allow_origins=origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type"],
+        allow_headers=["Accept", "Content-Type", "traceparent", "tracestate"],
     )
     engine = create_db_engine(resolved.database_url)
     app.state.settings = resolved
@@ -167,6 +169,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 detail="postgres is not ready: schema is not migrated",
             )
         return HealthReady(status="ready", checks={"postgres": "ok"})
+
+    install_metrics(app, resolved, get_session)
 
     @app.get("/api/v1/ingestion/stats", response_model=IngestionStats)
     def ingestion_stats(session: Session = Depends(get_session)) -> IngestionStats:
@@ -310,4 +314,5 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 detail=f"recent events are unavailable: {exc}",
             ) from exc
 
+    maybe_enable_tracing(app, resolved)
     return app
