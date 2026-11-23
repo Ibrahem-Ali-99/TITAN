@@ -1,38 +1,18 @@
-# Spark 4.0.1, Java 21, Hadoop 3.4.1.
-# Spark 4.0.1 requires Java 17 or 21 and is built for Hadoop 3.4.1.
-# hadoop-aws 3.4.1 is the matching S3A client. Its compile dependency is
-# software.amazon.awssdk:bundle 2.24.6. The hadoop3 binary omits the Kafka
-# connector, so the image adds the Spark 4.0.1 POM compile jars by SHA-1.
-FROM eclipse-temurin:21-jdk-jammy
+# TITAN derives from the Apache-maintained Spark 4.0.1 image, pinned to its
+# linux/amd64 manifest digest. It contains Spark 4.0.1, Scala 2.13, Python 3
+# and Java 17. Only TITAN's missing S3A, Kafka, JDBC and pool jars are added.
+FROM apache/spark@sha256:989054f2e005c50d4a2f78bd054b0a32de8ee7619a5658e5f4280c61241c9f6d
 
 ARG SPARK_VERSION=4.0.1
 ARG HADOOP_VERSION=3.4.1
 ARG AWS_SDK_BUNDLE=2.24.6
 ARG POSTGRES_JDBC=42.7.7
 
+USER root
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates curl python3 python3-pip \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && apt-get install -y --no-install-recommends ca-certificates curl python3-pip \
     && rm -rf /var/lib/apt/lists/*
-
-COPY .ci-cache/spark/ /opt/spark-cache/
-
-RUN if [ -f "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz" ]; then \
-        cp "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz" "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz"; \
-        cp "/opt/spark-cache/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512" /tmp/spark.sha512; \
-    else \
-        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 900 --progress-bar \
-            -o "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-            "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz"; \
-        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 60 \
-            -o /tmp/spark.sha512 \
-            "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz.sha512"; \
-    fi \
-    && cd /tmp && sha512sum -c spark.sha512 \
-    && tar -xzf "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" -C /opt \
-    && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" /opt/spark \
-    && rm "/tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz" /tmp/spark.sha512
 
 # Compile-scoped Kafka connector artifacts. spark-sql and Hadoop stay provided
 # by the Spark distribution. lz4, snappy, and slf4j are already in that binary.
@@ -43,7 +23,7 @@ RUN set -eu \
     && download() { \
         file="$1"; \
         url="$2"; \
-        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 --progress-bar -o "/opt/spark/jars/${file}" "${url}"; \
+        curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 600 --continue-at - --progress-bar -o "/opt/spark/jars/${file}" "${url}"; \
         curl --fail --show-error --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 30 -o "/tmp/${file}.sha1" "${url}.sha1"; \
         expected="$(tr -d '[:space:]' < "/tmp/${file}.sha1" | cut -c1-40)"; \
         echo "${expected}  /opt/spark/jars/${file}" | sha1sum -c -; \

@@ -38,18 +38,22 @@ The image is published to GHCR as
 `ghcr.io/<owner>/titan-spark:4.0.1-<source-commit>`. The integration workflow
 pulls that tag once, resolves its registry-provided immutable digest, and
 passes only `ghcr.io/<owner>/titan-spark@sha256:<digest>` to Compose. The image
-is built from the pinned Eclipse Temurin 21 base, Spark 4.0.1, Hadoop 3.4.1,
+is built from the Apache-maintained Spark 4.0.1 Scala 2.13 Python 3 Java 17 base,
+Spark 4.0.1, Hadoop 3.4.1,
 AWS SDK bundle 2.24.6, Kafka 3.9.1, PostgreSQL JDBC 42.7.7 and Commons Pool 2.12.0.
-Spark's archive SHA-512 and every Maven artifact SHA-1 are verified during the
-image build. GHCR publishing uses only `contents: read` and `packages: write`;
-the integration workflow has `contents: read` and `packages: read`.
+The pinned base digest and every Maven artifact SHA-1 are verified by the
+image reference/build. GHCR publishing uses only `contents: read` and `packages: write`;
+the integration workflow has `contents: read` and `packages: read`. The image
+uses the Apache-maintained Spark 4.0.1 Scala 2.13 Python 3 Java 17 base at
+digest `sha256:989054f2e005c50d4a2f78bd054b0a32de8ee7619a5658e5f4280c61241c9f6d`.
+No Spark distribution download occurs during the image build; only the
+version-pinned connector jars are fetched and SHA-1 verified from Maven
+Central.
 
-Rebuild locally with a populated `.ci-cache/spark` directory containing the
-Spark tarball and matching `.sha512` file, then run:
+Rebuild locally with:
 
 ```powershell
 docker buildx build --load --tag titan-spark:4.0.1 --file infrastructure/docker/spark.Dockerfile .
 ```
 
-The cache directory is intentionally ignored and must never be committed.
 The hosted image workflow is the reproducible publishing procedure.
