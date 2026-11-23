@@ -1,0 +1,90 @@
+name: postgres-backup-restore
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/postgres_dr.py
+      - scripts/postgres_dr_fixture.py
+      - packages/store/alembic/**
+      - .github/workflows/postgres-backup-restore.yml
+  pull_request:
+    paths:
+      - scripts/postgres_dr.py
+      - scripts/postgres_dr_fixture.py
+      - packages/store/alembic/**
+      - .github/workflows/postgres-backup-restore.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.7-alpine3.23
+        env:
+          POSTGRES_USER: titan_dr
+          POSTGRES_PASSWORD: titan_dr_ci_password
+          POSTGRES_DB: titan
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U titan_dr -d titan"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      DATABASE_URL: postgresql://titan_dr:titan_dr_ci_password@127.0.0.1:55432/titan
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Apply migrations and seed fixture
+        shell: bash
+        run: |
+          (cd packages/store && uv run alembic upgrade head)
+          uv run python scripts/postgres_dr_fixture.py
+      - name: Backup, verify, restore and reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/titan-dr-backup"
+          restore_db="postgresql://titan_dr:titan_dr_ci_password@127.0.0.1:55432/titan_restore"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE titan_restore'
+          uv run python scripts/postgres_dr.py backup --dsn "$DATABASE_URL" --database titan --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
+          uv run python scripts/postgres_dr.py verify --backup "$backup_dir"
+          uv run python scripts/postgres_dr.py restore --backup "$backup_dir" --dsn "$restore_db" > "$RUNNER_TEMP/restore.json"
+          python - <<'PY'
+          import json, os
+          result = json.load(open(os.path.join(os.environ['RUNNER_TEMP'], 'restore.json'), encoding='utf-8'))
+          assert result['integrity']['event_count'] == 3
+          assert result['integrity']['dispositions'] == {'accepted': 3}
+          assert result['integrity']['duplicate_kafka_positions'] == 0
+          assert result['integrity']['currency_revenue'] == {'EUR': '12.50', 'GBP': '20.00', 'USD': '31.25'}
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Negative checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/titan-dr-backup"
+          restore_db="postgresql://titan_dr:titan_dr_ci_password@127.0.0.1:55432/titan_restore"
+          cp "$backup_dir/titan-postgres.dump" "$RUNNER_TEMP/corrupt.dump"
+          printf 'corrupt' >> "$RUNNER_TEMP/corrupt.dump"
+          cp "$backup_dir/manifest.json" "$RUNNER_TEMP/corrupt-manifest.json"
+          sed -i "s#titan-postgres.dump#corrupt.dump#" "$RUNNER_TEMP/corrupt-manifest.json"
+          mkdir "$RUNNER_TEMP/corrupt-backup"
+          mv "$RUNNER_TEMP/corrupt.dump" "$RUNNER_TEMP/corrupt-backup/titan-postgres.dump"
+          mv "$RUNNER_TEMP/corrupt-manifest.json" "$RUNNER_TEMP/corrupt-backup/manifest.json"
+          if uv run python scripts/postgres_dr.py verify --backup "$RUNNER_TEMP/corrupt-backup"; then
+            echo 'corrupt backup was accepted' >&2
+            exit 1
+          fi
+          if uv run python scripts/postgres_dr.py restore --backup "$backup_dir" --dsn "$restore_db"; then
+            echo 'non-empty destination was accepted' >&2
+            exit 1
+          fi

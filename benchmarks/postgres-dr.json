@@ -1,0 +1,21 @@
+{
+  "phase": "4A",
+  "status": "local-verified",
+  "scope": "postgresql-logical-backup-restore-only",
+  "generated_by": "scripts/postgres_dr.py",
+  "postgres_image": "postgres:18.7-alpine3.23",
+  "backup_duration_ms": 210,
+  "restore_duration_ms": 206,
+  "verification_duration_ms": 98,
+  "archive_bytes": 38447,
+  "migration_version": "0006_serving_strategy",
+  "event_count": 3,
+  "ingestion_observations": 1,
+  "quarantine_count": 1,
+  "currency_revenue": {"EUR": "12.50", "GBP": "20.00", "USD": "31.25"},
+  "negative_tests": {
+    "corrupt_archive_detected": "ci",
+    "nonempty_destination_refused": "ci"
+  },
+  "notes": "Native Windows pg_dump/pg_restore were unavailable; local timing used Dockerized PostgreSQL client commands against a disposable volume-less container. The CI workflow exercises the Python wrapper with native Ubuntu PostgreSQL client tools."
+}
