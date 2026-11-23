@@ -32,7 +32,7 @@ jobs:
       DEST_POSTGRES_PORT: "35437"
       DEST_CLICKHOUSE_PORT: "38125"
       DEST_MINIO_PORT: "39200"
-      PASSWORD: titan_coordinated_ci_password
+      PASSWORD: titan_full_ci_password
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
