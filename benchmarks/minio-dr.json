@@ -3,7 +3,7 @@
   "status": "local-verified",
   "scope": "minio-bronze-silver-object-backup-restore-only",
   "generated_by": "scripts/minio_dr.py",
-  "minio_image": "alpine/minio@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4",
+  "minio_image": "bitnamilegacy/minio@sha256:885b908db7f4b01c3c236d35142a1f8382811f83b01e3c83b2ece595d8ff7608",
   "source_bucket": "titan-lake-dr",
   "destination_bucket": "titan-lake-dr-restore",
   "object_count": 5,

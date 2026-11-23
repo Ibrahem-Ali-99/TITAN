@@ -33,6 +33,12 @@ row counts, event identities, lineage keys, completion-marker behavior,
 corruption rejection, incomplete-backup rejection, and nonempty-destination
 refusal. It never touches the development bucket.
 
+Hosted CI pins `bitnamilegacy/minio` by immutable digest because the former
+development image reference was not pullable by GitHub-hosted runners. The
+replacement was started locally with the same credentials and health probe;
+the image reports MinIO `DEVELOPMENT.2024-10-29T16-01-48Z`. This is a CI-only
+compatibility choice, not a production image recommendation.
+
 This is not complete platform disaster recovery. Kafka offsets, PostgreSQL
 dispositions and checkpoints must be recovered as a coordinated set. A lake
 restore alone must not restart Spark against an incompatible checkpoint or

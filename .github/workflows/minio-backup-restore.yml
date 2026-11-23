@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 10
     services:
       minio:
-        image: alpine/minio@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4
+        image: bitnamilegacy/minio@sha256:885b908db7f4b01c3c236d35142a1f8382811f83b01e3c83b2ece595d8ff7608
         env:
           MINIO_ROOT_USER: titan_dr
           MINIO_ROOT_PASSWORD: titan_dr_ci_password
