@@ -1,6 +1,8 @@
 name: coordinated-disaster-recovery
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
   workflow_run:
     workflows: [Build TITAN Spark image]
@@ -47,12 +49,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          head_sha="${{ github.event.workflow_run.head_sha || github.sha }}"
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark:4.0.1-${head_sha}"
-          docker pull "$image"
-          digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)"
-          test -n "$digest"
-          echo "TITAN_SPARK_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark@$digest" >> "$GITHUB_ENV"
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            head_sha="${{ github.event.workflow_run.head_sha }}"
+            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark:4.0.1-${head_sha}"
+            docker pull "$image"
+            digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)"
+            test -n "$digest"
+            echo "TITAN_SPARK_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark@$digest" >> "$GITHUB_ENV"
+          else
+            echo "TITAN_SPARK_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark@sha256:9bc0ea7950ce86199ec95d0eb578e8fd1d894e0758d9c0cdbb9283b45f45af2c" >> "$GITHUB_ENV"
+          fi
       - name: Restore from verified artifacts
         shell: bash
         run: |
