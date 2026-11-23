@@ -47,16 +47,16 @@ jobs:
       - name: Install Parquet verification dependency
         run: uv pip install --python .venv/bin/python pyarrow==26.0.1
       - name: Seed independent Parquet fixture
-        run: uv run python scripts/minio_dr_fixture.py
+        run: .venv/bin/python scripts/minio_dr_fixture.py
       - name: Backup, verify, restore and reconcile
         shell: bash
         run: |
           set -euo pipefail
           backup_dir="$RUNNER_TEMP/titan-minio-backup"
-          uv run python scripts/minio_dr.py backup --bucket "$LAKE_BUCKET" --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
-          uv run python scripts/minio_dr.py verify --backup "$backup_dir"
-          uv run python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore > "$RUNNER_TEMP/restore.json"
-          python - <<'PY'
+          .venv/bin/python scripts/minio_dr.py backup --bucket "$LAKE_BUCKET" --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
+          .venv/bin/python scripts/minio_dr.py verify --backup "$backup_dir"
+          .venv/bin/python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore > "$RUNNER_TEMP/restore.json"
+          .venv/bin/python - <<'PY'
           import io, json, os
           import pyarrow.parquet as pq
           from minio import Minio
@@ -77,8 +77,8 @@ jobs:
           backup_dir="$RUNNER_TEMP/titan-minio-backup"
           cp -R "$backup_dir" "$RUNNER_TEMP/incomplete"
           rm "$RUNNER_TEMP/incomplete/objects/silver/versions/dr-publication/orders/part-00000.parquet"
-          if uv run python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/incomplete"; then exit 1; fi
+          if .venv/bin/python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/incomplete"; then exit 1; fi
           cp -R "$backup_dir" "$RUNNER_TEMP/corrupt"
           printf corrupt >> "$RUNNER_TEMP/corrupt/objects/bronze/commerce_events/batch_id=7/part-00000.parquet"
-          if uv run python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/corrupt"; then exit 1; fi
-          if uv run python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore; then exit 1; fi
+          if .venv/bin/python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/corrupt"; then exit 1; fi
+          if .venv/bin/python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore; then exit 1; fi
