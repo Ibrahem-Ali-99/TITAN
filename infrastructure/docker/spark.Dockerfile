@@ -14,6 +14,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
 # Compile-scoped Kafka connector artifacts. spark-sql and Hadoop stay provided
 # by the Spark distribution. lz4, snappy, and slf4j are already in that binary.
 ARG KAFKA_CLIENTS=3.9.1
