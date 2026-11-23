@@ -1,0 +1,26 @@
+{
+  "phase": "4B",
+  "status": "local-verified",
+  "scope": "minio-bronze-silver-object-backup-restore-only",
+  "generated_by": "scripts/minio_dr.py",
+  "minio_image": "alpine/minio:RELEASE.2025-10-15T17-29-55Z",
+  "source_bucket": "titan-lake-dr",
+  "destination_bucket": "titan-lake-dr-restore",
+  "object_count": 5,
+  "restored_object_count": 5,
+  "backup_payload_bytes": 2418,
+  "backup_duration_ms": 35,
+  "verification_duration_ms": 16,
+  "restore_duration_ms": 38,
+  "parquet_rows": {"bronze": 2, "silver_orders": 2},
+  "sha256": {
+    "bronze/commerce_events/batch_id=7/part-00000.parquet": "ec64bb71ee83958cfc91a70bd269e3617b86bbf023d5409517a553102f138127",
+    "silver/versions/dr-publication/orders/part-00000.parquet": "d1568e90dd9757939b673fc655b2d453ac5d6174545122c5ff654ea38b8c3f7a"
+  },
+  "negative_tests": {
+    "corrupt_archive_rejected": true,
+    "incomplete_backup_rejected": true,
+    "nonempty_destination_rejected": true
+  },
+  "checkpoint_policy": "Spark checkpoints are local Docker volumes and require coordinated Kafka/PostgreSQL recovery; they are not backed up by this phase."
+}

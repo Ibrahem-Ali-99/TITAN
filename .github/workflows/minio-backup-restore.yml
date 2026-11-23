@@ -1,0 +1,82 @@
+name: minio-backup-restore
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - scripts/minio_dr.py
+      - scripts/minio_dr_fixture.py
+      - .github/workflows/minio-backup-restore.yml
+  pull_request:
+    paths:
+      - scripts/minio_dr.py
+      - scripts/minio_dr_fixture.py
+      - .github/workflows/minio-backup-restore.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      minio:
+        image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+        env:
+          MINIO_ROOT_USER: titan_dr
+          MINIO_ROOT_PASSWORD: titan_dr_ci_password
+        ports: ["19000:9000"]
+        options: >-
+          --user 0:0
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      MINIO_ENDPOINT: 127.0.0.1:19000
+      MINIO_ACCESS_KEY: titan_dr
+      MINIO_SECRET_KEY: titan_dr_ci_password
+      LAKE_BUCKET: titan-lake-dr
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.1"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --all-packages
+      - name: Seed independent Parquet fixture
+        run: uv run python scripts/minio_dr_fixture.py
+      - name: Backup, verify, restore and reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/titan-minio-backup"
+          uv run python scripts/minio_dr.py backup --bucket "$LAKE_BUCKET" --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
+          uv run python scripts/minio_dr.py verify --backup "$backup_dir"
+          uv run python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore > "$RUNNER_TEMP/restore.json"
+          python - <<'PY'
+          import io, json, os
+          import pyarrow.parquet as pq
+          from minio import Minio
+          result = json.load(open(os.path.join(os.environ['RUNNER_TEMP'], 'restore.json'), encoding='utf-8'))
+          assert result['restored_object_count'] == 5
+          client = Minio(os.environ['MINIO_ENDPOINT'], access_key=os.environ['MINIO_ACCESS_KEY'], secret_key=os.environ['MINIO_SECRET_KEY'])
+          keys = sorted(o.object_name for o in client.list_objects('titan-lake-restore', recursive=True))
+          assert keys == ['_titan_restore_complete.json', 'bronze/commerce_events/batch_id=7/_SUCCESS', 'bronze/commerce_events/batch_id=7/part-00000.parquet', 'silver/current/README', 'silver/versions/dr-publication/_SUCCESS', 'silver/versions/dr-publication/orders/part-00000.parquet']
+          for key, expected_rows in [('bronze/commerce_events/batch_id=7/part-00000.parquet', 2), ('silver/versions/dr-publication/orders/part-00000.parquet', 2)]:
+              data = client.get_object('titan-lake-restore', key).read()
+              assert pq.read_table(io.BytesIO(data)).num_rows == expected_rows
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Reject incomplete and corrupt backups
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_dir="$RUNNER_TEMP/titan-minio-backup"
+          cp -R "$backup_dir" "$RUNNER_TEMP/incomplete"
+          rm "$RUNNER_TEMP/incomplete/objects/silver/versions/dr-publication/orders/part-00000.parquet"
+          if uv run python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/incomplete"; then exit 1; fi
+          cp -R "$backup_dir" "$RUNNER_TEMP/corrupt"
+          printf corrupt >> "$RUNNER_TEMP/corrupt/objects/bronze/commerce_events/batch_id=7/part-00000.parquet"
+          if uv run python scripts/minio_dr.py verify --backup "$RUNNER_TEMP/corrupt"; then exit 1; fi
+          if uv run python scripts/minio_dr.py restore --backup "$backup_dir" --destination-bucket titan-lake-restore; then exit 1; fi
