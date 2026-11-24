@@ -6,12 +6,14 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from staging_tool_container import run as run_tool
+
 MINIO_IMAGE = "alpine/minio@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4"
 REQUIRED = ("ca.crt", "minio.crt", "minio.key")
 
 
 def _run(args: list[str]) -> None:
-    subprocess.run(args, check=True, capture_output=True, text=True)
+    run_tool(args)
 
 
 def verify_source(source: Path) -> None:
@@ -30,16 +32,10 @@ def verify_source(source: Path) -> None:
         ]
     )
     _run(["openssl", "x509", "-in", str(source / "minio.crt"), "-checkend", "0", "-noout"])
-    cert_pub = subprocess.run(
-        ["openssl", "x509", "-in", str(source / "minio.crt"), "-pubkey", "-noout"],
-        check=True,
-        capture_output=True,
+    cert_pub = run_tool(
+        ["openssl", "x509", "-in", str(source / "minio.crt"), "-pubkey", "-noout"]
     ).stdout
-    key_pub = subprocess.run(
-        ["openssl", "pkey", "-in", str(source / "minio.key"), "-pubout"],
-        check=True,
-        capture_output=True,
-    ).stdout
+    key_pub = run_tool(["openssl", "pkey", "-in", str(source / "minio.key"), "-pubout"]).stdout
     if cert_pub != key_pub:
         raise ValueError("MinIO certificate and private key do not match")
 
@@ -63,10 +59,11 @@ def seed_volume(source: Path, volume: str) -> None:
             MINIO_IMAGE,
             "-c",
             'set -eu; test -z "$(find /out -mindepth 1 -maxdepth 1 -print -quit)"; '
-            "mkdir -p /out/CAs; cp /in/ca.crt /out/CAs/ca.crt; "
+            "mkdir -p /out/CAs; cp /in/ca.crt /out/CAs/ca.crt; cp /in/ca.crt /out/ca.crt; "
             "cp /in/minio.crt /out/public.crt; cp /in/minio.key /out/private.key; "
             "chown 100:101 /out/private.key; chown 100:101 /out/public.crt; "
-            "chown 100:101 /out/CAs/ca.crt; chmod 644 /out/CAs/ca.crt /out/public.crt; "
+            "chown 100:101 /out/CAs/ca.crt /out/ca.crt; "
+            "chmod 644 /out/CAs/ca.crt /out/ca.crt /out/public.crt; "
             "chmod 600 /out/private.key",
         ]
     )

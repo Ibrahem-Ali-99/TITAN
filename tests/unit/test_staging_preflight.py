@@ -65,7 +65,7 @@ def test_compose_rejects_ports_socket_and_nonstaging_volume() -> None:
     with pytest.raises(ValueError, match="unsafe host bind"):
         validate_compose(socket_config, "titan-staging")
 
-    with pytest.raises(ValueError, match="dedicated titan-staging"):
+    with pytest.raises(ValueError, match="titan-staging"):
         validate_compose({"services": {}, "volumes": {}}, "titan")
 
 

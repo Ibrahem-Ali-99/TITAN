@@ -6,6 +6,8 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from staging_tool_container import run as run_tool
+
 POSTGRES_IMAGE = "postgres@sha256:339a86bf416979bb4d3d2e30a1f9e096e7302564faff4151b804cf53463059d5"
 REQUIRED = ("ca.crt", "postgres.crt", "postgres.key")
 PG_HBA = "\n".join(
@@ -19,7 +21,7 @@ PG_HBA = "\n".join(
 
 
 def _run(args: list[str]) -> None:
-    subprocess.run(args, check=True, capture_output=True, text=True)
+    run_tool(args)
 
 
 def verify_source(source: Path) -> None:
@@ -38,16 +40,10 @@ def verify_source(source: Path) -> None:
         ]
     )
     _run(["openssl", "x509", "-in", str(source / "postgres.crt"), "-checkend", "0", "-noout"])
-    cert_pub = subprocess.run(
-        ["openssl", "x509", "-in", str(source / "postgres.crt"), "-pubkey", "-noout"],
-        check=True,
-        capture_output=True,
+    cert_pub = run_tool(
+        ["openssl", "x509", "-in", str(source / "postgres.crt"), "-pubkey", "-noout"]
     ).stdout
-    key_pub = subprocess.run(
-        ["openssl", "pkey", "-in", str(source / "postgres.key"), "-pubout"],
-        check=True,
-        capture_output=True,
-    ).stdout
+    key_pub = run_tool(["openssl", "pkey", "-in", str(source / "postgres.key"), "-pubout"]).stdout
     if cert_pub != key_pub:
         raise ValueError("PostgreSQL certificate and private key do not match")
 

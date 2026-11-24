@@ -31,18 +31,21 @@ DISALLOWED_PORT_SERVICES = {
     "grafana",
     "tempo",
 }
-EXPECTED_VOLUMES = {
-    "titan-staging-kafka-data",
-    "titan-staging-kafka-tls",
-    "titan-staging-postgres-data",
-    "titan-staging-clickhouse-data",
-    "titan-staging-minio-data",
-    "titan-staging-spark-checkpoints",
-    "titan-staging-web-node-modules",
-    "titan-staging-dagster-home",
-    "titan-staging-prometheus-data",
-    "titan-staging-grafana-data",
-    "titan-staging-tempo-data",
+EXPECTED_VOLUME_SUFFIXES = {
+    "kafka-data",
+    "kafka-tls",
+    "postgres-data",
+    "postgres-tls",
+    "clickhouse-data",
+    "clickhouse-tls",
+    "minio-data",
+    "minio-tls",
+    "spark-checkpoints",
+    "web-node-modules",
+    "dagster-home",
+    "prometheus-data",
+    "grafana-data",
+    "tempo-data",
 }
 
 
@@ -219,8 +222,8 @@ def effective_compose(files: list[Path], project: str) -> dict[str, Any]:
 
 
 def validate_compose(config: dict[str, Any], project: str) -> None:
-    if project != "titan-staging":
-        raise ValueError("staging must use the dedicated titan-staging project")
+    if project != "titan-staging" and not project.startswith("titan-staging-"):
+        raise ValueError("staging must use titan-staging or a titan-staging-* disposable project")
     services = config.get("services", {})
     for service_name in DISALLOWED_PORT_SERVICES:
         if services.get(service_name, {}).get("ports"):
@@ -231,7 +234,8 @@ def validate_compose(config: dict[str, Any], project: str) -> None:
             if "docker.sock" in source or source.startswith(".") or source.startswith("/"):
                 raise ValueError(f"staging has an unsafe host bind mount: {service_name}")
     volumes = {str(value.get("name", "")) for value in config.get("volumes", {}).values()}
-    if not EXPECTED_VOLUMES.issubset(volumes):
+    expected = {f"{project}-{suffix}" for suffix in EXPECTED_VOLUME_SUFFIXES}
+    if not expected.issubset(volumes):
         raise ValueError("staging volume isolation contract is incomplete")
 
 

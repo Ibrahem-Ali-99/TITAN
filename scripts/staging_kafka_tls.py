@@ -9,8 +9,9 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import subprocess
 from pathlib import Path
+
+from staging_tool_container import run as run_tool
 
 KAFKA_IMAGE = "apache/kafka@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f"
 REQUIRED_VOLUME_FILES = (
@@ -26,7 +27,7 @@ REQUIRED_VOLUME_FILES = (
 
 
 def _run(args: list[str]) -> None:
-    subprocess.run(args, check=True, capture_output=True, text=True)
+    run_tool(args)
 
 
 def build_stores(
@@ -157,7 +158,7 @@ def seed_volume(source: Path, volume: str) -> None:
         "/in/client.properties /out/; chown -R 1000:1000 /out; chmod 600 /out/*; "
         "test -f /out/kafka.keystore.jks && test -f /out/kafka.truststore.jks",
     ]
-    subprocess.run(command, check=True, capture_output=True, text=True)
+    run_tool(command)
 
 
 def main() -> int:

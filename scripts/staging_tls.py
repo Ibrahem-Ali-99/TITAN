@@ -15,12 +15,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+from staging_tool_container import run as run_tool
+
 SERVICES = ("kafka", "postgres", "clickhouse", "minio")
 
 
 def _run(*args: str, cwd: Path | None = None) -> str:
-    result = subprocess.run(["openssl", *args], cwd=cwd, check=True, capture_output=True, text=True)
-    return result.stdout
+    result = run_tool(["openssl", *args], cwd=cwd)
+    return result.stdout.decode()
 
 
 def _private(path: Path, *, windows_acl_verified: bool) -> None:
@@ -97,20 +99,16 @@ def _pubkey_digest(path: Path, *, certificate: bool) -> str:
         with tempfile.TemporaryDirectory() as temp:
             pub = Path(temp) / "pub.pem"
             pub.write_text(pem, encoding="ascii")
-            der = subprocess.run(
-                ["openssl", "pkey", "-pubin", "-in", str(pub), "-outform", "DER"],
-                check=True,
-                capture_output=True,
+            der = run_tool(
+                ["openssl", "pkey", "-pubin", "-in", str(pub), "-outform", "DER"], cwd=pub.parent
             ).stdout
     else:
         pem = _run("pkey", "-in", str(path), "-pubout")
         with tempfile.TemporaryDirectory() as temp:
             pub = Path(temp) / "pub.pem"
             pub.write_text(pem, encoding="ascii")
-            der = subprocess.run(
-                ["openssl", "pkey", "-pubin", "-in", str(pub), "-outform", "DER"],
-                check=True,
-                capture_output=True,
+            der = run_tool(
+                ["openssl", "pkey", "-pubin", "-in", str(pub), "-outform", "DER"], cwd=pub.parent
             ).stdout
     return hashlib.sha256(der).hexdigest()
 

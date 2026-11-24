@@ -7,7 +7,7 @@ services:
     ports: !override []
     volumes:
       - minio_data:/data
-      - minio_tls:/home/minio/.minio/certs:ro
+      - minio_tls:/root/.minio/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
   api:

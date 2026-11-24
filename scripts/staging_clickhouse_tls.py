@@ -6,6 +6,8 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from staging_tool_container import run as run_tool
+
 CLICKHOUSE_IMAGE = (
     "clickhouse/clickhouse-server@sha256:"
     "d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7"
@@ -14,7 +16,7 @@ REQUIRED_FILES = ("ca.crt", "clickhouse.crt", "clickhouse.key", "config.xml")
 
 
 def _run(args: list[str]) -> None:
-    subprocess.run(args, check=True, capture_output=True, text=True)
+    run_tool(args)
 
 
 def verify_source(source: Path) -> None:
@@ -33,16 +35,10 @@ def verify_source(source: Path) -> None:
         ]
     )
     _run(["openssl", "x509", "-in", str(source / "clickhouse.crt"), "-checkend", "0", "-noout"])
-    cert_key = subprocess.run(
-        ["openssl", "x509", "-in", str(source / "clickhouse.crt"), "-pubkey", "-noout"],
-        check=True,
-        capture_output=True,
+    cert_key = run_tool(
+        ["openssl", "x509", "-in", str(source / "clickhouse.crt"), "-pubkey", "-noout"]
     ).stdout
-    key_pub = subprocess.run(
-        ["openssl", "pkey", "-in", str(source / "clickhouse.key"), "-pubout"],
-        check=True,
-        capture_output=True,
-    ).stdout
+    key_pub = run_tool(["openssl", "pkey", "-in", str(source / "clickhouse.key"), "-pubout"]).stdout
     if cert_key != key_pub:
         raise ValueError("ClickHouse certificate and private key do not match")
 
