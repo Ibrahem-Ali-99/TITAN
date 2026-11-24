@@ -5,6 +5,12 @@ services:
     ports: !override []
     environment:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:19092"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 25s
   postgres:
     ports: !override []
     environment:
