@@ -24,7 +24,12 @@ class ApiSettings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_protected_profile(self) -> "ApiSettings":
-        if self.security_profile.lower() not in {"protected", "production", "nonlocal"}:
+        profile = self.security_profile.strip().lower()
+        allowed_profiles = {"local", "protected", "production", "nonlocal"}
+        if profile not in allowed_profiles:
+            raise ValueError(f"unknown TITAN_SECURITY_PROFILE: {self.security_profile!r}")
+        self.security_profile = profile
+        if profile == "local":
             return self
         placeholders = {"", "titan_dev_password", "local-demo-token"}
         required = {
@@ -34,7 +39,9 @@ class ApiSettings(BaseSettings):
             "CLICKHOUSE_PASSWORD": self.clickhouse_password,
         }
         missing = [
-            name for name, value in required.items() if value is None or value in placeholders
+            name
+            for name, value in required.items()
+            if value is None or value.strip() in placeholders
         ]
         if missing:
             raise ValueError(

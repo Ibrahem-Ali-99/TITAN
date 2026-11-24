@@ -25,3 +25,22 @@ def test_protected_profile_accepts_explicit_secrets() -> None:
         clickhouse_password="clickhouse-secret",
     )
     assert settings.security_profile == "protected"
+
+
+@pytest.mark.parametrize("profile", ["staging", "", " protected "])
+def test_unknown_or_padded_profile_does_not_fall_back_to_local(profile: str) -> None:
+    if profile == " protected ":
+        with pytest.raises(ValidationError, match="TITAN_READ_TOKEN"):
+            ApiSettings(database_url="sqlite://", security_profile=profile)
+    else:
+        with pytest.raises(ValidationError, match="unknown TITAN_SECURITY_PROFILE"):
+            ApiSettings(database_url="sqlite://", security_profile=profile)
+
+
+def test_placeholder_with_whitespace_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="TITAN_READ_TOKEN"):
+        ApiSettings(
+            database_url="sqlite://",
+            security_profile="protected",
+            read_token=" titan_dev_password ",
+        )
