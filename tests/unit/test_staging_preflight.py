@@ -6,6 +6,7 @@ import pytest
 from staging_preflight import (
     validate_clickhouse_tls_config,
     validate_compose,
+    validate_ingress_tls_config,
     validate_minio_tls_config,
     validate_postgres_tls_volume,
     validate_secret_files,
@@ -123,3 +124,29 @@ def test_postgres_tls_volume_requires_tls_only_hba(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="require TLS"):
         validate_postgres_tls_volume(tmp_path)
+
+
+def test_ingress_requires_loopback_and_private_tls_mount(tmp_path: Path) -> None:
+    for name in ("ca.crt", "ingress.crt", "ingress.key"):
+        (tmp_path / name).write_text("test\n", encoding="ascii")
+    config = {
+        "services": {
+            "ingress": {
+                "ports": [
+                    {
+                        "host_ip": "127.0.0.1",
+                        "published": "18443",
+                        "target": 8443,
+                        "protocol": "tcp",
+                    }
+                ],
+                "volumes": [
+                    {"target": "/etc/nginx/tls", "read_only": True},
+                ],
+            }
+        }
+    }
+    validate_ingress_tls_config(config, tmp_path)
+    config["services"]["ingress"]["ports"][0]["host_ip"] = "0.0.0.0"
+    with pytest.raises(ValueError, match="loopback"):
+        validate_ingress_tls_config(config, tmp_path)

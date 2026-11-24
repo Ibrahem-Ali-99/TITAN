@@ -200,3 +200,40 @@ Set `TITAN_SPARK_IMAGE=titan-spark:protected-$rev` for the protected Compose
 run. The image label `org.opencontainers.image.revision` must equal the
 checkout revision; do not use an older local image or add application source
 bind mounts to protected staging.
+
+## Protected HTTPS ingress
+
+The opt-in `docker-compose.staging-ingress.yml` overlay adds the only
+browser-facing endpoint. It uses the pinned nginx image, terminates TLS with
+the generated `ingress` certificate, and publishes only
+`127.0.0.1:8443:8443`. API, database, Kafka, MinIO, ClickHouse and
+observability services remain private on the Compose network; FastAPI is not
+published directly.
+
+Generate fresh material and seed the dedicated ingress volume before startup:
+
+```powershell
+python scripts/staging_tls.py provision --tls-dir .tmp-staging-tls --days 2 --windows-acl-verified
+python scripts/staging_ingress_tls.py --source .tmp-staging-tls --volume titan-staging-ingress-tls
+python scripts/staging_preflight.py --secrets-dir .staging-secrets --project-name titan-staging `
+  --ingress-tls --ingress-tls-dir .tmp-staging-tls `
+  --compose-file docker-compose.yml `
+  --compose-file docker-compose.staging.yml `
+  --compose-file docker-compose.staging-ingress.yml
+docker compose -f docker-compose.yml -f docker-compose.staging.yml `
+  -f docker-compose.staging-ingress.yml up --detach --wait ingress
+```
+
+Trust `.tmp-staging-tls/ca.crt` in the disposable test browser or use a
+certificate-verifying client with `https://localhost:8443` (or
+`https://staging.local:8443` with local name resolution). Missing, expired,
+untrusted, or mismatched ingress material causes preflight or nginx startup
+to fail. The Next.js server-side proxy continues to strip browser-supplied
+authorization and inject only its configured scoped token; it does not expose
+that token to browser JavaScript and rejects administrative operations.
+
+Renewal uses a newly generated CA/certificate and a new disposable volume;
+validate the browser and authenticated API round-trip before replacing the
+staging project. This is a loopback-only trusted-workstation boundary, not
+shared-staging or public HTTPS, and it does not provide OIDC or an external
+user identity.

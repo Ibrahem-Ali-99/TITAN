@@ -17,7 +17,7 @@ from pathlib import Path
 
 from staging_tool_container import run as run_tool
 
-SERVICES = ("kafka", "postgres", "clickhouse", "minio")
+SERVICES = ("kafka", "postgres", "clickhouse", "minio", "ingress")
 
 
 def _run(*args: str, cwd: Path | None = None) -> str:
@@ -61,9 +61,11 @@ def provision(root: Path, *, days: int, windows_acl_verified: bool) -> None:
         csr = root / f"{service}.csr"
         crt = root / f"{service}.crt"
         ext = root / f"{service}.ext"
+        names = f"DNS:{service},DNS:{service}.titan-staging"
+        if service == "ingress":
+            names += ",DNS:staging.local,DNS:localhost,IP:127.0.0.1"
         ext.write_text(
-            "subjectAltName = DNS:" + service + ",DNS:" + service + ".titan-staging\n"
-            "extendedKeyUsage = serverAuth\n",
+            f"subjectAltName = {names}\nextendedKeyUsage = serverAuth\n",
             encoding="ascii",
         )
         _run("genrsa", "-out", str(key), "2048")

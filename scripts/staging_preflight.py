@@ -46,6 +46,7 @@ EXPECTED_VOLUME_SUFFIXES = {
     "prometheus-data",
     "grafana-data",
     "tempo-data",
+    "ingress-tls",
 }
 
 
@@ -178,6 +179,34 @@ def validate_minio_tls_config(config: dict[str, Any], tls_root: Path) -> None:
             raise ValueError(f"MinIO CA trust is missing: {service_name}")
 
 
+def validate_ingress_tls_config(config: dict[str, Any], tls_root: Path) -> None:
+    ingress = config.get("services", {}).get("ingress")
+    if not ingress:
+        raise ValueError("protected HTTPS ingress service is missing")
+    ports = ingress.get("ports", [])
+    mapping = ports[0] if len(ports) == 1 and isinstance(ports[0], dict) else {}
+    published_text = str(mapping.get("published", ""))
+    published = int(published_text) if published_text.isdigit() else 0
+    if (
+        len(ports) != 1
+        or mapping.get("host_ip") != "127.0.0.1"
+        or published < 1024
+        or mapping.get("target") != 8443
+        or mapping.get("protocol") != "tcp"
+    ):
+        raise ValueError("staging ingress must publish only loopback HTTPS on port 8443")
+    required = ("ca.crt", "ingress.crt", "ingress.key")
+    missing = [name for name in required if not (tls_root / name).is_file()]
+    if missing:
+        raise ValueError("ingress TLS material is incomplete: " + ", ".join(missing))
+    if not any(
+        mount.get("target") == "/etc/nginx/tls" and mount.get("read_only")
+        for mount in ingress.get("volumes", [])
+        if isinstance(mount, dict)
+    ):
+        raise ValueError("ingress TLS volume must be mounted read-only")
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -228,13 +257,31 @@ def validate_compose(config: dict[str, Any], project: str) -> None:
     for service_name in DISALLOWED_PORT_SERVICES:
         if services.get(service_name, {}).get("ports"):
             raise ValueError(f"staging service publishes a host port: {service_name}")
+    ingress = services.get("ingress")
+    if ingress:
+        ports = ingress.get("ports", [])
+        mapping = ports[0] if len(ports) == 1 and isinstance(ports[0], dict) else {}
+        published = (
+            int(mapping.get("published", 0)) if str(mapping.get("published", "")).isdigit() else 0
+        )
+        if (
+            len(ports) != 1
+            or mapping.get("host_ip") != "127.0.0.1"
+            or published < 1024
+            or mapping.get("target") != 8443
+            or mapping.get("protocol") != "tcp"
+        ):
+            raise ValueError("staging ingress must publish only loopback HTTPS on port 8443")
     for service_name, service in services.items():
         for mount in service.get("volumes", []):
             source = str(mount.get("source", "")) if isinstance(mount, dict) else str(mount)
             if "docker.sock" in source or source.startswith(".") or source.startswith("/"):
                 raise ValueError(f"staging has an unsafe host bind mount: {service_name}")
     volumes = {str(value.get("name", "")) for value in config.get("volumes", {}).values()}
-    expected = {f"{project}-{suffix}" for suffix in EXPECTED_VOLUME_SUFFIXES}
+    suffixes = set(EXPECTED_VOLUME_SUFFIXES)
+    if not services.get("ingress"):
+        suffixes.discard("ingress-tls")
+    expected = {f"{project}-{suffix}" for suffix in suffixes}
     if not expected.issubset(volumes):
         raise ValueError("staging volume isolation contract is incomplete")
 
@@ -254,6 +301,8 @@ def main() -> int:
     parser.add_argument("--clickhouse-tls-dir", type=Path)
     parser.add_argument("--minio-tls", action="store_true")
     parser.add_argument("--minio-tls-dir", type=Path)
+    parser.add_argument("--ingress-tls", action="store_true")
+    parser.add_argument("--ingress-tls-dir", type=Path)
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -282,6 +331,10 @@ def main() -> int:
             if args.minio_tls_dir is None:
                 raise ValueError("--minio-tls-dir is required with --minio-tls")
             validate_minio_tls_config(config, args.minio_tls_dir)
+        if args.ingress_tls:
+            if args.ingress_tls_dir is None:
+                raise ValueError("--ingress-tls-dir is required with --ingress-tls")
+            validate_ingress_tls_config(config, args.ingress_tls_dir)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1
