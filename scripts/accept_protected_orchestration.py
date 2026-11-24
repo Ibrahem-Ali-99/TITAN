@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -113,6 +114,10 @@ class Runner:
                 str(tls_dir),
                 "--windows-acl-verified",
             ],
+        )
+        shutil.copyfile(
+            self.root / "docs/security/clickhouse-tls-config.xml.example",
+            tls_dir / "config.xml",
         )
         volumes = {
             "postgres": "postgres-tls",
