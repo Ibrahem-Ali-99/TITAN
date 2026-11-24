@@ -1,8 +1,9 @@
 # Protected staging deployment
 
 This is a single-host, isolated staging foundation. It is not a production
-deployment and does not provide HA, TLS, SASL, OIDC, encrypted backups, or a
-secrets manager yet.
+deployment and does not provide HA, OIDC, encrypted backups, or a secrets
+manager. PostgreSQL TLS and Kafka SASL/TLS are opt-in overlays; the default
+staging stack remains compatible with local plaintext clients.
 
 ## Secret contract
 
@@ -76,6 +77,18 @@ with `/tls/ca.crt`; PostgreSQL private-key ownership must match the pinned
 image's `postgres` UID. Use the TLS-specific preflight flags before startup.
 This overlay does not encrypt Kafka, ClickHouse, MinIO, observability, or
 recovery traffic.
+
+The opt-in `docker-compose.staging-kafka-tls.yml` overlay is a separate
+protected Kafka transport option. It requires the generated
+`titan-staging-kafka-tls` named volume and `KAFKA_SASL_USERNAME`,
+`KAFKA_SASL_PASSWORD`, and `KAFKA_TLS_STORE_PASSWORD`. The broker advertises
+only `SASL_SSL://kafka:19092`; configured API, ingestion, monitoring and Spark
+clients use certificate verification and SASL/PLAIN. No host Kafka port is
+published. Generate JKS stores with `scripts/staging_kafka_tls.py`, validate
+the effective Compose configuration with `scripts/staging_preflight.py
+--kafka-tls`, and never reuse the development Kafka volume. This overlay does
+not encrypt PostgreSQL unless the PostgreSQL TLS overlay is also selected, nor
+does it protect ClickHouse, MinIO, observability or host-side recovery traffic.
 
 Spark checkpoints and recovery artifacts use staging-only resources. Do not
 reuse development checkpoints, topics, buckets, databases, or volumes.

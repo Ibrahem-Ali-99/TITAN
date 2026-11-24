@@ -18,6 +18,7 @@ from typing import Any, cast
 from confluent_kafka import Consumer, Producer, TopicPartition, admin
 
 from dr_security import secure_tree
+from titan_messaging.kafka_config import kafka_client_config
 
 MANIFEST = "manifest.json"
 RECORDS = "records.jsonl"
@@ -28,7 +29,7 @@ def _sha256(value: bytes) -> str:
 
 
 def _client(bootstrap: str) -> admin.AdminClient:
-    return admin.AdminClient({"bootstrap.servers": bootstrap})
+    return admin.AdminClient(kafka_client_config(bootstrap))
 
 
 def _metadata(bootstrap: str, topics: list[str]) -> dict[str, Any]:
@@ -61,9 +62,9 @@ def _configs(bootstrap: str, topics: list[str]) -> dict[str, dict[str, str]]:
 
 
 def _watermarks(bootstrap: str, topic: str, partition: int) -> tuple[int, int]:
-    consumer = Consumer(
-        {"bootstrap.servers": bootstrap, "group.id": f"titan-dr-probe-{time.time_ns()}"}
-    )
+    config = kafka_client_config(bootstrap)
+    config["group.id"] = f"titan-dr-probe-{time.time_ns()}"
+    consumer = Consumer(config)
     try:
         return tuple(
             int(x)
@@ -84,15 +85,16 @@ def backup(args: argparse.Namespace) -> None:
     output.mkdir(parents=True, exist_ok=False)
     records: list[dict[str, Any]] = []
     ranges: list[dict[str, Any]] = []
-    consumer = Consumer(
+    consumer_config = kafka_client_config(args.bootstrap)
+    consumer_config.update(
         {
-            "bootstrap.servers": args.bootstrap,
             "group.id": f"titan-dr-export-{time.time_ns()}",
             "enable.auto.commit": False,
             "auto.offset.reset": "earliest",
             "enable.partition.eof": True,
         }
     )
+    consumer = Consumer(consumer_config)
     try:
         assignments: list[TopicPartition] = []
         for topic in topics:
@@ -197,9 +199,9 @@ def restore(args: argparse.Namespace) -> None:
     for source, target in topic_map.items():
         if destination[target] != manifest["topics"][source]:
             raise SystemExit("destination topic partitions do not match backup")
-    consumer = Consumer(
-        {"bootstrap.servers": args.bootstrap, "group.id": f"titan-dr-nonempty-{time.time_ns()}"}
-    )
+    consumer_config = kafka_client_config(args.bootstrap)
+    consumer_config["group.id"] = f"titan-dr-nonempty-{time.time_ns()}"
+    consumer = Consumer(consumer_config)
     try:
         for source_topic, target_topic in topic_map.items():
             for partition in manifest["topics"][source_topic]["partitions"]:
@@ -208,9 +210,9 @@ def restore(args: argparse.Namespace) -> None:
                     raise SystemExit("refusing to restore into nonempty destination topics")
     finally:
         consumer.close()
-    producer = Producer(
-        {"bootstrap.servers": args.bootstrap, "acks": "all", "enable.idempotence": True}
-    )
+    producer_config = kafka_client_config(args.bootstrap)
+    producer_config.update({"acks": "all", "enable.idempotence": True})
+    producer = Producer(producer_config)
     mappings: list[dict[str, Any]] = []
     for line in (args.backup.resolve() / RECORDS).read_text(encoding="utf-8").splitlines():
         record = json.loads(line)

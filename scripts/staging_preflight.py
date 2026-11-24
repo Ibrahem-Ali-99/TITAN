@@ -33,6 +33,7 @@ DISALLOWED_PORT_SERVICES = {
 }
 EXPECTED_VOLUMES = {
     "titan-staging-kafka-data",
+    "titan-staging-kafka-tls",
     "titan-staging-postgres-data",
     "titan-staging-clickhouse-data",
     "titan-staging-minio-data",
@@ -81,6 +82,29 @@ def validate_postgres_tls_config(config: dict[str, Any]) -> None:
             or "sslrootcert=/tls/ca.crt" not in database_url
         ):
             raise ValueError(f"PostgreSQL TLS client configuration is incomplete: {service_name}")
+
+
+def validate_kafka_tls_config(config: dict[str, Any]) -> None:
+    kafka = config.get("services", {}).get("kafka", {})
+    environment = kafka.get("environment", {})
+    if "SASL_SSL://kafka:19092" not in str(environment.get("KAFKA_ADVERTISED_LISTENERS", "")):
+        raise ValueError("Kafka TLS overlay must advertise only the SASL_SSL container listener")
+    if "SASL_SSL:SASL_SSL" not in str(environment.get("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", "")):
+        raise ValueError("Kafka TLS overlay does not map its protected listener to SASL_SSL")
+    if str(environment.get("KAFKA_SASL_ENABLED_MECHANISMS", "")) != "PLAIN":
+        raise ValueError("Kafka TLS staging requires the explicitly selected PLAIN mechanism")
+    for service_name in ("api", "ingestion", "spark-bronze"):
+        service_env = config.get("services", {}).get(service_name, {}).get("environment", {})
+        protocol = str(service_env.get("KAFKA_SECURITY_PROTOCOL", ""))
+        if protocol != "SASL_SSL":
+            raise ValueError(f"Kafka TLS client configuration is incomplete: {service_name}")
+        if not str(service_env.get("KAFKA_SASL_USERNAME", "")).strip():
+            raise ValueError(f"Kafka TLS username is missing: {service_name}")
+        if service_name == "spark-bronze":
+            if not str(service_env.get("KAFKA_SSL_TRUSTSTORE_LOCATION", "")).strip():
+                raise ValueError("Spark Kafka truststore is missing")
+        elif not str(service_env.get("KAFKA_SSL_CA_LOCATION", "")).strip():
+            raise ValueError(f"Kafka CA location is missing: {service_name}")
 
 
 def _secret_files(root: Path) -> dict[str, Path]:
@@ -151,6 +175,7 @@ def main() -> int:
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--tls-dir", type=Path)
     parser.add_argument("--postgres-tls", action="store_true")
+    parser.add_argument("--kafka-tls", action="store_true")
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -163,6 +188,8 @@ def main() -> int:
         validate_compose(config, args.project_name)
         if args.postgres_tls:
             validate_postgres_tls_config(config)
+        if args.kafka_tls:
+            validate_kafka_tls_config(config)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1

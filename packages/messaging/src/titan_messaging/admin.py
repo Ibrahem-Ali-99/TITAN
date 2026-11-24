@@ -7,6 +7,7 @@ from typing import Any
 from confluent_kafka import admin as kafka_admin
 
 from titan_contracts.topics import COMMERCE_TOPICS, TopicSpec
+from titan_messaging.kafka_config import kafka_client_config
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def _new_topic(spec: TopicSpec) -> Any:
 
 def ensure_commerce_topics(bootstrap_servers: str, *, attempts: int = 5) -> None:
     """Create any missing commerce topic. Existing topics are left unchanged."""
-    client = kafka_admin.AdminClient({"bootstrap.servers": bootstrap_servers})
+    client = kafka_admin.AdminClient(kafka_client_config(bootstrap_servers))
     last_error: Exception | None = None
     pending = list(COMMERCE_TOPICS)
     for attempt in range(1, attempts + 1):

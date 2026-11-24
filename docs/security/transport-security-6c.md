@@ -81,6 +81,43 @@ traffic, and recovery tooling remain plaintext inside the isolated staging
 network. TLS is not a substitute for authentication, authorization, secret
 management, or network isolation.
 
+## Kafka SASL/TLS opt-in overlay
+
+Upgrade 6C-3 adds `docker-compose.staging-kafka-tls.yml`. It replaces the
+staging broker's plaintext container listener with `SASL_SSL://kafka:19092`
+and keeps the controller listener private. The selected mechanism is
+SASL/PLAIN over TLS: Kafka 4.x supports it across the Apache broker, the
+Confluent Python client, and the Spark Kafka connector without a post-start
+KRaft user-bootstrap race. It is not a claim that PLAIN is safe without TLS.
+
+The overlay requires disposable credentials, a truststore password, and a
+named volume `titan-staging-kafka-tls` containing the JKS keystore/truststore
+and `ca.crt`. `scripts/staging_kafka_tls.py` converts verified PEM material to
+those stores and refuses to overwrite a nonempty destination. The broker
+healthcheck uses an authenticated client properties file; API, ingestion,
+monitoring and Spark receive explicit SASL/TLS options. The shared client
+configuration rejects unsupported protocols, missing credentials, missing CA
+paths, and mechanisms other than the selected PLAIN mechanism. Spark uses the
+JKS truststore and hostname verification.
+
+Provisioning is separate from Compose so private material is not committed:
+
+```bash
+uv run python scripts/staging_kafka_tls.py --source .staging-tls \
+  --destination .staging-kafka-tls --password '<generated-store-password>' \
+  --username titan-staging --sasl-password '<generated-sasl-password>'
+```
+
+Copy the generated directory into the disposable named volume with a trusted
+operator-side container command, then run preflight with `--kafka-tls` and the
+three Compose files. Wrong credentials, wrong CA, hostname mismatch, missing
+stores, or a plaintext bootstrap must fail before protected startup.
+
+SCRAM remains a future option if broker initialization is changed to seed users
+before the KRaft log starts. Replay and backup tools must receive the same
+explicit SASL/TLS environment; no tool may silently fall back when
+`KAFKA_SECURITY_PROTOCOL=SASL_SSL`.
+
 ## PostgreSQL TLS opt-in overlay
 
 Upgrade 6C-2 adds `docker-compose.staging-postgres-tls.yml`. It is not part of

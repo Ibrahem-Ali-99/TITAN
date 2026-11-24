@@ -388,17 +388,20 @@ def _lag(bootstrap: str) -> LagView:
     try:
         from confluent_kafka.admin import AdminClient
 
-        admin = AdminClient({"bootstrap.servers": bootstrap})
+        from titan_messaging.kafka_config import kafka_client_config
+
+        admin = AdminClient(kafka_client_config(bootstrap))
         request = ConsumerGroupTopicPartitions(CONSUMER_GROUP)
         listed = admin.list_consumer_group_offsets([request])
         description = next(iter(listed.values())).result(timeout=5)
-        consumer = Consumer(
+        consumer_config = kafka_client_config(bootstrap)
+        consumer_config.update(
             {
-                "bootstrap.servers": bootstrap,
                 "group.id": "titan-monitoring-readonly",
                 "enable.auto.commit": False,
             }
         )
+        consumer = Consumer(consumer_config)
         total = 0
         measured = 0
         for part in description.topic_partitions:

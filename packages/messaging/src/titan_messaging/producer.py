@@ -13,6 +13,7 @@ from confluent_kafka import Producer
 
 from titan_contracts.events import CommerceEvent, business_key
 from titan_contracts.topics import topic_for_event_type
+from titan_messaging.kafka_config import kafka_client_config
 
 
 class PublishError(RuntimeError):
@@ -46,9 +47,9 @@ class PublishResult:
 
 
 def connect_producer(bootstrap_servers: str, *, client_id: str = "titan-publisher") -> Producer:
-    return Producer(
+    config = kafka_client_config(bootstrap_servers)
+    config.update(
         {
-            "bootstrap.servers": bootstrap_servers,
             "client.id": client_id,
             "acks": "all",
             "enable.idempotence": True,
@@ -59,6 +60,7 @@ def connect_producer(bootstrap_servers: str, *, client_id: str = "titan-publishe
             "allow.auto.create.topics": False,
         }
     )
+    return Producer(config)
 
 
 def publish_record(

@@ -9,6 +9,7 @@ from confluent_kafka import Consumer, KafkaError
 
 from ingestion.errors import CommitFailed, PartitionLost
 from ingestion.runtime import Polled
+from titan_messaging.kafka_config import kafka_client_config
 
 logger = logging.getLogger(__name__)
 MAX_PREFETCH = 1000
@@ -84,9 +85,9 @@ class ConfluentConsumer:
     def __init__(self, bootstrap_servers: str, group_id: str, topics: list[str]) -> None:
         self._prefetched: list[Polled] = []
         self._revoked: set[tuple[str, int]] = set()
-        self._consumer = Consumer(
+        config = kafka_client_config(bootstrap_servers)
+        config.update(
             {
-                "bootstrap.servers": bootstrap_servers,
                 "group.id": group_id,
                 "client.id": "titan-ingestion",
                 "enable.auto.commit": False,
@@ -97,6 +98,7 @@ class ConfluentConsumer:
                 "max.poll.interval.ms": 600000,
             }
         )
+        self._consumer = Consumer(config)
         self._consumer.subscribe(
             topics,
             on_assign=self._on_assign,  # type: ignore[arg-type]

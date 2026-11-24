@@ -18,6 +18,7 @@ from confluent_kafka import ConsumerGroupTopicPartitions, Producer, admin
 from sqlalchemy import create_engine, text
 
 from event_generator.generator import generate_orders
+from titan_messaging.kafka_config import kafka_client_config
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_TOPIC = "titan.recovery.source"
@@ -36,7 +37,7 @@ def _database() -> str:
 
 
 def _ensure_topic(topic: str) -> None:
-    client = admin.AdminClient({"bootstrap.servers": _bootstrap()})
+    client = admin.AdminClient(kafka_client_config(_bootstrap()))
     result = client.create_topics([admin.NewTopic(topic, 3, 1)])  # type: ignore[attr-defined]
     try:
         result[topic].result(10)
@@ -69,9 +70,9 @@ def _prepare(args: argparse.Namespace) -> None:
         (0, json.dumps(conflict_data).encode(), events[0].payload.order_id.encode()),
         (1, b"{malformed-json", b"bad-recovery-key"),
     ]
-    producer = Producer(
-        {"bootstrap.servers": _bootstrap(), "acks": "all", "enable.idempotence": True}
-    )
+    producer_config = kafka_client_config(_bootstrap())
+    producer_config.update({"acks": "all", "enable.idempotence": True})
+    producer = Producer(producer_config)
     try:
         for partition, value, key in records:
             producer.produce(
@@ -111,7 +112,7 @@ def _prepare(args: argparse.Namespace) -> None:
 
 
 def _lag() -> int:
-    client = admin.AdminClient({"bootstrap.servers": _bootstrap()})
+    client = admin.AdminClient(kafka_client_config(_bootstrap()))
     offsets = client.list_consumer_group_offsets([ConsumerGroupTopicPartitions(GROUP)])
     described = offsets[GROUP].result(timeout=10)
     total = 0
@@ -120,7 +121,9 @@ def _lag() -> int:
             continue
         from confluent_kafka import Consumer, TopicPartition
 
-        probe = Consumer({"bootstrap.servers": _bootstrap(), "group.id": f"lag-{time.time_ns()}"})
+        probe_config = kafka_client_config(_bootstrap())
+        probe_config["group.id"] = f"lag-{time.time_ns()}"
+        probe = Consumer(probe_config)
         try:
             _, high = probe.get_watermark_offsets(
                 TopicPartition(item.topic, item.partition), timeout=10

@@ -1,0 +1,67 @@
+name: titan-staging
+
+services:
+  kafka:
+    ports: !override []
+    environment:
+      KAFKA_LISTENERS: CONTROLLER://:29093,SASL_SSL://:19092
+      KAFKA_ADVERTISED_LISTENERS: SASL_SSL://kafka:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_SSL
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_LISTENER_NAME_SASL_SSL_PLAIN_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_SASL_USERNAME:?staging Kafka username is required}" password="${KAFKA_SASL_PASSWORD:?staging Kafka password is required}" user_${KAFKA_SASL_USERNAME:?staging Kafka username is required}="${KAFKA_SASL_PASSWORD:?staging Kafka password is required}";
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka.keystore.jks
+      KAFKA_SSL_KEY_CREDENTIALS: kafka.key.credentials
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: kafka.keystore.credentials
+      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: kafka.truststore.credentials
+      KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf
+      KAFKA_SSL_CLIENT_AUTH: none
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - kafka_tls:/etc/kafka/secrets:ro
+      - kafka_tls:/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:19092 --command-config /etc/kafka/secrets/client.properties"]
+  api:
+    environment:
+      KAFKA_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM: PLAIN
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?staging Kafka username is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?staging Kafka password is required}
+      KAFKA_SSL_CA_LOCATION: /tls/ca.crt
+    volumes:
+      - kafka_tls:/tls:ro
+  ingestion:
+    environment:
+      KAFKA_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM: PLAIN
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?staging Kafka username is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?staging Kafka password is required}
+      KAFKA_SSL_CA_LOCATION: /tls/ca.crt
+    volumes:
+      - kafka_tls:/tls:ro
+  spark-bronze:
+    environment:
+      KAFKA_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM: PLAIN
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?staging Kafka username is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?staging Kafka password is required}
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /tls/kafka.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:?staging Kafka TLS store password is required}
+    volumes:
+      - kafka_tls:/tls:ro
+  dagster-daemon:
+    environment:
+      KAFKA_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM: PLAIN
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?staging Kafka username is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?staging Kafka password is required}
+      KAFKA_SSL_CA_LOCATION: /tls/ca.crt
+    volumes:
+      - kafka_tls:/tls:ro
+
+volumes:
+  kafka_tls:
+    name: titan-staging-kafka-tls

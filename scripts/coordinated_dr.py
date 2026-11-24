@@ -22,6 +22,7 @@ from confluent_kafka import Consumer, TopicPartition, admin
 from minio import Minio
 
 from dr_security import secure_file
+from titan_messaging.kafka_config import kafka_client_config
 
 ROOT = Path(__file__).resolve().parents[1]
 TOPICS = (
@@ -61,10 +62,10 @@ def _clickhouse() -> Any:
 
 def _kafka_ranges() -> dict[str, list[dict[str, int]]]:
     bootstrap = os.environ["KAFKA_BOOTSTRAP_SERVERS"]
-    metadata = admin.AdminClient({"bootstrap.servers": bootstrap}).list_topics(timeout=10)
-    consumer = Consumer(
-        {"bootstrap.servers": bootstrap, "group.id": f"titan-dr-boundary-{time.time_ns()}"}
-    )
+    metadata = admin.AdminClient(kafka_client_config(bootstrap)).list_topics(timeout=10)
+    consumer_config = kafka_client_config(bootstrap)
+    consumer_config["group.id"] = f"titan-dr-boundary-{time.time_ns()}"
+    consumer = Consumer(consumer_config)
     try:
         result: dict[str, list[dict[str, int]]] = {}
         for topic in TOPICS:

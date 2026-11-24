@@ -14,6 +14,12 @@ def _env(name: str, default: str) -> str:
 @dataclass(frozen=True)
 class Settings:
     kafka_bootstrap_servers: str
+    kafka_security_protocol: str
+    kafka_sasl_mechanism: str
+    kafka_sasl_username: str
+    kafka_sasl_password: str
+    kafka_ssl_truststore_location: str
+    kafka_ssl_truststore_password: str
     database_url: str
     s3_endpoint: str
     s3_access_key: str
@@ -65,6 +71,12 @@ class Settings:
 def load_settings() -> Settings:
     return Settings(
         kafka_bootstrap_servers=_env("KAFKA_BOOTSTRAP_SERVERS", "kafka:19092"),
+        kafka_security_protocol=_env("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"),
+        kafka_sasl_mechanism=_env("KAFKA_SASL_MECHANISM", ""),
+        kafka_sasl_username=_env("KAFKA_SASL_USERNAME", ""),
+        kafka_sasl_password=os.environ.get("KAFKA_SASL_PASSWORD", ""),
+        kafka_ssl_truststore_location=_env("KAFKA_SSL_TRUSTSTORE_LOCATION", ""),
+        kafka_ssl_truststore_password=os.environ.get("KAFKA_SSL_TRUSTSTORE_PASSWORD", ""),
         database_url=_env(
             "DATABASE_URL",
             "postgresql://titan:titan_dev_password@postgres:5432/titan",
