@@ -423,6 +423,10 @@ def _client(settings: ApiSettings) -> Any:
         username=settings.clickhouse_user,
         password=settings.clickhouse_password,
         database=settings.clickhouse_database,
+        secure=settings.clickhouse_secure,
+        verify=settings.clickhouse_verify,
+        ca_cert=settings.clickhouse_ca_cert,
+        server_host_name=settings.clickhouse_server_host_name,
         send_receive_timeout=10,
     )
 

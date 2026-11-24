@@ -1,0 +1,69 @@
+name: titan-staging
+
+services:
+  clickhouse:
+    command: ["clickhouse-server", "--config-file=/tls/config.xml"]
+    ports: !override []
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_VERIFY: "true"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_tls:/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --secure --port 9440 --user $$CLICKHOUSE_USER --password $$CLICKHOUSE_PASSWORD --query 'SELECT 1'"]
+  migrate:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+    volumes:
+      - clickhouse_tls:/tls:ro
+  api:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_VERIFY: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+    volumes:
+      - clickhouse_tls:/tls:ro
+  ingestion:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_VERIFY: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+    volumes:
+      - clickhouse_tls:/tls:ro
+  spark-bronze:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+    volumes:
+      - clickhouse_tls:/tls:ro
+  spark-silver:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+    volumes:
+      - clickhouse_tls:/tls:ro
+  dagster-daemon:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+      SSL_CERT_FILE: /tls/ca.crt
+    volumes:
+      - clickhouse_tls:/tls:ro
+
+volumes:
+  clickhouse_tls:
+    name: titan-staging-clickhouse-tls

@@ -15,6 +15,10 @@ class ApiSettings(BaseSettings):
     clickhouse_user: str = "titan"
     clickhouse_password: str = "titan_dev_password"
     clickhouse_database: str = "titan"
+    clickhouse_secure: bool = False
+    clickhouse_verify: bool = True
+    clickhouse_ca_cert: str | None = None
+    clickhouse_server_host_name: str | None = None
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = ""
     metrics_collector_enabled: bool = True
@@ -47,4 +51,15 @@ class ApiSettings(BaseSettings):
             raise ValueError(
                 "protected security profile requires non-placeholder secrets: " + ", ".join(missing)
             )
+        if not self.clickhouse_secure:
+            raise ValueError("protected ClickHouse configuration must require TLS")
+        if self.clickhouse_secure and (
+            not self.clickhouse_ca_cert or not self.clickhouse_server_host_name
+        ):
+            raise ValueError(
+                "protected ClickHouse TLS requires CLICKHOUSE_CA_CERT and "
+                "CLICKHOUSE_SERVER_HOST_NAME"
+            )
+        if self.clickhouse_secure and not self.clickhouse_verify:
+            raise ValueError("protected ClickHouse TLS requires certificate verification")
         return self

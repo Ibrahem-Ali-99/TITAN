@@ -8,5 +8,6 @@ titan:
       user: "{{ env_var('CLICKHOUSE_USER', 'titan') }}"
       password: "{{ env_var('CLICKHOUSE_PASSWORD', 'titan_dev_password') }}"
       schema: "{{ env_var('CLICKHOUSE_DATABASE', 'titan') }}"
-      secure: false
-      verify: false
+      secure: "{{ env_var('CLICKHOUSE_SECURE', 'false') | lower == 'true' }}"
+      verify: "{{ env_var('CLICKHOUSE_VERIFY', 'true') | lower == 'true' }}"
+      server_host_name: "{{ env_var('CLICKHOUSE_SERVER_HOST_NAME', '') }}"

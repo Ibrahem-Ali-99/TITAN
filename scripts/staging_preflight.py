@@ -123,6 +123,32 @@ def validate_kafka_tls_volume(root: Path) -> None:
         raise ValueError("Kafka TLS volume material is incomplete: " + ", ".join(missing))
 
 
+def validate_clickhouse_tls_config(config: dict[str, Any], tls_root: Path) -> None:
+    clickhouse = config.get("services", {}).get("clickhouse", {})
+    environment = clickhouse.get("environment", {})
+    if str(environment.get("CLICKHOUSE_SECURE", "")).lower() != "true":
+        raise ValueError("protected ClickHouse configuration must require TLS")
+    for name in ("ca.crt", "clickhouse.crt", "clickhouse.key", "config.xml"):
+        if not (tls_root / name).is_file():
+            raise ValueError(f"ClickHouse TLS material is missing: {name}")
+    for service_name in (
+        "api",
+        "migrate",
+        "ingestion",
+        "spark-bronze",
+        "spark-silver",
+        "dagster-daemon",
+    ):
+        service = config.get("services", {}).get(service_name, {})
+        service_env = service.get("environment", {})
+        if str(service_env.get("CLICKHOUSE_SECURE", "")).lower() != "true":
+            raise ValueError(f"ClickHouse TLS client configuration is incomplete: {service_name}")
+        if not str(service_env.get("CLICKHOUSE_CA_CERT", "")).strip():
+            raise ValueError(f"ClickHouse CA trust is missing: {service_name}")
+        if not str(service_env.get("CLICKHOUSE_SERVER_HOST_NAME", "")).strip():
+            raise ValueError(f"ClickHouse hostname verification is missing: {service_name}")
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -193,6 +219,8 @@ def main() -> int:
     parser.add_argument("--postgres-tls", action="store_true")
     parser.add_argument("--kafka-tls", action="store_true")
     parser.add_argument("--kafka-tls-dir", type=Path)
+    parser.add_argument("--clickhouse-tls", action="store_true")
+    parser.add_argument("--clickhouse-tls-dir", type=Path)
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -210,6 +238,10 @@ def main() -> int:
             if args.kafka_tls_dir is None:
                 raise ValueError("--kafka-tls-dir is required with --kafka-tls")
             validate_kafka_tls_volume(args.kafka_tls_dir)
+        if args.clickhouse_tls:
+            if args.clickhouse_tls_dir is None:
+                raise ValueError("--clickhouse-tls-dir is required with --clickhouse-tls")
+            validate_clickhouse_tls_config(config, args.clickhouse_tls_dir)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1

@@ -23,8 +23,36 @@ def test_protected_profile_accepts_explicit_secrets() -> None:
         write_token="write-secret",
         admin_token="admin-secret",
         clickhouse_password="clickhouse-secret",
+        clickhouse_secure=True,
+        clickhouse_ca_cert="/tls/ca.crt",
+        clickhouse_server_host_name="clickhouse",
     )
     assert settings.security_profile == "protected"
+
+
+def test_protected_profile_requires_verified_clickhouse_tls() -> None:
+    with pytest.raises(ValidationError, match="ClickHouse configuration must require TLS"):
+        ApiSettings(
+            database_url="sqlite://",
+            security_profile="protected",
+            read_token="read-secret",
+            write_token="write-secret",
+            admin_token="admin-secret",
+            clickhouse_password="clickhouse-secret",
+        )
+
+    settings = ApiSettings(
+        database_url="sqlite://",
+        security_profile="protected",
+        read_token="read-secret",
+        write_token="write-secret",
+        admin_token="admin-secret",
+        clickhouse_password="clickhouse-secret",
+        clickhouse_secure=True,
+        clickhouse_ca_cert="/tls/ca.crt",
+        clickhouse_server_host_name="clickhouse",
+    )
+    assert settings.clickhouse_secure is True
 
 
 @pytest.mark.parametrize("profile", ["staging", "", " protected "])

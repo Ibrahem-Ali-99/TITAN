@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from staging_preflight import validate_compose, validate_secret_files
+from staging_preflight import (
+    validate_clickhouse_tls_config,
+    validate_compose,
+    validate_secret_files,
+)
 
 
 def _secrets(root: Path) -> None:
@@ -61,3 +65,30 @@ def test_compose_rejects_ports_socket_and_nonstaging_volume() -> None:
 
     with pytest.raises(ValueError, match="dedicated titan-staging"):
         validate_compose({"services": {}, "volumes": {}}, "titan")
+
+
+def test_clickhouse_tls_requires_verified_material_and_clients(tmp_path: Path) -> None:
+    for name in ("ca.crt", "clickhouse.crt", "clickhouse.key", "config.xml"):
+        (tmp_path / name).write_text("test\n", encoding="ascii")
+    services = {
+        name: {
+            "environment": {
+                "CLICKHOUSE_SECURE": "true",
+                "CLICKHOUSE_CA_CERT": "/tls/ca.crt",
+                "CLICKHOUSE_SERVER_HOST_NAME": "clickhouse",
+            }
+        }
+        for name in (
+            "clickhouse",
+            "api",
+            "migrate",
+            "ingestion",
+            "spark-bronze",
+            "spark-silver",
+            "dagster-daemon",
+        )
+    }
+    validate_clickhouse_tls_config({"services": services}, tmp_path)
+    services["api"]["environment"]["CLICKHOUSE_SECURE"] = "false"
+    with pytest.raises(ValueError, match="client configuration"):
+        validate_clickhouse_tls_config({"services": services}, tmp_path)

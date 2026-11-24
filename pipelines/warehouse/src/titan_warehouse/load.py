@@ -322,12 +322,23 @@ def _record(
 
 
 def _clickhouse():
+    secure = os.environ.get("CLICKHOUSE_SECURE", "false").strip().lower() == "true"
+    ca_cert = os.environ.get("CLICKHOUSE_CA_CERT")
+    server_host_name = os.environ.get("CLICKHOUSE_SERVER_HOST_NAME")
+    if secure and (not ca_cert or not server_host_name):
+        raise WarehouseError(
+            "CLICKHOUSE_SECURE requires CLICKHOUSE_CA_CERT and CLICKHOUSE_SERVER_HOST_NAME"
+        )
     return clickhouse_connect.get_client(
         host=os.environ.get("CLICKHOUSE_HOST", "localhost"),
         port=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
         username=os.environ.get("CLICKHOUSE_USER", "titan"),
         password=os.environ.get("CLICKHOUSE_PASSWORD", "titan_dev_password"),
         database=os.environ.get("CLICKHOUSE_DATABASE", "titan"),
+        secure=secure,
+        verify=True,
+        ca_cert=ca_cert,
+        server_host_name=server_host_name,
         send_receive_timeout=30,
     )
 
