@@ -4,6 +4,7 @@ Bronze is a separate job. Silver reads authoritative PostgreSQL dispositions, so
 warehouse run does not wait for a Bronze completion flag.
 """
 
+import os
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from dagster import (
     define_asset_job,
 )
 
+from titan_dagster.launcher import compose_command
 from titan_warehouse.dotenv import load_cwd_env
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -28,8 +30,13 @@ load_cwd_env()
 
 
 def _compose(service: str) -> None:
+    command = (
+        compose_command(service)
+        if os.environ.get("TITAN_PROTECTED_STAGING", "").lower() == "true"
+        else ["docker", "compose", "--profile", "processing", "run", "--rm", service]
+    )
     completed = subprocess.run(
-        ["docker", "compose", "--profile", "processing", "run", "--rm", service],
+        command,
         cwd=ROOT,
         check=False,
         capture_output=True,
