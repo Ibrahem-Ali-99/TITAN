@@ -239,3 +239,50 @@ workflows.
 
 This document is an implementable plan, not evidence that any staging or
 production deployment is secure or available today.
+
+## 13. Final technical review notes
+
+The matrix describes the target state, not current behavior. Today, Kafka
+clients use plaintext bootstrap servers, PostgreSQL/ClickHouse/MinIO clients use
+plaintext internal endpoints, and credentials are injected through environment
+variables. `confluent-kafka` and the Spark Kafka connector expose the
+configuration hooks needed for SASL/TLS, but the repository does not yet set or
+test those options. PostgreSQL, ClickHouse, and MinIO TLS client verification
+must likewise be proven in 6C before staging is called encrypted.
+
+The current Next.js proxy reads server-side environment variables and is gated
+by `TITAN_DASHBOARD_LOCAL_ONLY`; it does not yet provide shared-staging user
+authentication. The communication matrix's secret-file and OIDC wording is a
+6D/6B target and must not be read as implemented behavior.
+
+The current `TITAN_SECURITY_PROFILE` validator is API-scoped. It does not
+validate Kafka, PostgreSQL, MinIO, Spark, Dagster, or observability credentials.
+The first protected Compose overlay must therefore validate all required secret
+files before any dependent service starts. Compose interpolation alone is not a
+secret manager and must not be treated as one.
+
+### Exact Upgrade 6B unit
+
+6B should implement only the protected staging configuration boundary:
+
+1. Add a new, separately named protected Compose overlay and `.env`/secret-file
+   contract; do not edit local defaults or reference local volumes.
+2. Add a preflight validator that rejects missing, empty, placeholder, unknown,
+   or world-readable secret inputs before `docker compose up`.
+3. Pass file-based values to API, ingestion, Spark, Dagster, PostgreSQL,
+   ClickHouse, and MinIO where their current images and clients support it;
+   retain environment injection only where compatibility is demonstrated.
+4. Remove all staging host publication for Kafka, PostgreSQL, ClickHouse,
+   MinIO, exporters, and tracing; publish only the explicitly selected proxy and
+   operator observability entry point.
+5. Set `TITAN_SECURITY_PROFILE=protected` and assert that local placeholders,
+   the dashboard local-only bypass, the Dagster socket override, and development
+   project/volume names cannot be selected.
+
+6B prerequisites are an operator-approved staging secret source, separate
+   project/volume names, a list of required credentials, and a rollback command
+   that stops only the staging project. 6B must not attempt TLS/SASL, OIDC,
+   MinIO UID migration, socket-free Spark, or backup encryption; those are 6C–6F
+   dependencies. Its acceptance test is a disposable protected Compose render
+   plus startup-preflight test, followed by the existing API authorization and
+   reconciliation suites against isolated staging fixtures.
