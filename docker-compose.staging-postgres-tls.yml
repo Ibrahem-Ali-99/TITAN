@@ -1,0 +1,55 @@
+name: titan-staging
+
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/tls/postgres.crt
+      - -c
+      - ssl_key_file=/tls/postgres.key
+      - -c
+      - ssl_ca_file=/tls/ca.crt
+      - -c
+      - hba_file=/tls/pg_hba.conf
+      - -c
+      - password_encryption=scram-sha-256
+    volumes: !override
+      - postgres_data:/var/lib/postgresql
+      - postgres_tls:/tls:ro
+  migrate:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  ingestion:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  api:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  spark-bronze:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  spark-silver:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  dagster-daemon:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+
+volumes:
+  postgres_tls:
+    name: titan-staging-postgres-tls

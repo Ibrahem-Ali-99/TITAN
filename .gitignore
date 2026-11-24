@@ -44,3 +44,4 @@ Thumbs.db
 Desktop.ini
 .staging-secrets/
 .staging-tls/
+.tmp-pgtls/

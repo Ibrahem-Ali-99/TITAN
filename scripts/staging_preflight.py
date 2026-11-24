@@ -57,6 +57,32 @@ def validate_tls_files(root: Path) -> None:
         raise ValueError("required TLS files are missing: " + ", ".join(missing))
 
 
+def validate_postgres_tls_config(config: dict[str, Any]) -> None:
+    postgres = config.get("services", {}).get("postgres", {})
+    command = " ".join(str(item) for item in postgres.get("command", []))
+    if (
+        "ssl=on" not in command
+        or "/tls/postgres.crt" not in command
+        or "hba_file=/tls/pg_hba.conf" not in command
+    ):
+        raise ValueError("PostgreSQL TLS overlay does not enable the expected server certificate")
+    for service_name in (
+        "migrate",
+        "ingestion",
+        "api",
+        "spark-bronze",
+        "spark-silver",
+        "dagster-daemon",
+    ):
+        environment = config.get("services", {}).get(service_name, {}).get("environment", {})
+        database_url = str(environment.get("DATABASE_URL", ""))
+        if (
+            "sslmode=verify-full" not in database_url
+            or "sslrootcert=/tls/ca.crt" not in database_url
+        ):
+            raise ValueError(f"PostgreSQL TLS client configuration is incomplete: {service_name}")
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -124,6 +150,7 @@ def main() -> int:
     parser.add_argument("--windows-acl-verified", action="store_true")
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--tls-dir", type=Path)
+    parser.add_argument("--postgres-tls", action="store_true")
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -132,7 +159,10 @@ def main() -> int:
             if args.tls_dir is None:
                 raise ValueError("--tls-dir is required with --require-tls")
             validate_tls_files(args.tls_dir)
-        validate_compose(effective_compose(args.compose_file, args.project_name), args.project_name)
+        config = effective_compose(args.compose_file, args.project_name)
+        validate_compose(config, args.project_name)
+        if args.postgres_tls:
+            validate_postgres_tls_config(config)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1

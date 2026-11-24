@@ -80,3 +80,26 @@ Until those stages are complete, all internal data services, observability
 traffic, and recovery tooling remain plaintext inside the isolated staging
 network. TLS is not a substitute for authentication, authorization, secret
 management, or network isolation.
+
+## PostgreSQL TLS opt-in overlay
+
+Upgrade 6C-2 adds `docker-compose.staging-postgres-tls.yml`. It is not part of
+the default staging command. Before starting it, provision and verify the
+certificate foundation, then copy only `ca.crt`, `postgres.crt`, and
+`postgres.key`, and a TLS-only `pg_hba.conf` into the isolated named volume
+`titan-staging-postgres-tls`.
+The PostgreSQL container reads the key as its actual database user; the key is
+never made world-readable. Client containers mount the CA read-only and use
+`sslmode=verify-full` with `sslrootcert=/tls/ca.crt`. The SAN must include
+`postgres`, because that is the Compose DNS name used by clients.
+
+The protected preflight command must include all three compose files and
+`--postgres-tls`; it rejects a server without `ssl=on` or any client that lacks
+`verify-full` and the explicit CA path. The overlay does not publish port 5432.
+
+Rotation is performed by seeding a new isolated TLS volume, validating the new
+certificate and client connections, then recreating only the protected staging
+project. Roll back by restoring the previous volume before expiry. Development
+PostgreSQL remains unchanged. The PostgreSQL TLS overlay does not encrypt Kafka,
+ClickHouse, MinIO, observability, or host-side recovery traffic; those remain
+future phases.
