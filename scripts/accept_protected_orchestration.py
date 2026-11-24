@@ -3,6 +3,7 @@
 This composes the repository's existing provisioning and acceptance commands; it
 does not contain fixture, TLS, or warehouse business logic.
 """
+# ruff: noqa: E501
 
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import os
 import secrets
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -51,6 +53,142 @@ class Runner:
                 "COMPOSE_FILE": os.pathsep.join(COMPOSE_FILES),
             }
         )
+
+    def bootstrap(self, work: Path) -> None:
+        secrets_dir = work / "secrets"
+        tls_dir = work / "tls"
+        kafka_dir = work / "kafka"
+        secrets_dir.mkdir()
+        for name in (
+            "POSTGRES_PASSWORD",
+            "CLICKHOUSE_PASSWORD",
+            "MINIO_ROOT_PASSWORD",
+            "TITAN_READ_TOKEN",
+            "TITAN_WRITE_TOKEN",
+            "TITAN_ADMIN_TOKEN",
+        ):
+            value = secrets.token_urlsafe(32)
+            (secrets_dir / name).write_text(value + "\n", encoding="utf-8")
+            self.env[name] = value
+        self.env.update(
+            {
+                "TITAN_ORCHESTRATION_IMAGE": os.environ.get(
+                    "TITAN_ORCHESTRATION_IMAGE", "titan-orchestration:6e-acceptance"
+                ),
+                "TITAN_SPARK_IMAGE": os.environ.get(
+                    "TITAN_SPARK_IMAGE",
+                    "titan-spark:protected-f3952feb443145ed90c19e64a6ef433b502f68ca",
+                ),
+                "KAFKA_TLS_STORE_PASSWORD": secrets.token_urlsafe(24),
+                "KAFKA_SASL_USERNAME": f"{self.project}-client",
+                "KAFKA_SASL_PASSWORD": secrets.token_urlsafe(32),
+                "TITAN_OIDC_ISSUER": "https://oidc.invalid/",
+                "TITAN_OIDC_CLIENT_ID": "staging",
+                "TITAN_OIDC_CLIENT_SECRET": secrets.token_urlsafe(24),
+                "TITAN_OIDC_REDIRECT_URI": "https://localhost/oidc/callback",
+                "TITAN_OIDC_AUDIENCE": "titan-staging",
+                "TITAN_OIDC_SESSION_SECRET": secrets.token_urlsafe(32),
+            }
+        )
+        self.run(
+            "tls",
+            [
+                sys.executable,
+                "scripts/staging_tls.py",
+                "provision",
+                "--tls-dir",
+                str(tls_dir),
+                "--days",
+                "2",
+                "--windows-acl-verified",
+            ],
+        )
+        self.run(
+            "tls-verify",
+            [
+                sys.executable,
+                "scripts/staging_tls.py",
+                "verify",
+                "--tls-dir",
+                str(tls_dir),
+                "--windows-acl-verified",
+            ],
+        )
+        volumes = {
+            "postgres": "postgres-tls",
+            "clickhouse": "clickhouse-tls",
+            "minio": "minio-tls",
+        }
+        for service, suffix in volumes.items():
+            self.run(
+                f"{service}-tls",
+                [
+                    sys.executable,
+                    f"scripts/staging_{service}_tls.py",
+                    "--source",
+                    str(tls_dir),
+                    "--volume",
+                    f"{self.project}-{suffix}",
+                ],
+            )
+        self.run(
+            "kafka-stores",
+            [
+                sys.executable,
+                "scripts/staging_kafka_tls.py",
+                "--source",
+                str(tls_dir),
+                "--destination",
+                str(kafka_dir),
+                "--password",
+                self.env["KAFKA_TLS_STORE_PASSWORD"],
+                "--username",
+                self.env["KAFKA_SASL_USERNAME"],
+                "--sasl-password",
+                self.env["KAFKA_SASL_PASSWORD"],
+            ],
+        )
+        self.run(
+            "kafka-tls",
+            [
+                sys.executable,
+                "scripts/staging_kafka_tls.py",
+                "--source",
+                str(kafka_dir),
+                "--volume",
+                f"{self.project}-kafka-tls",
+                "--password",
+                self.env["KAFKA_TLS_STORE_PASSWORD"],
+                "--username",
+                self.env["KAFKA_SASL_USERNAME"],
+                "--sasl-password",
+                self.env["KAFKA_SASL_PASSWORD"],
+            ],
+        )
+        preflight = [
+            sys.executable,
+            "scripts/staging_preflight.py",
+            "--secrets-dir",
+            str(secrets_dir),
+            "--project-name",
+            self.project,
+            "--windows-acl-verified",
+            "--postgres-tls",
+            "--postgres-tls-dir",
+            str(tls_dir),
+            "--kafka-tls",
+            "--kafka-tls-dir",
+            str(kafka_dir),
+            "--clickhouse-tls",
+            "--clickhouse-tls-dir",
+            str(tls_dir),
+            "--minio-tls",
+            "--minio-tls-dir",
+            str(tls_dir),
+        ]
+        for file in COMPOSE_FILES:
+            preflight.extend(("--compose-file", str((self.root / file).resolve())))
+        self.run("preflight", preflight)
 
     def run(self, stage: str, command: list[str]) -> str:
         started = time.monotonic()
@@ -105,26 +243,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-name", default=None)
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--bootstrap-only", action="store_true")
     args = parser.parse_args(argv)
     project = require_project(args.project_name or project_name())
     runner = Runner(ROOT, project, args.timeout)
     try:
         runner.run("docker", ["docker", "info", "--format", "{{.ServerVersion}}"])
-        runner.run(
-            "preflight",
-            [
-                sys.executable,
-                "scripts/staging_preflight.py",
-                "--secrets-dir",
-                ".staging-secrets",
-                "--project-name",
-                project,
-                "--compose-file",
-                Path(COMPOSE_FILES[0]).resolve(),
-                "--compose-file",
-                Path(COMPOSE_FILES[1]).resolve(),
-            ],
-        )
+        with tempfile.TemporaryDirectory(prefix="titan-protected-accept-") as temporary:
+            runner.bootstrap(Path(temporary))
+            if args.bootstrap_only:
+                print(f"bootstrap succeeded for {project}")
+                return 0
         runner.run(
             "services",
             runner.compose(
