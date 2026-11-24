@@ -65,6 +65,8 @@ def build_stores(
             password,
             "-destkeystore",
             str(keystore),
+            "-deststoretype",
+            "JKS",
             "-deststorepass",
             password,
             "-destkeypass",
@@ -85,6 +87,8 @@ def build_stores(
             str(ca),
             "-keystore",
             str(truststore),
+            "-storetype",
+            "JKS",
             "-storepass",
             password,
         ]
@@ -93,10 +97,11 @@ def build_stores(
     (destination / "client.properties").write_text(
         "security.protocol=SASL_SSL\n"
         "sasl.mechanism=PLAIN\n"
-        "ssl.ca.location=/tls/ca.crt\n"
-        "ssl.endpoint.identification.algorithm=https\n"
-        f"sasl.username={username}\n"
-        f"sasl.password={sasl_password}\n",
+        "ssl.truststore.location=/etc/kafka/secrets/kafka.truststore.jks\n"
+        f"ssl.truststore.password={password}\n"
+        "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required "
+        f'username="{username}" password="{sasl_password}";\n'
+        "ssl.endpoint.identification.algorithm=https\n",
         encoding="utf-8",
     )
     (destination / "kafka.key.credentials").write_text(password + "\n", encoding="ascii")
