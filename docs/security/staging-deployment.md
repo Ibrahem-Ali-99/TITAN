@@ -49,7 +49,18 @@ Docker socket mounts, and isolated volume names. It prints no secret values.
 
 The operator must supply the same values to Compose through an approved external
 environment/secret injector. The base local stack is never used as the staging
-project and no development volume is referenced.
+project and no development volume is referenced. Protected staging also requires
+`TITAN_ORCHESTRATION_IMAGE` to be an immutable image reference, normally a
+verified registry digest; the local build-only default is not accepted.
+
+Protected staging Compose files are overlays and must always be evaluated with
+`docker-compose.yml` first. The base file supplies the pinned service images and
+the reproducible `titan-orchestration` build contract; invoking an overlay alone
+can produce misleading errors such as a missing Dagster image or build context.
+The protected Dagster container has no Docker socket. Real Spark materialization
+is run by the trusted host-side Dagster launcher against the disposable staging
+Compose project, while the containerized daemon is limited to definitions,
+schedules, and run metadata.
 
 ## Isolation
 

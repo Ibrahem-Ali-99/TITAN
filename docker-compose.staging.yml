@@ -74,6 +74,7 @@ services:
   spark-tests:
     volumes: !override []
   dagster-daemon:
+    image: ${TITAN_ORCHESTRATION_IMAGE:?staging orchestration image digest is required}
     volumes: !override
       - dagster_home:/var/lib/titan/dagster
 

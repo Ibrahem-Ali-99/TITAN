@@ -21,6 +21,9 @@ COPY pipelines pipelines
 COPY warehouse warehouse
 
 RUN uv sync --frozen --no-dev --all-packages --group orchestration \
-    && mkdir -p /var/lib/titan/dagster
+    && mkdir -p /var/lib/titan/dagster \
+    && chown -R 1000:1000 /var/lib/titan/dagster
+
+USER 1000:1000
 
 WORKDIR /app
