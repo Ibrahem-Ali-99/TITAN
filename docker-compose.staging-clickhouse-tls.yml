@@ -66,4 +66,4 @@ services:
 
 volumes:
   clickhouse_tls:
-    name: titan-staging-clickhouse-tls
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-clickhouse-tls

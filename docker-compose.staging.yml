@@ -80,22 +80,22 @@ services:
 
 volumes:
   kafka_data:
-    name: titan-staging-kafka-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-kafka-data
   postgres_data:
-    name: titan-staging-postgres-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-postgres-data
   clickhouse_data:
-    name: titan-staging-clickhouse-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-clickhouse-data
   minio_data:
-    name: titan-staging-minio-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-minio-data
   spark_checkpoints:
-    name: titan-staging-spark-checkpoints
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-spark-checkpoints
   web_node_modules:
-    name: titan-staging-web-node-modules
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-web-node-modules
   dagster_home:
-    name: titan-staging-dagster-home
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-dagster-home
   prometheus_data:
-    name: titan-staging-prometheus-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-prometheus-data
   grafana_data:
-    name: titan-staging-grafana-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-grafana-data
   tempo_data:
-    name: titan-staging-tempo-data
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-tempo-data

@@ -68,4 +68,4 @@ services:
 
 volumes:
   kafka_tls:
-    name: titan-staging-kafka-tls
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-kafka-tls

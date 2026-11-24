@@ -52,4 +52,4 @@ services:
 
 volumes:
   postgres_tls:
-    name: titan-staging-postgres-tls
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-postgres-tls

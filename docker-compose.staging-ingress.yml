@@ -25,7 +25,7 @@ services:
 
 volumes:
   ingress_tls:
-    name: titan-staging-ingress-tls
+    name: ${TITAN_STAGING_VOLUME_PREFIX:-titan-staging}-ingress-tls
 
 configs:
   staging_ingress:
