@@ -84,6 +84,16 @@ def validate_postgres_tls_config(config: dict[str, Any]) -> None:
             raise ValueError(f"PostgreSQL TLS client configuration is incomplete: {service_name}")
 
 
+def validate_postgres_tls_volume(root: Path) -> None:
+    required = ("ca.crt", "postgres.crt", "postgres.key", "pg_hba.conf")
+    missing = [name for name in required if not (root / name).is_file()]
+    if missing:
+        raise ValueError("PostgreSQL TLS volume material is incomplete: " + ", ".join(missing))
+    hba = (root / "pg_hba.conf").read_text(encoding="ascii")
+    if "hostssl" not in hba or "host all all 0.0.0.0/0 reject" not in hba:
+        raise ValueError("PostgreSQL pg_hba.conf must require TLS and reject plaintext")
+
+
 def validate_kafka_tls_config(config: dict[str, Any]) -> None:
     kafka = config.get("services", {}).get("kafka", {})
     environment = kafka.get("environment", {})
@@ -233,6 +243,7 @@ def main() -> int:
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--tls-dir", type=Path)
     parser.add_argument("--postgres-tls", action="store_true")
+    parser.add_argument("--postgres-tls-dir", type=Path)
     parser.add_argument("--kafka-tls", action="store_true")
     parser.add_argument("--kafka-tls-dir", type=Path)
     parser.add_argument("--clickhouse-tls", action="store_true")
@@ -251,6 +262,9 @@ def main() -> int:
         validate_compose(config, args.project_name)
         if args.postgres_tls:
             validate_postgres_tls_config(config)
+            if args.postgres_tls_dir is None:
+                raise ValueError("--postgres-tls-dir is required with --postgres-tls")
+            validate_postgres_tls_volume(args.postgres_tls_dir)
         if args.kafka_tls:
             validate_kafka_tls_config(config)
             if args.kafka_tls_dir is None:

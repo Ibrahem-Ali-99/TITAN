@@ -168,3 +168,35 @@ Renewal uses a new disposable volume and a fresh certificate. Validate a
 complete client round-trip before replacing the protected staging project;
 rollback is the same operation against the previous approved volume. Existing
 development MinIO remains HTTP and its volume is not changed.
+
+## PostgreSQL TLS volume provisioning
+
+Provision the PostgreSQL server certificate into a fresh named volume before
+starting the protected project:
+
+```powershell
+python scripts/staging_postgres_tls.py --source .tmp-staging-tls --volume titan-staging-postgres-tls
+```
+
+The command validates the `postgres` SAN, CA chain, expiry, and key match,
+creates a TLS-only `pg_hba.conf`, rejects nonempty volumes, and applies the
+PostgreSQL image's runtime ownership with mode 0600 for the private key. Run
+preflight with `--postgres-tls --postgres-tls-dir` and include the PostgreSQL
+overlay before startup. Development PostgreSQL volumes are never used.
+
+## Current-source Spark image
+
+Protected staging removes the source bind mounts from the Spark services. Build
+the application image from the current checkout before startup:
+
+```powershell
+$rev = git rev-parse HEAD
+docker build --build-arg TITAN_SOURCE_REVISION=$rev `
+  --file infrastructure/docker/spark.Dockerfile `
+  --tag titan-spark:protected-$rev .
+```
+
+Set `TITAN_SPARK_IMAGE=titan-spark:protected-$rev` for the protected Compose
+run. The image label `org.opencontainers.image.revision` must equal the
+checkout revision; do not use an older local image or add application source
+bind mounts to protected staging.

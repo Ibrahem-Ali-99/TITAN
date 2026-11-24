@@ -7,6 +7,7 @@ from staging_preflight import (
     validate_clickhouse_tls_config,
     validate_compose,
     validate_minio_tls_config,
+    validate_postgres_tls_volume,
     validate_secret_files,
 )
 
@@ -107,3 +108,18 @@ def test_minio_tls_requires_https_trust_and_material(tmp_path: Path) -> None:
     services["api"]["environment"]["S3_ENDPOINT"] = "http://minio:9000"
     with pytest.raises(ValueError, match="HTTPS client"):
         validate_minio_tls_config({"services": services}, tmp_path)
+
+
+def test_postgres_tls_volume_requires_tls_only_hba(tmp_path: Path) -> None:
+    for name in ("ca.crt", "postgres.crt", "postgres.key"):
+        (tmp_path / name).write_text("test\n", encoding="ascii")
+    (tmp_path / "pg_hba.conf").write_text(
+        "hostssl all all 0.0.0.0/0 scram-sha-256\nhost all all 0.0.0.0/0 reject\n",
+        encoding="ascii",
+    )
+    validate_postgres_tls_volume(tmp_path)
+    (tmp_path / "pg_hba.conf").write_text(
+        "host all all 0.0.0.0/0 scram-sha-256\n", encoding="ascii"
+    )
+    with pytest.raises(ValueError, match="require TLS"):
+        validate_postgres_tls_volume(tmp_path)
