@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
   if (!code || !state || !stored) return NextResponse.json({ detail: "invalid OIDC callback" }, { status: 400 });
   try {
     const session = await exchangeCallback(code, stored, state);
-    const response = NextResponse.redirect(new URL("/", request.url));
+    // Build the post-login redirect from the configured public callback origin.
+    // Behind the protected reverse proxy, request.url can reflect the internal
+    // Next.js listener (for example, 0.0.0.0:3000) rather than the browser URL.
+    const publicOrigin = new URL(process.env.TITAN_OIDC_REDIRECT_URI!).origin;
+    const response = NextResponse.redirect(new URL("/", publicOrigin));
     response.cookies.set(cookieName, encodeSession(session), { httpOnly: true, secure: true, sameSite: "lax", maxAge: 8 * 60 * 60, path: "/" });
     response.cookies.delete(stateCookie);
     return response;

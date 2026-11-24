@@ -4,7 +4,8 @@ import { cookieName } from "@/lib/oidc";
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  const publicOrigin = new URL(process.env.TITAN_OIDC_REDIRECT_URI!).origin;
+  if (origin && origin !== publicOrigin) {
     return NextResponse.json({ detail: "cross-origin request rejected" }, { status: 403 });
   }
   const response = NextResponse.json({ ok: true });

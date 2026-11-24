@@ -49,6 +49,7 @@ services:
       TITAN_OIDC_SESSION_SECRET: ${TITAN_OIDC_SESSION_SECRET:?staging OIDC session secret is required}
       TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:?staging read token is required}
       TITAN_WRITE_TOKEN: ${TITAN_WRITE_TOKEN:?staging write token is required}
+      TITAN_ADMIN_TOKEN: ${TITAN_ADMIN_TOKEN:?staging admin token is required}
   prometheus:
     ports: !override []
     volumes: !override

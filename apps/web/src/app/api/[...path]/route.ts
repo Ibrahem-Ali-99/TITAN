@@ -36,7 +36,8 @@ async function forward(
   headers.delete("authorization");
   if (oidcEnabled() && request.method !== "GET") {
     const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) {
+    const publicOrigin = new URL(process.env.TITAN_OIDC_REDIRECT_URI!).origin;
+    if (origin && origin !== publicOrigin) {
       return NextResponse.json({ detail: "cross-origin request rejected" }, { status: 403 });
     }
   }
@@ -52,7 +53,11 @@ async function forward(
   if (request.method !== "GET" && oidcEnabled() && !roles.has("admin") && !roles.has("operator")) {
     return NextResponse.json({ detail: "insufficient scope" }, { status: 403 });
   }
-  const token = request.method === "POST" ? process.env.TITAN_WRITE_TOKEN : process.env.TITAN_READ_TOKEN;
+  const token = adminOperation
+    ? process.env.TITAN_ADMIN_TOKEN
+    : request.method === "POST"
+      ? process.env.TITAN_WRITE_TOKEN
+      : process.env.TITAN_READ_TOKEN;
   if (!token) {
     return NextResponse.json({ detail: "dashboard API authentication is not configured" }, { status: 503 });
   }
