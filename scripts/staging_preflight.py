@@ -45,6 +45,18 @@ EXPECTED_VOLUMES = {
 }
 
 
+def validate_tls_files(root: Path) -> None:
+    required = [root / "ca.crt"]
+    required.extend(
+        root / name
+        for service in ("kafka", "postgres", "clickhouse", "minio")
+        for name in (f"{service}.crt", f"{service}.key")
+    )
+    missing = [path.name for path in required if not path.is_file()]
+    if missing:
+        raise ValueError("required TLS files are missing: " + ", ".join(missing))
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -110,10 +122,16 @@ def main() -> int:
     parser.add_argument("--secrets-dir", type=Path, required=True)
     parser.add_argument("--project-name", default="titan-staging")
     parser.add_argument("--windows-acl-verified", action="store_true")
+    parser.add_argument("--require-tls", action="store_true")
+    parser.add_argument("--tls-dir", type=Path)
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
         validate_secret_files(args.secrets_dir, windows_acl_verified=args.windows_acl_verified)
+        if args.require_tls:
+            if args.tls_dir is None:
+                raise ValueError("--tls-dir is required with --require-tls")
+            validate_tls_files(args.tls_dir)
         validate_compose(effective_compose(args.compose_file, args.project_name), args.project_name)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
