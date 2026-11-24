@@ -220,6 +220,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       CORS_ORIGINS: http://localhost:3000
+      TITAN_SECURITY_PROFILE: ${TITAN_SECURITY_PROFILE:-local}
       LOG_LEVEL: INFO
       TITAN_ADMIN_TOKEN: ${TITAN_ADMIN_TOKEN:-}
       TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:-}

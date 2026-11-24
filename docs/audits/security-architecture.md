@@ -145,6 +145,20 @@ All GitHub Actions in the workflows are pinned to verified 40-character upstream
 
 ## Conclusion
 
+## Upgrade 5G remediation status
+
+The API now carries an explicit `TITAN_SECURITY_PROFILE`. Local remains the
+documented loopback-only default for compatibility. Protected, production, and
+nonlocal profiles fail closed when API tokens or the ClickHouse password are
+missing or equal to known local placeholders. The dashboard remains server-side
+and local-only; no privileged value is exposed as a public frontend variable.
+
+Credential generation, replacement, rollback, CI-only disposable values, and
+the remaining environment-variable limitations are documented in
+`docs/security/secrets-management.md`. Existing stateful development
+credentials and volumes were not rotated. This is configuration hardening, not
+a full secrets-manager deployment or production approval.
+
 ## Upgrade 5F remediation status
 
 PostgreSQL, Kafka, and MinIO backup writers now restrict POSIX artifact trees to
