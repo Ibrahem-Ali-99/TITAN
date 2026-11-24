@@ -66,3 +66,9 @@ is bounded by the captured high watermarks and Kafka retention. The timing depen
 on record count, payload size, broker disk, and network. A complete TITAN recovery
 still requires coordinated PostgreSQL, MinIO, Kafka, and Spark state recovery and
 has not been claimed by this phase.
+## Confidentiality controls
+
+Kafka export trees, including `records.jsonl` and manifests, are written with
+`0700` directory and `0600` file modes on POSIX systems. CI applies `umask 077`.
+Windows operators must enforce equivalent directory ACLs. Payloads remain
+plaintext by design; checksums provide integrity, not confidentiality.

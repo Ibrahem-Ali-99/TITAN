@@ -45,3 +45,8 @@ restore alone must not restart Spark against an incompatible checkpoint or
 advertise Silver as current. Logical/object snapshots provide an RPO equal to
 backup frequency; they do not provide MinIO version-history retention or
 point-in-time recovery. RTO includes object transfer and Parquet verification.
+## Confidentiality controls
+
+MinIO backup trees and Parquet payloads are restricted to `0700`/`0600` on POSIX
+systems, with CI using `umask 077`. Windows requires an ACL-restricted backup
+root. Object checksums detect corruption but do not encrypt the copied bytes.

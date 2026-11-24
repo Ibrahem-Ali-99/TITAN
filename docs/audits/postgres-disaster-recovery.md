@@ -38,3 +38,10 @@ from the machine-readable evidence rather than estimated.
 Backup files should be stored outside Git with encryption and access control
 provided by the operator's approved storage system. On POSIX systems the
 scripts apply mode `0600`; Windows relies on the destination ACL.
+## Confidentiality controls
+
+Backup directories are private (`0700`) and the custom archive and manifest are
+private files (`0600`) on POSIX systems. CI uses `umask 077`. Windows mode bits
+are not relied upon; use an ACL-restricted backup directory. The logical dump is
+not encrypted, so filesystem permissions do not provide encrypted-at-rest
+confidentiality.

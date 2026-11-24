@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             head_sha="${{ github.event.workflow_run.head_sha }}"
             image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/titan-spark:4.0.1-${head_sha}"

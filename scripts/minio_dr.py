@@ -14,6 +14,8 @@ from typing import Any
 
 from minio import Minio
 
+from dr_security import secure_tree
+
 DEFAULT_PREFIXES = ("bronze/", "silver/")
 MANIFEST_NAME = "manifest.json"
 MARKER_NAME = "_titan_restore_complete.json"
@@ -93,6 +95,7 @@ def backup(args: argparse.Namespace) -> None:
     manifest["backup_payload_bytes"] = sum(int(entry["size"]) for entry in entries)
     manifest["backup_duration_ms"] = round((time.perf_counter() - started) * 1000)
     (output / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    secure_tree(output)
     print(json.dumps(manifest, indent=2))
 
 

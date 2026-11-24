@@ -17,6 +17,8 @@ from typing import Any, cast
 
 from confluent_kafka import Consumer, Producer, TopicPartition, admin
 
+from dr_security import secure_tree
+
 MANIFEST = "manifest.json"
 RECORDS = "records.jsonl"
 
@@ -154,6 +156,7 @@ def backup(args: argparse.Namespace) -> None:
         "backup_duration_ms": round((time.perf_counter() - started) * 1000),
     }
     (output / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    secure_tree(output)
     print(json.dumps(manifest, indent=2))
 
 

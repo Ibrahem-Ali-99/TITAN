@@ -21,6 +21,8 @@ import psycopg
 from confluent_kafka import Consumer, TopicPartition, admin
 from minio import Minio
 
+from dr_security import secure_file
+
 ROOT = Path(__file__).resolve().parents[1]
 TOPICS = (
     "titan.commerce.order-events",
@@ -185,6 +187,7 @@ def capture(args: argparse.Namespace) -> None:
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    secure_file(args.output)
     print(
         json.dumps(
             {

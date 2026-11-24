@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           backup_dir="$RUNNER_TEMP/titan-minio-backup"
           .venv/bin/python scripts/minio_dr.py backup --bucket "$LAKE_BUCKET" --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
           .venv/bin/python scripts/minio_dr.py verify --backup "$backup_dir"

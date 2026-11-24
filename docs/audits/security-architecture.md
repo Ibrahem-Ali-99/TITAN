@@ -145,4 +145,20 @@ All GitHub Actions in the workflows are pinned to verified 40-character upstream
 
 ## Conclusion
 
+## Upgrade 5F remediation status
+
+PostgreSQL, Kafka, and MinIO backup writers now restrict POSIX artifact trees to
+`0700` directories and `0600` files; coordinated recovery manifests are written
+as `0600`. Backup CI steps set `umask 077`, and existing checksum validation and
+safe-destination guards remain unchanged. These controls reduce disclosure from
+same-host users and accidental CI sharing, but are not encryption. Windows mode
+bits are not treated as an ACL boundary; Windows operators must place backup
+roots under an ACL-restricted directory and verify inherited permissions.
+
+No encryption format was introduced in this phase. Encrypted backups require an
+externally managed key, authenticated encryption, rotation and recovery
+procedures; adding an ad-hoc format would risk interoperability and recovery.
+CI uploads remain limited to machine-readable evidence rather than raw backup
+archives, but artifact retention and repository access still govern disclosure.
+
 The repository is suitable for controlled local development and has meaningful recovery/CI isolation controls. It should be treated as **not approved for network-exposed or production use** until SEC-01 and SEC-02 are addressed and the image, secret, and backup controls are strengthened. This audit intentionally makes no broad infrastructure changes.

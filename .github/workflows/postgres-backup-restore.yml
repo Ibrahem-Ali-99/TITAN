@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           backup_dir="$RUNNER_TEMP/titan-dr-backup"
           restore_db="postgresql://titan_dr:titan_dr_ci_password@127.0.0.1:55432/titan_restore"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE titan_restore'

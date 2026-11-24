@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import sys
 import time
@@ -15,6 +14,8 @@ from typing import Any
 
 import psycopg
 from psycopg.conninfo import conninfo_to_dict
+
+from dr_security import secure_directory, secure_file
 
 
 def _run(command: list[str], *, capture: bool = True) -> subprocess.CompletedProcess[str]:
@@ -64,6 +65,7 @@ def _assert_safe_restore_destination(dsn: str) -> None:
 def backup(args: argparse.Namespace) -> None:
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
+    secure_directory(output)
     started = time.perf_counter()
     server_version_text, server_version = _pg_version(args.dsn)
     archive = output / "titan-postgres.dump"
@@ -95,9 +97,8 @@ def backup(args: argparse.Namespace) -> None:
         "tool": "scripts/postgres_dr.py",
     }
     _manifest_path(output).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    if os.name != "nt":
-        archive.chmod(0o600)
-        _manifest_path(output).chmod(0o600)
+    secure_file(archive)
+    secure_file(_manifest_path(output))
     print(json.dumps(manifest, indent=2))
 
 

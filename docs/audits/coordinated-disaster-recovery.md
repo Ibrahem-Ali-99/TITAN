@@ -52,3 +52,10 @@ interrupted ClickHouse rebuild left the active pointer unchanged. Evidence is
 in `benchmarks/coordinated-restore.json`. PostgreSQL restore wall time was not
 instrumented by the existing utility; other measured timings and checksums are
 recorded in the evidence file.
+## Confidentiality controls
+
+Coordinated manifests and component backup trees are protected with POSIX
+`0700`/`0600` modes and CI `umask 077`. Windows ACLs must provide the equivalent
+boundary. The coordinated manifest contains lineage and recovery metadata but
+does not encrypt component artifacts; access-controlled storage and retention
+remain operator responsibilities.
