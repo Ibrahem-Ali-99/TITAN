@@ -103,6 +103,18 @@ restore-key procedures before shared data is introduced.
 
 ## Required before shared access
 
+Kafka TLS material must be seeded before Compose startup:
+
+```bash
+uv run python scripts/staging_kafka_tls.py --source .staging-kafka-tls \
+  --volume titan-staging-kafka-tls --password '<store-password>' \
+  --username titan-staging --sasl-password '<generated-sasl-password>'
+```
+
+The host-side helper uses the pinned Kafka image, rejects nonempty or partial
+volumes, sets UID 1000 ownership and mode 0600, and verifies all required JKS,
+credential, JAAS, client-property, and CA files.
+
 Upgrade 6C must add and test TLS/SASL or equivalent service encryption and
 identities. Upgrade 6D must add identity-aware dashboard/API access and audit
 logging. Upgrade 6E must remove the Dagster socket path. Upgrade 6F must add

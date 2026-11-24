@@ -12,6 +12,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
+KAFKA_IMAGE = "apache/kafka@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f"
+REQUIRED_VOLUME_FILES = (
+    "ca.crt",
+    "kafka.keystore.jks",
+    "kafka.truststore.jks",
+    "kafka.key.credentials",
+    "kafka.keystore.credentials",
+    "kafka.truststore.credentials",
+    "kafka_server_jaas.conf",
+    "client.properties",
+)
+
 
 def _run(args: list[str]) -> None:
     subprocess.run(args, check=True, capture_output=True, text=True)
@@ -119,16 +131,54 @@ def build_stores(
             path.chmod(0o600)
 
 
+def seed_volume(source: Path, volume: str) -> None:
+    """Copy verified material into an empty Docker volume as Kafka's user."""
+    source = source.resolve()
+    missing = [name for name in REQUIRED_VOLUME_FILES if not (source / name).is_file()]
+    if missing:
+        raise ValueError("Kafka TLS material is incomplete: " + ", ".join(missing))
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        "0",
+        "-v",
+        f"{volume}:/out",
+        "-v",
+        f"{source}:/in:ro",
+        KAFKA_IMAGE,
+        "sh",
+        "-c",
+        'set -eu; test -z "$(find /out -mindepth 1 -maxdepth 1 -print -quit)"; '
+        "cp /in/ca.crt /in/kafka.keystore.jks /in/kafka.truststore.jks "
+        "/in/kafka.key.credentials /in/kafka.keystore.credentials "
+        "/in/kafka.truststore.credentials /in/kafka_server_jaas.conf "
+        "/in/client.properties /out/; chown -R 1000:1000 /out; chmod 600 /out/*; "
+        "test -f /out/kafka.keystore.jks && test -f /out/kafka.truststore.jks",
+    ]
+    subprocess.run(command, check=True, capture_output=True, text=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
-    parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument("--destination", type=Path)
+    parser.add_argument("--volume")
     parser.add_argument("--password", required=True)
     parser.add_argument("--username", required=True)
     parser.add_argument("--sasl-password", required=True)
     args = parser.parse_args()
-    build_stores(args.source, args.destination, args.password, args.username, args.sasl_password)
-    print("Kafka TLS stores generated; private material is not printed")
+    if args.volume:
+        seed_volume(args.source, args.volume)
+        print("Kafka TLS volume seeded and verified")
+    else:
+        if args.destination is None:
+            parser.error("--destination is required when --volume is not supplied")
+        build_stores(
+            args.source, args.destination, args.password, args.username, args.sasl_password
+        )
+        print("Kafka TLS stores generated; private material is not printed")
     return 0
 
 

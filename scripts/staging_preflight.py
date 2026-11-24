@@ -107,6 +107,22 @@ def validate_kafka_tls_config(config: dict[str, Any]) -> None:
             raise ValueError(f"Kafka CA location is missing: {service_name}")
 
 
+def validate_kafka_tls_volume(root: Path) -> None:
+    required = (
+        "ca.crt",
+        "kafka.keystore.jks",
+        "kafka.truststore.jks",
+        "kafka.key.credentials",
+        "kafka.keystore.credentials",
+        "kafka.truststore.credentials",
+        "kafka_server_jaas.conf",
+        "client.properties",
+    )
+    missing = [name for name in required if not (root / name).is_file()]
+    if missing:
+        raise ValueError("Kafka TLS volume material is incomplete: " + ", ".join(missing))
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -176,6 +192,7 @@ def main() -> int:
     parser.add_argument("--tls-dir", type=Path)
     parser.add_argument("--postgres-tls", action="store_true")
     parser.add_argument("--kafka-tls", action="store_true")
+    parser.add_argument("--kafka-tls-dir", type=Path)
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -190,6 +207,9 @@ def main() -> int:
             validate_postgres_tls_config(config)
         if args.kafka_tls:
             validate_kafka_tls_config(config)
+            if args.kafka_tls_dir is None:
+                raise ValueError("--kafka-tls-dir is required with --kafka-tls")
+            validate_kafka_tls_volume(args.kafka_tls_dir)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1
