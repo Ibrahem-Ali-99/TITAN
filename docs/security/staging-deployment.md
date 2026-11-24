@@ -121,13 +121,26 @@ logging. Upgrade 6E must remove the Dagster socket path. Upgrade 6F must add
 authenticated backup encryption and coordinated recovery drills.
 # ClickHouse TLS staging overlay
 
-Protected staging uses `docker-compose.staging-clickhouse-tls.yml`. Before startup,
-provision the disposable `titan-staging-clickhouse-tls` volume with the generated
-`ca.crt`, `clickhouse.crt`, `clickhouse.key`, and `config.xml` based on
-`docs/security/clickhouse-tls-config.xml.example`. The private key must remain
-0600 and readable by the ClickHouse container user; do not make it world-readable.
+Protected staging uses `docker-compose.staging-clickhouse-tls.yml`. Generate the
+normal disposable staging certificates, copy the example XML to the generated
+directory as `config.xml`, then seed the empty named volume with:
 
-The overlay disables the plaintext HTTP and native listeners and exposes HTTPS on
+```powershell
+python scripts/staging_clickhouse_tls.py --source .tmp-staging-tls --volume titan-staging-clickhouse-tls
+```
+
+The command validates the CA chain, `clickhouse` SAN, expiry and key match before
+copying `ca.crt`, `clickhouse.crt`, `clickhouse.key`, and `config.xml`. It rejects
+nonempty volumes. The private key is owned by ClickHouse UID/GID `101:101` and
+mode `0600`; the CA, server certificate, and non-secret XML configuration are
+`0644` so client containers can read the trust material. Never make the private
+key world-readable.
+
+The ClickHouse server mounts the TLS volume read-only at `/tls` and read-write at
+the image’s `config.d` include directory because the image writes
+`config-preprocessed.xml` there at startup; the volume is still disposable and
+seeded only after validation. All application clients mount it read-only. The
+overlay disables the plaintext HTTP and native listeners and exposes HTTPS on
 the internal-only `clickhouse:8443` endpoint. Clients use `CLICKHOUSE_SECURE=true`,
 `CLICKHOUSE_VERIFY=true`, `CLICKHOUSE_CA_CERT=/tls/ca.crt`, and
 `CLICKHOUSE_SERVER_HOST_NAME=clickhouse`. dbt-clickhouse 1.10.3 does not expose a

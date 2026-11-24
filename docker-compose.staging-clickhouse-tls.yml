@@ -2,7 +2,6 @@ name: titan-staging
 
 services:
   clickhouse:
-    command: ["clickhouse-server", "--config-file=/tls/config.xml"]
     ports: !override []
     environment:
       CLICKHOUSE_SECURE: "true"
@@ -10,6 +9,7 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_tls:/tls:ro
+      - clickhouse_tls:/etc/clickhouse-server/config.d
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --secure --port 9440 --user $$CLICKHOUSE_USER --password $$CLICKHOUSE_PASSWORD --query 'SELECT 1'"]
   migrate:
