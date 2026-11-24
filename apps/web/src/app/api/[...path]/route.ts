@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { cookies } from "next/headers";
+import { cookieName, decodeSession, oidcEnabled } from "@/lib/oidc";
+
 const upstream = process.env.TITAN_API_INTERNAL_URL ?? "http://api:8000";
 const allowedPaths = ["/health/ready", "/api/v1/"];
 
@@ -16,7 +19,7 @@ async function forward(
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
-  if (process.env.TITAN_DASHBOARD_LOCAL_ONLY !== "true") {
+  if (process.env.TITAN_DASHBOARD_LOCAL_ONLY !== "true" && !oidcEnabled()) {
     return NextResponse.json({ detail: "dashboard proxy is disabled outside local mode" }, { status: 503 });
   }
   const pathname = `/${path.join("/")}`;
@@ -31,9 +34,23 @@ async function forward(
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("authorization");
+  if (oidcEnabled() && request.method !== "GET") {
+    const origin = request.headers.get("origin");
+    if (origin && origin !== request.nextUrl.origin) {
+      return NextResponse.json({ detail: "cross-origin request rejected" }, { status: 403 });
+    }
+  }
   const adminOperation = request.method === "POST" && (path.at(-1) === "publish" || path.at(-1) === "replays");
-  if (adminOperation) {
+  const session = oidcEnabled() ? decodeSession((await cookies()).get(cookieName)?.value) : null;
+  const roles = new Set(session?.roles ?? []);
+  if (oidcEnabled() && !session) {
+    return NextResponse.json({ detail: "authentication required" }, { status: 401 });
+  }
+  if (adminOperation && oidcEnabled() && !roles.has("admin")) {
     return NextResponse.json({ detail: "administrative actions require an authenticated operator client" }, { status: 403 });
+  }
+  if (request.method !== "GET" && oidcEnabled() && !roles.has("admin") && !roles.has("operator")) {
+    return NextResponse.json({ detail: "insufficient scope" }, { status: 403 });
   }
   const token = request.method === "POST" ? process.env.TITAN_WRITE_TOKEN : process.env.TITAN_READ_TOKEN;
   if (!token) {

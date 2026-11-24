@@ -236,4 +236,6 @@ Renewal uses a newly generated CA/certificate and a new disposable volume;
 validate the browser and authenticated API round-trip before replacing the
 staging project. This is a loopback-only trusted-workstation boundary, not
 shared-staging or public HTTPS, and it does not provide OIDC or an external
-user identity.
+user identity in local mode. Protected staging now requires the OIDC settings
+documented in `docs/security/oidc-rbac-6d.md`; do not start it with anonymous
+or placeholder identity configuration.

@@ -40,6 +40,13 @@ services:
       - web_node_modules:/app/node_modules
     environment:
       TITAN_DASHBOARD_LOCAL_ONLY: "false"
+      TITAN_SECURITY_PROFILE: protected
+      TITAN_OIDC_ISSUER: ${TITAN_OIDC_ISSUER:?staging OIDC issuer is required}
+      TITAN_OIDC_CLIENT_ID: ${TITAN_OIDC_CLIENT_ID:?staging OIDC client id is required}
+      TITAN_OIDC_CLIENT_SECRET: ${TITAN_OIDC_CLIENT_SECRET:?staging OIDC client secret is required}
+      TITAN_OIDC_REDIRECT_URI: ${TITAN_OIDC_REDIRECT_URI:?staging OIDC redirect URI is required}
+      TITAN_OIDC_AUDIENCE: ${TITAN_OIDC_AUDIENCE:?staging OIDC audience is required}
+      TITAN_OIDC_SESSION_SECRET: ${TITAN_OIDC_SESSION_SECRET:?staging OIDC session secret is required}
       TITAN_READ_TOKEN: ${TITAN_READ_TOKEN:?staging read token is required}
       TITAN_WRITE_TOKEN: ${TITAN_WRITE_TOKEN:?staging write token is required}
   prometheus:

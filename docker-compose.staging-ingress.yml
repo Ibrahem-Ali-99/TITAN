@@ -21,7 +21,7 @@ services:
 
   web:
     environment:
-      TITAN_DASHBOARD_LOCAL_ONLY: "true"
+      TITAN_DASHBOARD_LOCAL_ONLY: "false"
 
 volumes:
   ingress_tls:
