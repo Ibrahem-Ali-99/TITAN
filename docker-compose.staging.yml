@@ -33,6 +33,7 @@ services:
       TITAN_ADMIN_TOKEN: ${TITAN_ADMIN_TOKEN:?staging admin token is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?staging PostgreSQL password is required}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?staging ClickHouse password is required}
+      METRICS_COLLECTOR_ENABLED: "false"
   web:
     ports: !override []
     volumes: !override
