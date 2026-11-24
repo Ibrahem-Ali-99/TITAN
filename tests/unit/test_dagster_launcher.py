@@ -28,6 +28,12 @@ def test_launcher_allows_only_staging_spark_services(monkeypatch: pytest.MonkeyP
     assert "titan-staging-test" in command
 
 
+def test_launcher_allows_only_approved_warehouse_operation(monkeypatch: pytest.MonkeyPatch) -> None:
+    _env(monkeypatch)
+    command = compose_command("warehouse-publish")
+    assert command[-1] == "warehouse-publish"
+
+
 @pytest.mark.parametrize("service", ["postgres", "api", "spark-tests"])
 def test_launcher_rejects_unapproved_services(
     monkeypatch: pytest.MonkeyPatch, service: str

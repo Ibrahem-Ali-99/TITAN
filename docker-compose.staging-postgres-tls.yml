@@ -49,6 +49,11 @@ services:
       - postgres_tls:/tls:ro
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
+  warehouse-publish:
+    volumes:
+      - postgres_tls:/tls:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-titan}:${POSTGRES_PASSWORD:?staging PostgreSQL password is required}@postgres:5432/${POSTGRES_DB:-titan}?sslmode=verify-full&sslrootcert=/tls/ca.crt
 
 volumes:
   postgres_tls:

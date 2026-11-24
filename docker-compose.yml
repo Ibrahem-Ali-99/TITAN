@@ -390,6 +390,35 @@ services:
           memory: 768M
     restart: "no"
 
+  warehouse-publish:
+    profiles: ["processing"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/orchestration.Dockerfile
+    command: ["python", "-m", "titan_warehouse.load"]
+    environment:
+      DATABASE_URL: postgresql://titan:${POSTGRES_PASSWORD:-titan_dev_password}@postgres:5432/${POSTGRES_DB:-titan}
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-titan}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-titan_dev_password}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-titan}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-titan}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-titan_dev_password}
+      PYTHONPATH: /app/pipelines/quality/src:/app/pipelines/dagster/src:/app/pipelines/warehouse/src
+    volumes:
+      - ./pipelines:/app/pipelines
+      - ./warehouse:/app/warehouse
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: "no"
+
   event-generator:
     <<: *python-image
     profiles: ["generate"]

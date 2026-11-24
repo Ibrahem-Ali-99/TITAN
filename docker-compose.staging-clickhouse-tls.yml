@@ -63,6 +63,16 @@ services:
       SSL_CERT_FILE: /tls/ca.crt
     volumes:
       - clickhouse_tls:/tls:ro
+  warehouse-publish:
+    environment:
+      CLICKHOUSE_SECURE: "true"
+      CLICKHOUSE_VERIFY: "true"
+      CLICKHOUSE_PORT: "8443"
+      CLICKHOUSE_CA_CERT: /tls/ca.crt
+      CLICKHOUSE_SERVER_HOST_NAME: clickhouse
+      SSL_CERT_FILE: /tls/ca.crt
+    volumes:
+      - clickhouse_tls:/tls:ro
 
 volumes:
   clickhouse_tls:

@@ -77,6 +77,10 @@ services:
     image: ${TITAN_ORCHESTRATION_IMAGE:?staging orchestration image digest is required}
     volumes: !override
       - dagster_home:/var/lib/titan/dagster
+  warehouse-publish:
+    image: ${TITAN_ORCHESTRATION_IMAGE:?staging orchestration image digest is required}
+    build: !reset null
+    volumes: !override []
 
 volumes:
   kafka_data:

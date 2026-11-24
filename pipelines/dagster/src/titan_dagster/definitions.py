@@ -29,7 +29,7 @@ RETRY = RetryPolicy(max_retries=1, delay=20)
 load_cwd_env()
 
 
-def _compose(service: str) -> None:
+def _compose(service: str) -> str:
     command = (
         compose_command(service)
         if os.environ.get("TITAN_PROTECTED_STAGING", "").lower() == "true"
@@ -45,6 +45,7 @@ def _compose(service: str) -> None:
     if completed.returncode != 0:
         detail = (completed.stdout + completed.stderr)[-4000:]
         raise RuntimeError(f"{service} failed: {detail}")
+    return completed.stdout.strip()
 
 
 @asset(retry_policy=RETRY, group_name="lake")
@@ -65,10 +66,13 @@ def silver_publication(context: AssetExecutionContext) -> str:
 
 @asset(deps=[silver_publication], retry_policy=RETRY, group_name="warehouse")
 def clickhouse_load(context: AssetExecutionContext) -> str:
-    """Insert the current Silver version and validate counts. Do not promote it yet."""
-    from titan_warehouse.load import run_warehouse_pipeline
+    """Run the isolated warehouse publication service and return its load id."""
+    if os.environ.get("TITAN_PROTECTED_STAGING", "").lower() == "true":
+        load_id = _compose("warehouse-publish").splitlines()[-1]
+    else:
+        from titan_warehouse.load import run_warehouse_pipeline
 
-    load_id = run_warehouse_pipeline(stop_after="validated")
+        load_id = run_warehouse_pipeline(stop_after="validated")
     context.add_output_metadata({"load_id": load_id})
     return load_id
 

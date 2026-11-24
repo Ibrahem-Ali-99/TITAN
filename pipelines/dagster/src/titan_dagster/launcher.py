@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-ALLOWED_SERVICES = frozenset({"spark-bronze", "spark-silver"})
+ALLOWED_SERVICES = frozenset({"spark-bronze", "spark-silver", "warehouse-publish"})
 ALLOWED_COMPOSE_FILES = frozenset(
     {
         "docker-compose.yml",
