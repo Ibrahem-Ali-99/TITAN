@@ -12,6 +12,7 @@ safety for one batch, not an exactly-once lake.
 """
 
 import sys
+import time
 from datetime import datetime, timezone
 
 from pyspark.sql import DataFrame
@@ -38,16 +39,20 @@ def write_bronze_batch(
     bronze_uri: str,
     attempt: int | None = None,
 ) -> str:
+    print(f"bronze boundary=minio_write_start batch_id={batch_id}", flush=True)
     local = f"{staging_root}/bronze/{batch_id}"
     leaf = f"batch_id={batch_id}" if attempt is None else f"batch_id={batch_id}/attempt={attempt}"
     remote = f"{bronze_uri}/{leaf}"
     (parsed.coalesce(1).write.mode("overwrite").option("compression", "snappy").parquet(local))
     copy_tree(spark, local, remote)
+    print(f"bronze boundary=minio_write_done batch_id={batch_id}", flush=True)
     return remote
 
 
 def run_bronze(settings: Settings, trigger: str) -> None:
+    print(f"bronze boundary=session_start epoch={time.time()}", flush=True)
     spark = build_session(settings, "titan-bronze")
+    print(f"bronze boundary=session_done epoch={time.time()}", flush=True)
     staging = f"file://{settings.checkpoint_root}/staging"
     _backfill_existing_batches(spark, settings)
     record_job(
@@ -64,6 +69,7 @@ def run_bronze(settings: Settings, trigger: str) -> None:
         .option("maxOffsetsPerTrigger", str(settings.max_offsets_per_trigger))
         .option("failOnDataLoss", "true")
     )
+    print("bronze boundary=source_configured", flush=True)
     if settings.kafka_security_protocol == "SASL_SSL":
         required = (
             settings.kafka_sasl_mechanism,
@@ -88,8 +94,10 @@ def run_bronze(settings: Settings, trigger: str) -> None:
             .option("kafka.ssl.endpoint.identification.algorithm", "https")
         )
     kafka = kafka.load()
+    print("bronze boundary=source_loaded", flush=True)
 
     def foreach(batch: DataFrame, batch_id: int) -> None:
+        print(f"bronze boundary=foreach_start batch_id={batch_id}", flush=True)
         if batch.limit(1).count() == 0:
             record_job(
                 settings,
@@ -113,6 +121,7 @@ def run_bronze(settings: Settings, trigger: str) -> None:
             destination,
             int(parsed.count()),
         )
+        print(f"bronze boundary=checkpoint_commit_ready batch_id={batch_id}", flush=True)
         offsets = _batch_offsets(parsed)
         record_job(
             settings,
@@ -132,6 +141,7 @@ def run_bronze(settings: Settings, trigger: str) -> None:
         query = writer.trigger(processingTime="10 seconds").start()
     else:
         raise ValueError("trigger must be availableNow or processing")
+    print("bronze boundary=query_started", flush=True)
     try:
         query.awaitTermination()
     except Exception as exc:
@@ -143,6 +153,7 @@ def run_bronze(settings: Settings, trigger: str) -> None:
         )
         raise
     progress = query.lastProgress or {}
+    print("bronze boundary=await_termination_done", flush=True)
     record_job(
         settings,
         job_name="bronze_stream",
