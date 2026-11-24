@@ -52,19 +52,27 @@ jobs:
       - name: Allocate isolated host ports
         shell: bash
         run: |
-          suffix=$((GITHUB_RUN_ID % 1000))
+          allocate_port() {
+            python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
+          }
+          kafka_port=$(allocate_port)
+          postgres_port=$(allocate_port)
+          clickhouse_port=$(allocate_port)
+          minio_port=$(allocate_port)
+          minio_console_port=$(allocate_port)
+          api_port=$(allocate_port)
           {
-            echo "TITAN_KAFKA_PORT=$((30000 + suffix))"
-            echo "TITAN_POSTGRES_PORT=$((31000 + suffix))"
-            echo "TITAN_CLICKHOUSE_PORT=$((32000 + suffix))"
-            echo "TITAN_MINIO_PORT=$((33000 + suffix))"
-            echo "TITAN_MINIO_CONSOLE_PORT=$((34000 + suffix))"
-            echo "TITAN_API_PORT=$((35000 + suffix))"
-            echo "DATABASE_URL=postgresql://titan:titan_full_ci_password@127.0.0.1:$((31000 + suffix))/titan"
-            echo "KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:$((30000 + suffix))"
-            echo "CLICKHOUSE_PORT=$((32000 + suffix))"
-            echo "S3_ENDPOINT=http://127.0.0.1:$((33000 + suffix))"
-            echo "MINIO_ENDPOINT=127.0.0.1:$((33000 + suffix))"
+            echo "TITAN_KAFKA_PORT=$kafka_port"
+            echo "TITAN_POSTGRES_PORT=$postgres_port"
+            echo "TITAN_CLICKHOUSE_PORT=$clickhouse_port"
+            echo "TITAN_MINIO_PORT=$minio_port"
+            echo "TITAN_MINIO_CONSOLE_PORT=$minio_console_port"
+            echo "TITAN_API_PORT=$api_port"
+            echo "DATABASE_URL=postgresql://titan:titan_full_ci_password@127.0.0.1:$postgres_port/titan"
+            echo "KAFKA_BOOTSTRAP_SERVERS=127.0.0.1:$kafka_port"
+            echo "CLICKHOUSE_PORT=$clickhouse_port"
+            echo "S3_ENDPOINT=http://127.0.0.1:$minio_port"
+            echo "MINIO_ENDPOINT=127.0.0.1:$minio_port"
           } >> "$GITHUB_ENV"
       - name: Resolve and pull immutable Spark image
         shell: bash
