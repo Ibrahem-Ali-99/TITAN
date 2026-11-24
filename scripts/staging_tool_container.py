@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -13,6 +14,8 @@ WINDOWS_PATH = re.compile(r"^[A-Za-z]:[\\/]")
 def run(args: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[bytes]:
     if args and args[0] == "docker":
         return subprocess.run(args, check=True, capture_output=True)
+    if os.name != "nt":
+        return subprocess.run(args, cwd=cwd, check=True, capture_output=True)
     paths: list[Path] = []
     for value in args:
         if WINDOWS_PATH.match(value):
