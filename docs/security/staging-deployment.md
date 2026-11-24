@@ -60,12 +60,22 @@ is workstation-only.
 
 ## Compatibility and limitations
 
-This stage preserves internal plaintext service protocols so existing clients
+The default protected staging overlay preserves internal plaintext service
+protocols so existing clients
 remain compatible. It does not provide shared access approval. The dashboard
 local-only proxy is disabled in the overlay, but shared user authentication is
 not implemented yet; do not publish the dashboard or API outside the private
 staging network. Kafka, database, MinIO, and ClickHouse authentication remains
 credential-based without transport encryption.
+
+The opt-in `docker-compose.staging-postgres-tls.yml` overlay is the verified
+PostgreSQL transport exception. It requires a separately seeded
+`titan-staging-postgres-tls` volume containing `ca.crt`, `postgres.crt`,
+`postgres.key`, and TLS-only `pg_hba.conf`. Clients use `sslmode=verify-full`
+with `/tls/ca.crt`; PostgreSQL private-key ownership must match the pinned
+image's `postgres` UID. Use the TLS-specific preflight flags before startup.
+This overlay does not encrypt Kafka, ClickHouse, MinIO, observability, or
+recovery traffic.
 
 Spark checkpoints and recovery artifacts use staging-only resources. Do not
 reuse development checkpoints, topics, buckets, databases, or volumes.
