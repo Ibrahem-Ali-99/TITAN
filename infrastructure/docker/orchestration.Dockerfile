@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app/pipelines/dagster/src:/app/pipelines/warehouse/src" \
+    PYTHONPATH="/app/pipelines/quality/src:/app/pipelines/dagster/src:/app/pipelines/warehouse/src" \
     DAGSTER_HOME="/var/lib/titan/dagster"
 
 # ghcr.io/astral-sh/uv:0.12.1
