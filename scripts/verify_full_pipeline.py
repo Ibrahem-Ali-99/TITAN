@@ -39,6 +39,10 @@ def main() -> None:
         username=os.environ["CLICKHOUSE_USER"],
         password=os.environ["CLICKHOUSE_PASSWORD"],
         database=os.environ["CLICKHOUSE_DATABASE"],
+        secure=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
+        verify=os.environ.get("CLICKHOUSE_VERIFY", "true").lower() == "true",
+        ca_cert=os.environ.get("CLICKHOUSE_CA_CERT"),
+        server_host_name=os.environ.get("CLICKHOUSE_SERVER_HOST_NAME"),
     )
     active = client.query(
         """

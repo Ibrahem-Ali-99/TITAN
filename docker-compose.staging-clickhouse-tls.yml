@@ -11,7 +11,7 @@ services:
       - clickhouse_tls:/tls:ro
       - clickhouse_tls:/etc/clickhouse-server/config.d
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --secure --port 9440 --user $$CLICKHOUSE_USER --password $$CLICKHOUSE_PASSWORD --query 'SELECT 1'"]
+      test: ["CMD-SHELL", "clickhouse-client --config-file=/tls/config.xml --secure --host clickhouse --port 9440 --user $$CLICKHOUSE_USER --password $$CLICKHOUSE_PASSWORD --query 'SELECT 1'"]
   migrate:
     environment:
       CLICKHOUSE_SECURE: "true"
