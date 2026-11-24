@@ -1,0 +1,62 @@
+name: titan-staging
+
+services:
+  minio:
+    environment:
+      MINIO_SECURE: "true"
+    ports: !override []
+    volumes:
+      - minio_data:/data
+      - minio_tls:/home/minio/.minio/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
+  api:
+    environment:
+      S3_ENDPOINT: https://minio:9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "true"
+      SSL_CERT_FILE: /tls/ca.crt
+      S3_CA_CERT: /tls/ca.crt
+    volumes:
+      - minio_tls:/tls:ro
+  spark-bronze:
+    environment:
+      S3_ENDPOINT: https://minio:9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "true"
+      SSL_CERT_FILE: /tls/ca.crt
+      S3_CA_CERT: /tls/ca.crt
+      SPARK_S3A_SSL_ENABLED: "true"
+      SPARK_S3A_TRUSTSTORE_LOCATION: /kafka-tls/kafka.truststore.jks
+      SPARK_S3A_TRUSTSTORE_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:?staging Kafka TLS store password is required}
+    volumes:
+      - minio_tls:/tls:ro
+      - kafka_tls:/kafka-tls:ro
+  spark-silver:
+    environment:
+      S3_ENDPOINT: https://minio:9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "true"
+      SSL_CERT_FILE: /tls/ca.crt
+      S3_CA_CERT: /tls/ca.crt
+      SPARK_S3A_SSL_ENABLED: "true"
+      SPARK_S3A_TRUSTSTORE_LOCATION: /kafka-tls/kafka.truststore.jks
+      SPARK_S3A_TRUSTSTORE_PASSWORD: ${KAFKA_TLS_STORE_PASSWORD:?staging Kafka TLS store password is required}
+    volumes:
+      - minio_tls:/tls:ro
+      - kafka_tls:/kafka-tls:ro
+  dagster-daemon:
+    environment:
+      S3_ENDPOINT: https://minio:9000
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "true"
+      SSL_CERT_FILE: /tls/ca.crt
+      S3_CA_CERT: /tls/ca.crt
+    volumes:
+      - minio_tls:/tls:ro
+
+volumes:
+  minio_tls:
+    name: titan-staging-minio-tls
+  kafka_tls:
+    name: titan-staging-kafka-tls

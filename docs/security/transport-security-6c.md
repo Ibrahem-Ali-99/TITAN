@@ -118,6 +118,22 @@ before the KRaft log starts. Replay and backup tools must receive the same
 explicit SASL/TLS environment; no tool may silently fall back when
 `KAFKA_SECURITY_PROTOCOL=SASL_SSL`.
 
+## MinIO HTTPS opt-in overlay
+
+Upgrade 6C-5 adds `docker-compose.staging-minio-tls.yml`. It removes MinIO
+host publication and mounts a disposable `titan-staging-minio-tls` volume at
+the image's certificate directory. `scripts/staging_minio_tls.py` validates
+the CA chain, the `minio` DNS SAN, expiry, and certificate/key matching before
+seeding an empty volume with `public.crt`, `private.key`, and `CAs/ca.crt`.
+The private key is mode 0600; it is never committed or printed.
+
+Protected Python clients use `https://minio:9000`, `SSL_CERT_FILE=/tls/ca.crt`,
+and the SDK's default certificate verification. The warehouse S3 filesystem
+receives the same CA explicitly. Spark S3A enables SSL and uses a JKS
+truststore mounted separately from the Kafka TLS volume. Wrong CA, hostname
+mismatch, invalid credentials, and plaintext access must fail closed. Local
+development remains HTTP and is not changed by this overlay.
+
 ## PostgreSQL TLS opt-in overlay
 
 Upgrade 6C-2 adds `docker-compose.staging-postgres-tls.yml`. It is not part of

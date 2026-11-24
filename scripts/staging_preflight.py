@@ -149,6 +149,22 @@ def validate_clickhouse_tls_config(config: dict[str, Any], tls_root: Path) -> No
             raise ValueError(f"ClickHouse hostname verification is missing: {service_name}")
 
 
+def validate_minio_tls_config(config: dict[str, Any], tls_root: Path) -> None:
+    minio = config.get("services", {}).get("minio", {})
+    if str(minio.get("environment", {}).get("MINIO_SECURE", "")).lower() != "true":
+        raise ValueError("protected MinIO configuration must require HTTPS")
+    for name in ("ca.crt", "minio.crt", "minio.key"):
+        if not (tls_root / name).is_file():
+            raise ValueError(f"MinIO TLS material is missing: {name}")
+    for service_name in ("api", "spark-bronze", "spark-silver", "dagster-daemon"):
+        service = config.get("services", {}).get(service_name, {})
+        environment = service.get("environment", {})
+        if not str(environment.get("S3_ENDPOINT", "")).startswith("https://"):
+            raise ValueError(f"MinIO HTTPS client configuration is incomplete: {service_name}")
+        if not str(environment.get("SSL_CERT_FILE", "")).strip():
+            raise ValueError(f"MinIO CA trust is missing: {service_name}")
+
+
 def _secret_files(root: Path) -> dict[str, Path]:
     return {name: root / name for name in REQUIRED_SECRETS}
 
@@ -221,6 +237,8 @@ def main() -> int:
     parser.add_argument("--kafka-tls-dir", type=Path)
     parser.add_argument("--clickhouse-tls", action="store_true")
     parser.add_argument("--clickhouse-tls-dir", type=Path)
+    parser.add_argument("--minio-tls", action="store_true")
+    parser.add_argument("--minio-tls-dir", type=Path)
     parser.add_argument("--compose-file", type=Path, action="append", required=True)
     args = parser.parse_args()
     try:
@@ -242,6 +260,10 @@ def main() -> int:
             if args.clickhouse_tls_dir is None:
                 raise ValueError("--clickhouse-tls-dir is required with --clickhouse-tls")
             validate_clickhouse_tls_config(config, args.clickhouse_tls_dir)
+        if args.minio_tls:
+            if args.minio_tls_dir is None:
+                raise ValueError("--minio-tls-dir is required with --minio-tls")
+            validate_minio_tls_config(config, args.minio_tls_dir)
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"staging preflight rejected: {exc}", file=sys.stderr)
         return 1

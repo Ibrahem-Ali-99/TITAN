@@ -147,3 +147,24 @@ the internal-only `clickhouse:8443` endpoint. Clients use `CLICKHOUSE_SECURE=tru
 CA-path profile field, so its protected staging process must set
 `SSL_CERT_FILE=/tls/ca.crt`; it still uses `secure: true`, `verify: true`, and
 the ClickHouse hostname. Local development is unchanged.
+
+## MinIO HTTPS staging
+
+Generate fresh staging certificates with `scripts/staging_tls.py`, then seed a
+new empty volume without manually copying files:
+
+```powershell
+python scripts/staging_minio_tls.py --source .tmp-staging-tls --volume titan-staging-minio-tls
+```
+
+The helper rejects missing, expired, untrusted, mismatched, partial, or
+nonempty material. It uses the pinned MinIO image for provisioning, sets the
+private key to mode 0600, and stores the public certificate and CA as mode
+0644. Protected Compose uses `https://minio:9000` with no host MinIO ports;
+Python clients receive `/tls/ca.crt`, while Spark S3A receives a separate
+truststore. Run preflight with `--minio-tls --minio-tls-dir` before startup.
+
+Renewal uses a new disposable volume and a fresh certificate. Validate a
+complete client round-trip before replacing the protected staging project;
+rollback is the same operation against the previous approved volume. Existing
+development MinIO remains HTTP and its volume is not changed.

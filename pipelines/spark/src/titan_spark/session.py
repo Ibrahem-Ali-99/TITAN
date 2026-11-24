@@ -1,11 +1,15 @@
 """Local Spark sessions. The scale path is a different master, not a rewrite."""
 
+import os
+
 from pyspark.sql import SparkSession
 
 from titan_spark.config import Settings
 
 
 def build_session(settings: Settings, app_name: str) -> SparkSession:
+    truststore = os.environ.get("SPARK_S3A_TRUSTSTORE_LOCATION")
+    truststore_password = os.environ.get("SPARK_S3A_TRUSTSTORE_PASSWORD")
     builder = (
         SparkSession.builder.appName(app_name)
         .master("local[1]")
@@ -16,6 +20,14 @@ def build_session(settings: Settings, app_name: str) -> SparkSession:
         .config("spark.driver.bindAddress", "127.0.0.1")
         .config("spark.driver.memory", "768m")
     )
+    if truststore and truststore_password:
+        java_options = (
+            f"-Djavax.net.ssl.trustStore={truststore} "
+            f"-Djavax.net.ssl.trustStorePassword={truststore_password}"
+        )
+        builder = builder.config("spark.driver.extraJavaOptions", java_options).config(
+            "spark.executor.extraJavaOptions", java_options
+        )
     spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     _configure_s3(spark, settings)
@@ -33,7 +45,7 @@ def _configure_s3(spark: SparkSession, settings: Settings) -> None:
     pairs = {
         "fs.s3a.endpoint": settings.s3_endpoint,
         "fs.s3a.path.style.access": "true",
-        "fs.s3a.connection.ssl.enabled": "false",
+        "fs.s3a.connection.ssl.enabled": os.environ.get("SPARK_S3A_SSL_ENABLED", "false"),
         "fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
         "fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
         "fs.s3a.access.key": settings.s3_access_key,

@@ -22,7 +22,13 @@ MARKER_NAME = "_titan_restore_complete.json"
 
 
 def _client(endpoint: str, access_key: str, secret_key: str, secure: bool) -> Minio:
-    return Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+    return Minio(
+        endpoint,
+        access_key=access_key,
+        secret_key=secret_key,
+        secure=secure,
+        cert_check=True,
+    )
 
 
 def _sha256(data: bytes) -> str:

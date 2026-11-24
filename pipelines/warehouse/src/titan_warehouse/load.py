@@ -362,6 +362,7 @@ def _s3():
         ),
         endpoint_override=host,
         scheme="https" if secure else "http",
+        tls_ca_file_path=os.environ.get("S3_CA_CERT") if secure else None,
     )
 
 

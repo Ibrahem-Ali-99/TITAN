@@ -64,7 +64,14 @@ def check_minio(endpoint: str, access_key: str, secret_key: str) -> str:
     from minio import Minio
     from minio.error import S3Error
 
-    client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=False)
+    secure = os.environ.get("MINIO_SECURE", "false").lower() == "true"
+    client = Minio(
+        endpoint,
+        access_key=access_key,
+        secret_key=secret_key,
+        secure=secure,
+        cert_check=True,
+    )
     try:
         buckets = client.list_buckets()
     except S3Error as exc:

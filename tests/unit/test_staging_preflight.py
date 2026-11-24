@@ -6,6 +6,7 @@ import pytest
 from staging_preflight import (
     validate_clickhouse_tls_config,
     validate_compose,
+    validate_minio_tls_config,
     validate_secret_files,
 )
 
@@ -92,3 +93,17 @@ def test_clickhouse_tls_requires_verified_material_and_clients(tmp_path: Path) -
     services["api"]["environment"]["CLICKHOUSE_SECURE"] = "false"
     with pytest.raises(ValueError, match="client configuration"):
         validate_clickhouse_tls_config({"services": services}, tmp_path)
+
+
+def test_minio_tls_requires_https_trust_and_material(tmp_path: Path) -> None:
+    for name in ("ca.crt", "minio.crt", "minio.key"):
+        (tmp_path / name).write_text("test\n", encoding="ascii")
+    services = {
+        name: {"environment": {"S3_ENDPOINT": "https://minio:9000", "SSL_CERT_FILE": "/tls/ca.crt"}}
+        for name in ("api", "spark-bronze", "spark-silver", "dagster-daemon")
+    }
+    services["minio"] = {"environment": {"MINIO_SECURE": "true"}}
+    validate_minio_tls_config({"services": services}, tmp_path)
+    services["api"]["environment"]["S3_ENDPOINT"] = "http://minio:9000"
+    with pytest.raises(ValueError, match="HTTPS client"):
+        validate_minio_tls_config({"services": services}, tmp_path)

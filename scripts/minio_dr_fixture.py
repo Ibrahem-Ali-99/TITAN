@@ -17,11 +17,14 @@ def parquet_bytes(table: pa.Table) -> bytes:
 
 
 def main() -> None:
+    endpoint = os.environ.get("MINIO_ENDPOINT", "127.0.0.1:9000")
+    secure = os.environ.get("MINIO_SECURE", "false").lower() == "true"
     client = Minio(
-        os.environ.get("MINIO_ENDPOINT", "127.0.0.1:9000"),
+        endpoint,
         access_key=os.environ["MINIO_ACCESS_KEY"],
         secret_key=os.environ["MINIO_SECRET_KEY"],
-        secure=False,
+        secure=secure,
+        cert_check=True,
     )
     bucket = os.environ.get("LAKE_BUCKET", "titan-lake")
     if not client.bucket_exists(bucket):

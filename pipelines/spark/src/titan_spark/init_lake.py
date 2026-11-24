@@ -19,6 +19,7 @@ def ensure_bucket() -> str:
             os.environ.get("S3_SECRET_KEY", "titan_dev_password"),
         ),
         secure=secure,
+        cert_check=True,
     )
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
