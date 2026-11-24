@@ -10,7 +10,7 @@ enabled in the local or protected staging Compose listeners by this change.
 | FastAPI/ingestion | Kafka | `kafka:19092` | `confluent-kafka` | plaintext Kafka plus application credentials/profile |
 | FastAPI/migrations | PostgreSQL | `postgres:5432` | `psycopg`/SQLAlchemy | plaintext private network plus password |
 | FastAPI/warehouse | ClickHouse | `clickhouse:8443` in protected staging | `clickhouse-connect` | HTTPS with CA and hostname verification; local profile remains HTTP |
-| Spark/warehouse | MinIO | `minio:9000` | `minio`/S3A | plaintext HTTP plus access key |
+| Spark/warehouse | MinIO | `minio:9000` | `minio`/S3A | HTTPS with CA verification in protected staging; local profile remains HTTP |
 | Spark | Kafka/PostgreSQL/MinIO | Compose DNS | Spark Kafka, JDBC/S3A clients | plaintext internal listeners |
 | dbt | ClickHouse | `clickhouse:8443` in protected staging | dbt-clickhouse | secure/verify plus `SSL_CERT_FILE`; local profile remains plaintext |
 | Dagster | PostgreSQL/ClickHouse/MinIO | Compose DNS | psycopg/clickhouse/minio | plaintext internal listeners |
