@@ -268,11 +268,20 @@ def main() -> int:
             raise RuntimeError(f"authorized API read failed: HTTP {status}")
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(args.screenshot), full_page=True)
-        page.locator('form[action="/auth/logout"] button, button:has-text("Log out")').first.click()
+        logout = page.locator(
+            'form[action="/auth/logout"] button, button:has-text("Log out")'
+        ).first
+        if logout.count():
+            logout.click()
+        else:
+            page.goto(args.base_url + "/auth/logout", wait_until="domcontentloaded")
         page.wait_for_url(
             lambda url: url.startswith(args.base_url) or url.startswith(args.issuer), timeout=30000
         )
         evidence["logout_url"] = page.url
+        page.goto(args.base_url + "/", wait_until="domcontentloaded")
+        page.wait_for_url(lambda url: url.startswith(args.issuer), timeout=30000)
+        evidence["fresh_navigation_url"] = page.url
         context.close()
         browser.close()
     evidence["logout_verified"] = True

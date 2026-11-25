@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +31,8 @@ from titan_store.models import (
 )
 
 logger = logging.getLogger(__name__)
+_lag_cache_lock = threading.Lock()
+_lag_cache: tuple[float, "LagView"] | None = None
 
 
 def _monitoring_diag(stage: str, started: float) -> None:
@@ -156,6 +159,25 @@ class LagView(BaseModel):
     available: bool
     total_lag: int | None
     detail: str
+
+
+def record_lag_view(view: LagView) -> None:
+    global _lag_cache
+    with _lag_cache_lock:
+        _lag_cache = (time.monotonic(), view)
+
+
+def cached_lag_view(max_age_seconds: float = 45.0) -> LagView:
+    with _lag_cache_lock:
+        cached = _lag_cache
+    if cached is None or time.monotonic() - cached[0] > max_age_seconds:
+        return LagView(
+            consumer_group=CONSUMER_GROUP,
+            available=False,
+            total_lag=None,
+            detail="ingestion lag is unavailable until the background collector completes",
+        )
+    return cached[1]
 
 
 class MonitoringOverview(BaseModel):
@@ -338,7 +360,7 @@ def monitoring_overview(session: Session, settings: ApiSettings) -> MonitoringOv
     _monitoring_diag("kafka-lag-start", started)
     return MonitoringOverview(
         freshness=monitoring_freshness(session),
-        ingestion_lag=_lag(settings.kafka_bootstrap_servers),
+        ingestion_lag=cached_lag_view(),
         spark_progress=_spark(session),
         latest_failure=_failure(session),
         model_serving=None if (served := _served(session)) is None else served.serving_strategy,

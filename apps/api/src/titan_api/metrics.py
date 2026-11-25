@@ -21,7 +21,13 @@ from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from titan_api.config import ApiSettings
-from titan_api.platform import _lag, monitoring_freshness, monitoring_jobs, quality_summary
+from titan_api.platform import (
+    _lag,
+    monitoring_freshness,
+    monitoring_jobs,
+    quality_summary,
+    record_lag_view,
+)
 from titan_api.warehouse import load_status
 from titan_store.models import SparkJobStatus
 
@@ -342,6 +348,7 @@ def _freshness(session: Session) -> bool:
 
 def _lag_gauge(settings: ApiSettings) -> bool:
     view = _lag(settings.kafka_bootstrap_servers)
+    record_lag_view(view)
     if not view.available or view.total_lag is None:
         LAG_MEASURED.set(0)
         return False
