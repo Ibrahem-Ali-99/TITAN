@@ -29,6 +29,7 @@ def _sanitize(value: object) -> object:
                 word in key.lower()
                 for word in ("password", "secret", "token", "cookie", "authorization")
             )
+            and isinstance(item, str)
             else _sanitize(item)
             for key, item in value.items()
         }
@@ -55,6 +56,8 @@ def main() -> int:
     parser.add_argument("--boundary-probe", action="store_true")
     parser.add_argument("--staging-host", default="127.0.0.1")
     parser.add_argument("--net-log", type=Path, default=None)
+    parser.add_argument("--role-check", action="store_true")
+    parser.add_argument("--expected-role", choices=("viewer", "analyst", "operator", "admin"))
     args = parser.parse_args()
     password = args.password_file.read_text(encoding="utf-8").strip()
     evidence: dict[str, object] = {
@@ -62,6 +65,7 @@ def main() -> int:
         "console_errors": [],
         "failed_requests": [],
         "redirects": [],
+        "navigation_diagnostics": [],
     }
     atexit.register(write_evidence, args.evidence, evidence)
     with sync_playwright() as playwright:
@@ -103,6 +107,38 @@ def main() -> int:
             lambda error: evidence.setdefault("page_errors", []).append(str(error)[:240]),
         )
         page.on("requestfailed", lambda request: evidence["failed_requests"].append(request.url))  # type: ignore[union-attr]
+        page.on(
+            "request",
+            lambda request: (
+                evidence["navigation_diagnostics"].append(
+                    {
+                        "kind": "request",
+                        "path": _safe_url(request.url),
+                        "method": request.method,
+                        "cookie_present": bool(request.headers.get("cookie")),
+                    }
+                )
+                if "?_rsc=" in request.url
+                else None
+            ),
+        )
+        page.on(
+            "response",
+            lambda response: (
+                evidence["navigation_diagnostics"].append(
+                    {
+                        "kind": "response",
+                        "path": _safe_url(response.url),
+                        "status": response.status,
+                        "location": _safe_url(response.headers.get("location", ""))
+                        if response.headers.get("location")
+                        else None,
+                    }
+                )
+                if "?_rsc=" in response.url
+                else None
+            ),
+        )
         page.on(
             "response",
             lambda response: (
@@ -273,8 +309,106 @@ def main() -> int:
         if evidence["authorized_api_status"]["status"] != 200:
             status = evidence["authorized_api_status"]["status"]
             raise RuntimeError(f"authorized API read failed: HTTP {status}")
+        if args.role_check:
+            if not args.expected_role:
+                raise RuntimeError("--expected-role is required with --role-check")
+            role_check = page.evaluate(
+                """async () => {
+                  const boundedFetch = async (input, init = {}) => {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 10000);
+                    try {
+                      const response = await fetch(input, {...init, signal: controller.signal});
+                      return {status: response.status, error: null};
+                    } catch (error) {
+                      return {status: 0, error: error instanceof Error ? error.name : 'Error'};
+                    } finally {
+                      clearTimeout(timer);
+                    }
+                  };
+                  const headers = [
+                    'event_type,occurred_at,order_id,customer_id,currency,product_id,quantity,unit_price,payment_id,amount,payment_method,quantity_on_hand,inventory_delta,warehouse_id',
+                    'order_created,2026-01-01T00:00:00Z,role-check-order,role-check-customer,EUR,role-check-product,1,1.00,,,,,,'
+                  ].join('\\n');
+                  const form = new FormData();
+                  form.append('file', new Blob([headers], {type: 'text/csv'}), 'role-check.csv');
+                  const write = await boundedFetch('/api/v1/ingestion/imports', {
+                    method: 'POST', body: form,
+                  });
+                  const admin = await boundedFetch(
+                    '/api/v1/ingestion/imports/00000000-0000-0000-0000-000000000000/publish',
+                    {method: 'POST'},
+                  );
+                  return {
+                    write_status: write.status,
+                    admin_status: admin.status,
+                    write_error: write.error,
+                    admin_error: admin.error,
+                  };
+                }"""
+            )
+            evidence["role_check"] = role_check
+            expected = {
+                "viewer": (403, 403),
+                "analyst": (403, 403),
+                "operator": (202, 403),
+                "admin": (202, 404),
+            }[args.expected_role]
+            actual = (role_check["write_status"], role_check["admin_status"])
+            if actual != expected:
+                raise RuntimeError(
+                    f"role authorization mismatch: expected {expected}, got {actual}"
+                )
+            evidence["result"] = "passed"
+            write_evidence(args.evidence, evidence)
+            context.close()
+            browser.close()
+            print(json.dumps(evidence, indent=2))
+            return 0
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(args.screenshot), full_page=True)
+        screen_routes = {
+            "/": ("Overview", "Operations overview"),
+            "/streaming": ("Streaming", "Event streaming"),
+            "/data-sources": ("Data Sources", "Data sources"),
+            "/pipelines": ("Pipelines", "Pipeline orchestration"),
+            "/warehouse": ("Warehouse", "Warehouse analytics"),
+            "/data-quality": ("Data Quality", "Data quality"),
+            "/monitoring": ("Monitoring", "System monitoring"),
+            "/ml": ("ML", "Demand intelligence"),
+        }
+        screen_results: dict[str, object] = {}
+        for path, (label, expected_heading) in screen_routes.items():
+            page.set_viewport_size({"width": 1440, "height": 900})
+            evidence.setdefault("session_cookie_state", []).append(
+                {
+                    "path": path,
+                    "cookie_present": any(
+                        cookie["name"] == "titan_session"
+                        for cookie in page.context.cookies(args.base_url)
+                    ),
+                }
+            )
+            if path == "/":
+                page.goto(args.base_url + path, wait_until="domcontentloaded", timeout=60000)
+            else:
+                page.locator(f'a[href="{path}"]').click()
+                page.wait_for_url(f"{args.base_url}{path}", timeout=30000)
+            heading_locator = page.locator("main h1").filter(has_text=expected_heading).first
+            heading_locator.wait_for(timeout=30000)
+            heading = heading_locator.inner_text()
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.reload(wait_until="domcontentloaded", timeout=60000)
+            mobile_heading_locator = page.locator("main h1").filter(has_text=expected_heading).first
+            mobile_heading_locator.wait_for(timeout=30000)
+            mobile_heading = mobile_heading_locator.inner_text()
+            screen_results[path] = {
+                "label": label,
+                "desktop_heading": heading,
+                "mobile_heading": mobile_heading,
+            }
+        evidence["screen_results"] = screen_results
+        page.set_viewport_size({"width": 1440, "height": 900})
         logout = page.locator(
             'form[action="/auth/logout"] button, button:has-text("Log out")'
         ).first
@@ -309,6 +443,7 @@ def main() -> int:
         browser.close()
     evidence["logout_verified"] = True
     evidence["result"] = "passed"
+    write_evidence(args.evidence, evidence)
     print(json.dumps(evidence, indent=2))
     return 0
 

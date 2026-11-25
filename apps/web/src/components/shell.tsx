@@ -34,6 +34,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:bg-white/5 hover:text-[var(--foreground)]",
