@@ -109,7 +109,8 @@ class Runner:
             "tls",
             [
                 sys.executable,
-                "scripts/staging_tls.py",
+                "-m",
+                "scripts.staging_tls",
                 "provision",
                 "--tls-dir",
                 str(tls_dir),
@@ -122,7 +123,8 @@ class Runner:
             "tls-verify",
             [
                 sys.executable,
-                "scripts/staging_tls.py",
+                "-m",
+                "scripts.staging_tls",
                 "verify",
                 "--tls-dir",
                 str(tls_dir),
@@ -143,7 +145,8 @@ class Runner:
                 f"{service}-tls",
                 [
                     sys.executable,
-                    f"scripts/staging_{service}_tls.py",
+                    "-m",
+                    f"scripts.staging_{service}_tls",
                     "--source",
                     str(tls_dir),
                     "--volume",
@@ -157,7 +160,8 @@ class Runner:
             "kafka-stores",
             [
                 sys.executable,
-                "scripts/staging_kafka_tls.py",
+                "-m",
+                "scripts.staging_kafka_tls",
                 "--source",
                 str(tls_dir),
                 "--destination",
@@ -174,7 +178,8 @@ class Runner:
             "kafka-tls",
             [
                 sys.executable,
-                "scripts/staging_kafka_tls.py",
+                "-m",
+                "scripts.staging_kafka_tls",
                 "--source",
                 str(kafka_dir),
                 "--volume",
@@ -189,7 +194,8 @@ class Runner:
         )
         preflight = [
             sys.executable,
-            "scripts/staging_preflight.py",
+            "-m",
+            "scripts.staging_preflight",
             "--secrets-dir",
             str(secrets_dir),
             "--project-name",

@@ -113,7 +113,8 @@ def main() -> int:
                 "ingress-tls",
                 [
                     sys.executable,
-                    "scripts/staging_ingress_tls.py",
+                    "-m",
+                    "scripts.staging_ingress_tls",
                     "--source",
                     str(tls_dir),
                     "--volume",
