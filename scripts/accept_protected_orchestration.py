@@ -230,6 +230,30 @@ class Runner:
 
     def cleanup(self) -> None:
         try:
+            listed = subprocess.run(
+                self.compose("ps", "-aq", "clickhouse"),
+                cwd=self.root,
+                env=self.env,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                check=False,
+            )
+            for container in listed.stdout.splitlines():
+                diagnostics = [
+                    ("clickhouse-docker-log", ["docker", "logs", "--timestamps", container]),
+                    ("clickhouse-inspect", ["docker", "inspect", container]),
+                    (
+                        "clickhouse-error-log",
+                        ["docker", "exec", container, "sh", "-lc", "tail -200 /var/log/clickhouse-server/clickhouse-server.err.log"],
+                    ),
+                ]
+                for label, command in diagnostics:
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
+                    with self.evidence.open("a", encoding="utf-8") as stream:
+                        stream.write(f"{label} exit={result.returncode}\n")
+                        stream.write((result.stdout + result.stderr)[-12000:])
+                        stream.write("\n")
             subprocess.run(
                 self.compose("down", "--volumes", "--remove-orphans"),
                 cwd=self.root,
