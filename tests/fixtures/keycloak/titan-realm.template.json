@@ -1,0 +1,33 @@
+{
+  "realm": "titan-test",
+  "enabled": true,
+  "sslRequired": "NONE",
+  "roles": {"realm": [
+    {"name": "viewer"}, {"name": "analyst"}, {"name": "operator"}, {"name": "admin"}
+  ]},
+  "clients": [{
+    "clientId": "titan-browser",
+    "secret": "${CLIENT_SECRET}",
+    "enabled": true,
+    "protocol": "openid-connect",
+    "publicClient": false,
+    "directAccessGrantsEnabled": true,
+    "standardFlowEnabled": true,
+    "redirectUris": ["https://staging.local:8443/auth/callback"],
+    "webOrigins": ["https://staging.local:8443"],
+    "attributes": {"post.logout.redirect.uris": "https://staging.local:8443/*"},
+    "protocolMappers": [{
+      "name": "titan-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+      "config": {"included.client.audience": "titan", "access.token.claim": "true", "id.token.claim": "true"}
+    }, {
+      "name": "titan-roles", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "config": {"claim.name": "titan_roles", "jsonType.label": "String", "multivalued": "true", "id.token.claim": "true", "userinfo.token.claim": "true", "access.token.claim": "true"}
+    }]
+  }],
+  "users": [
+    {"username": "viewer", "enabled": true, "requiredActions": [], "firstName": "Test", "lastName": "Viewer", "email": "viewer@example.invalid", "emailVerified": true, "credentials": [{"type": "password", "value": "${VIEWER_PASSWORD}", "temporary": false}], "realmRoles": ["viewer"]},
+    {"username": "analyst", "enabled": true, "requiredActions": [], "firstName": "Test", "lastName": "Analyst", "email": "analyst@example.invalid", "emailVerified": true, "credentials": [{"type": "password", "value": "${ANALYST_PASSWORD}", "temporary": false}], "realmRoles": ["analyst"]},
+    {"username": "operator", "enabled": true, "requiredActions": [], "firstName": "Test", "lastName": "Operator", "email": "operator@example.invalid", "emailVerified": true, "credentials": [{"type": "password", "value": "${OPERATOR_PASSWORD}", "temporary": false}], "realmRoles": ["operator"]},
+    {"username": "admin", "enabled": true, "requiredActions": [], "firstName": "Test", "lastName": "Admin", "email": "admin@example.invalid", "emailVerified": true, "credentials": [{"type": "password", "value": "${ADMIN_PASSWORD}", "temporary": false}], "realmRoles": ["admin"]}
+  ]
+}
