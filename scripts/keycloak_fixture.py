@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "quay.io/keycloak/keycloak:26.3.4"
@@ -23,17 +24,17 @@ USERS = ("viewer", "analyst", "operator", "admin")
 
 def request_json(
     url: str, *, data: bytes | None = None, headers: dict[str, str] | None = None
-) -> dict:
+) -> dict[str, object]:
     request = urllib.request.Request(url, data=data, headers=headers or {})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            return json.loads(response.read())
+            return cast(dict[str, object], json.loads(response.read()))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")[:300]
         raise RuntimeError(f"OIDC endpoint returned HTTP {exc.code}: {detail}") from exc
 
 
-def wait_for(url: str, timeout: int) -> dict:
+def wait_for(url: str, timeout: int) -> dict[str, object]:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:

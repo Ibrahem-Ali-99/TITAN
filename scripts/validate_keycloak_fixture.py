@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import urllib.parse
+from typing import cast
 
 import jwt
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from scripts.keycloak_fixture import USERS, disposable_keycloak_fixture, request_json
 
@@ -19,7 +21,7 @@ def main() -> int:
         discovery = request_json(f"{fixture.discovery_url}/.well-known/openid-configuration")
         if discovery.get("issuer") != fixture.issuer:
             raise RuntimeError("issuer mismatch")
-        jwks = request_json(discovery["jwks_uri"])
+        jwks = request_json(cast(str, discovery["jwks_uri"]))
         client_secret = fixture.client_secret_file.read_text().strip()
         for username in USERS:
             password = fixture.password_files[username].read_text().strip()
@@ -34,15 +36,17 @@ def main() -> int:
                 }
             ).encode()
             token = request_json(
-                discovery["token_endpoint"],
+                cast(str, discovery["token_endpoint"]),
                 data=body,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )["id_token"]
+            token = cast(str, token)
             header = jwt.get_unverified_header(token)
-            key = next(item for item in jwks["keys"] if item["kid"] == header["kid"])
+            keys = cast(list[dict[str, object]], jwks["keys"])
+            key = next(item for item in keys if item["kid"] == header["kid"])
             claims = jwt.decode(
                 token,
-                jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key)),
+                cast(RSAPublicKey, jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))),
                 algorithms=["RS256"],
                 issuer=fixture.issuer,
                 audience="titan",
