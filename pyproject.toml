@@ -60,6 +60,7 @@ pythonpath = [
     "scripts",
     "pipelines/spark/src",
     "pipelines/warehouse/src",
+    "pipelines/dagster/src",
     "pipelines/quality/src",
     "pipelines/ml/src",
 ]
