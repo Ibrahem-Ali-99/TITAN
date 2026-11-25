@@ -359,6 +359,20 @@ def main(argv: list[str] | None = None) -> int:
                 "exec", "-T", "prometheus", "wget", "-q", "-O", "-", "http://api:8000/metrics"
             ),
         )
+        runner.expected_failure(
+            "metrics-invalid-token",
+            runner.compose(
+                "exec",
+                "-T",
+                "prometheus",
+                "wget",
+                "--header=Authorization: Bearer invalid-disposable-token",
+                "-q",
+                "-O",
+                "-",
+                "http://api:8000/metrics",
+            ),
+        )
         runner.run(
             "metrics-scrape",
             runner.compose(
@@ -386,6 +400,19 @@ def main(argv: list[str] | None = None) -> int:
             "grafana-health",
             runner.compose(
                 "exec", "-T", "grafana", "wget", "-q", "-O", "-", "http://grafana:3000/api/health"
+            ),
+        )
+        runner.run(
+            "grafana-query",
+            runner.compose(
+                "exec",
+                "-T",
+                "grafana",
+                "sh",
+                "-lc",
+                "auth=$(printf 'titan:%s' \"$GF_SECURITY_ADMIN_PASSWORD\" | base64 | tr -d '\\r\\n'); "
+                'wget --header="Authorization: Basic $auth" -q -O - '
+                "'http://grafana:3000/api/datasources/proxy/uid/prometheus/api/v1/query?query=titan_warehouse_ready'",
             ),
         )
         runner.run(

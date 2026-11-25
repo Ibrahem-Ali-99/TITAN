@@ -60,6 +60,8 @@ services:
   grafana:
     ports: !override []
     volumes: !override
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
   tempo:
     volumes: !override
