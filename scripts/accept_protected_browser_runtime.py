@@ -66,7 +66,7 @@ def main() -> int:
     global BROWSER_OVERRIDE
     BROWSER_OVERRIDE = work / "browser-override.yml"
     BROWSER_OVERRIDE.write_text(
-        'services:\n  api:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    command: ["sh", "-c", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]\n    extra_hosts:\n      - host.docker.internal:host-gateway\n',
+        'services:\n  api:\n    environment:\n      TITAN_MONITORING_DIAGNOSTICS: "1"\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    command: ["sh", "-c", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]\n    extra_hosts:\n      - host.docker.internal:host-gateway\n',
         encoding="utf-8",
     )
     try:

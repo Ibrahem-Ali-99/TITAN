@@ -414,10 +414,18 @@ def _lag(bootstrap: str) -> LagView:
 
         from titan_messaging.kafka_config import kafka_client_config
 
-        admin = AdminClient(kafka_client_config(bootstrap))
+        admin_config = kafka_client_config(bootstrap)
+        admin_config.update(
+            {
+                "socket.timeout.ms": 5000,
+                "request.timeout.ms": 5000,
+                "api.version.request.timeout.ms": 5000,
+            }
+        )
+        admin = AdminClient(admin_config)
         _monitoring_diag("kafka-admin-created", started)
         request = ConsumerGroupTopicPartitions(CONSUMER_GROUP)
-        listed = admin.list_consumer_group_offsets([request])
+        listed = admin.list_consumer_group_offsets([request], request_timeout=5)
         description = next(iter(listed.values())).result(timeout=5)
         _monitoring_diag("kafka-group-offsets", started)
         consumer_config = kafka_client_config(bootstrap)
@@ -425,6 +433,9 @@ def _lag(bootstrap: str) -> LagView:
             {
                 "group.id": "titan-monitoring-readonly",
                 "enable.auto.commit": False,
+                "socket.timeout.ms": 5000,
+                "request.timeout.ms": 5000,
+                "api.version.request.timeout.ms": 5000,
             }
         )
         consumer = Consumer(consumer_config)

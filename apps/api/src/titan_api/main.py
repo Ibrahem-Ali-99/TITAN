@@ -5,7 +5,10 @@
 Stats come from those tables. A failed query returns an error, not zeros.
 """
 
+import faulthandler
 import logging
+import os
+import sys
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -119,6 +122,9 @@ def get_session(request: Request) -> Iterator[Session]:
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
     resolved = settings or ApiSettings()
     configure_logging(resolved.log_level)
+    if os.getenv("TITAN_MONITORING_DIAGNOSTICS") == "1":
+        logging.getLogger(__name__).warning("[titan-monitoring-diagnostic] self-test=loaded")
+        faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
     engine = create_db_engine(resolved.database_url)
     session_factory = create_session_factory(engine)
 
