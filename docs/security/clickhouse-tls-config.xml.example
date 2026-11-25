@@ -1,7 +1,7 @@
 <!-- Copy this file into the disposable titan-staging-clickhouse-tls volume as config.xml. -->
 <clickhouse>
   <listen_host replace="replace">0.0.0.0</listen_host>
-  <http_port>0</http_port>
+  <http_port replace="replace"></http_port>
   <tcp_port>0</tcp_port>
   <https_port>8443</https_port>
   <tcp_port_secure>9440</tcp_port_secure>

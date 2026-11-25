@@ -68,7 +68,7 @@ class Runner:
             "TITAN_WRITE_TOKEN",
             "TITAN_ADMIN_TOKEN",
         ):
-            value = secrets.token_urlsafe(32)
+            value = secrets.token_hex(32)
             (secrets_dir / name).write_text(value + "\n", encoding="utf-8")
             self.env[name] = value
         self.env.update(
@@ -80,15 +80,15 @@ class Runner:
                     "TITAN_SPARK_IMAGE",
                     "titan-spark:protected-f3952feb443145ed90c19e64a6ef433b502f68ca",
                 ),
-                "KAFKA_TLS_STORE_PASSWORD": secrets.token_urlsafe(24),
+                "KAFKA_TLS_STORE_PASSWORD": secrets.token_hex(24),
                 "KAFKA_SASL_USERNAME": f"{self.project}-client",
-                "KAFKA_SASL_PASSWORD": secrets.token_urlsafe(32),
+                "KAFKA_SASL_PASSWORD": secrets.token_hex(32),
                 "TITAN_OIDC_ISSUER": "https://oidc.invalid/",
                 "TITAN_OIDC_CLIENT_ID": "staging",
-                "TITAN_OIDC_CLIENT_SECRET": secrets.token_urlsafe(24),
+                "TITAN_OIDC_CLIENT_SECRET": secrets.token_hex(24),
                 "TITAN_OIDC_REDIRECT_URI": "https://localhost/oidc/callback",
                 "TITAN_OIDC_AUDIENCE": "titan-staging",
-                "TITAN_OIDC_SESSION_SECRET": secrets.token_urlsafe(32),
+                "TITAN_OIDC_SESSION_SECRET": secrets.token_hex(32),
             }
         )
         self.run(
