@@ -1,6 +1,6 @@
 import pytest
 
-from pipeline_flow import _has_port, assert_state_change_is_isolated
+from scripts.pipeline_flow import _has_port, assert_state_change_is_isolated
 
 
 def test_development_ports_are_not_confused_with_isolated_ports() -> None:

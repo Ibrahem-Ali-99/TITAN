@@ -1,4 +1,4 @@
-from verify_infrastructure import assess_volume_mount
+from scripts.verify_infrastructure import assess_volume_mount
 
 
 def test_the_development_project_is_left_unchanged() -> None:

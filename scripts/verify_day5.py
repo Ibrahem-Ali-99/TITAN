@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 from event_generator.generator import generate_history
 from titan_contracts.events import OrderCreatedEvent
 

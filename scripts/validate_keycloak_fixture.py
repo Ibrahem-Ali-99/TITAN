@@ -8,7 +8,7 @@ import urllib.parse
 
 import jwt
 
-from keycloak_fixture import USERS, disposable_keycloak_fixture, request_json
+from scripts.keycloak_fixture import USERS, disposable_keycloak_fixture, request_json
 
 
 def main() -> int:

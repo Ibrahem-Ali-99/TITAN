@@ -30,7 +30,7 @@ def test_kafka_postgres_api_pipeline() -> None:
     os.environ["DATABASE_URL"] = ISOLATED_DATABASE
     os.environ["KAFKA_BOOTSTRAP_SERVERS"] = ISOLATED_BROKERS
     os.environ["API_BASE_URL"] = ISOLATED_API
-    from pipeline_flow import run_pipeline_check
+    from scripts.pipeline_flow import run_pipeline_check
 
     report = run_pipeline_check()
     assert report.ok, report.detail

@@ -6,7 +6,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from staging_tool_container import run as run_tool
+from scripts.staging_tool_container import run as run_tool
 
 CLICKHOUSE_IMAGE = (
     "clickhouse/clickhouse-server@sha256:"

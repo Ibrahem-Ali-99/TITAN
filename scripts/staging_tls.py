@@ -15,7 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from staging_tool_container import run as run_tool
+from scripts.staging_tool_container import run as run_tool
 
 SERVICES = ("kafka", "postgres", "clickhouse", "minio", "ingress")
 

@@ -21,7 +21,7 @@ import psycopg
 from confluent_kafka import Consumer, TopicPartition, admin
 from minio import Minio
 
-from dr_security import secure_file
+from scripts.dr_security import secure_file
 from titan_messaging.kafka_config import kafka_client_config
 
 ROOT = Path(__file__).resolve().parents[1]

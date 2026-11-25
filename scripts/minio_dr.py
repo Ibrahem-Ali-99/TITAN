@@ -14,7 +14,7 @@ from typing import Any
 
 from minio import Minio
 
-from dr_security import secure_tree
+from scripts.dr_security import secure_tree
 
 DEFAULT_PREFIXES = ("bronze/", "silver/")
 MANIFEST_NAME = "manifest.json"

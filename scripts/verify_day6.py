@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 from event_generator.generator import generate_orders
 
 ROOT = Path(__file__).resolve().parents[1]

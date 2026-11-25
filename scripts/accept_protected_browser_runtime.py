@@ -19,8 +19,8 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 
-from accept_protected_orchestration import COMPOSE_FILES, ROOT, Runner, project_name
-from keycloak_fixture import disposable_keycloak_fixture, request_json
+from scripts.accept_protected_orchestration import COMPOSE_FILES, ROOT, Runner, project_name
+from scripts.keycloak_fixture import disposable_keycloak_fixture, request_json
 
 BROWSER_OVERRIDE: Path | None = None
 

@@ -16,7 +16,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from envfile import load_cwd_env
+from scripts.envfile import load_cwd_env
 from titan_contracts.events import InventoryUpdatedEvent, OrderCreatedEvent, PaymentCompletedEvent
 from titan_contracts.inventory import InventoryUpdatedPayload
 from titan_contracts.orders import OrderCreatedPayload, OrderItem

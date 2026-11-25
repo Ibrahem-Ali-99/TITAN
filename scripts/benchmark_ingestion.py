@@ -14,7 +14,7 @@ from pathlib import Path
 from confluent_kafka import Producer
 from confluent_kafka import admin as kafka_admin
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 
 ROOT = Path(__file__).resolve().parents[1]
 TOPIC = "titan.benchmark.acks"

@@ -1,9 +1,10 @@
 import json
+from pathlib import Path
 
 from scripts.browser_oidc_smoke import write_evidence
 
 
-def test_evidence_is_written_after_large_diagnostics(tmp_path) -> None:
+def test_evidence_is_written_after_large_diagnostics(tmp_path: Path) -> None:
     path = tmp_path / "evidence.json"
     write_evidence(
         path,
@@ -22,7 +23,7 @@ def test_evidence_is_written_after_large_diagnostics(tmp_path) -> None:
     assert len(body["large"]) == 10000
 
 
-def test_evidence_redacts_secret_fields(tmp_path) -> None:
+def test_evidence_redacts_secret_fields(tmp_path: Path) -> None:
     path = tmp_path / "evidence.json"
     write_evidence(path, {"password": "pw", "client_secret": "secret", "nested": {"token": "tok"}})
     body = json.loads(path.read_text(encoding="utf-8"))

@@ -6,7 +6,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from staging_tool_container import run as run_tool
+from scripts.staging_tool_container import run as run_tool
 
 POSTGRES_IMAGE = "postgres@sha256:339a86bf416979bb4d3d2e30a1f9e096e7302564faff4151b804cf53463059d5"
 REQUIRED = ("ca.crt", "postgres.crt", "postgres.key")

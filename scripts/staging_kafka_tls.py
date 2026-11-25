@@ -11,7 +11,7 @@ import os
 import shutil
 from pathlib import Path
 
-from staging_tool_container import run as run_tool
+from scripts.staging_tool_container import run as run_tool
 
 KAFKA_IMAGE = "apache/kafka@sha256:833b867a9585a141da455dc2b57431c65cbccb27f11c91f694444cca9f777e0f"
 REQUIRED_VOLUME_FILES = (

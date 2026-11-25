@@ -11,7 +11,7 @@ import runpy
 import sys
 from pathlib import Path
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = (

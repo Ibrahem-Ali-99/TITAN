@@ -150,7 +150,7 @@ class Runner:
                     f"{self.project}-{suffix}",
                 ],
             )
-        from staging_postgres_tls import PG_HBA
+        from scripts.staging_postgres_tls import PG_HBA
 
         (tls_dir / "pg_hba.conf").write_text(PG_HBA, encoding="ascii")
         self.run(

@@ -15,7 +15,7 @@ from typing import Any
 import psycopg
 from psycopg.conninfo import conninfo_to_dict
 
-from dr_security import secure_directory, secure_file
+from scripts.dr_security import secure_directory, secure_file
 
 
 def _run(command: list[str], *, capture: bool = True) -> subprocess.CompletedProcess[str]:

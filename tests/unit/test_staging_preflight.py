@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from staging_preflight import (
+from scripts.staging_preflight import (
     validate_clickhouse_tls_config,
     validate_compose,
     validate_ingress_tls_config,

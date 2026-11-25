@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from sustained_load import _tracking_summary
+from scripts.sustained_load import _tracking_summary
 
 
 def test_tracking_distinguishes_preexisting_ids_from_new_persistence() -> None:

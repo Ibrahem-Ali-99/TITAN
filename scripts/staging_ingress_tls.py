@@ -6,7 +6,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from staging_tool_container import run as run_tool
+from scripts.staging_tool_container import run as run_tool
 
 IMAGE = "alpine/minio@sha256:cf23643a6cf9ce159c57643ceb88279e431262282428c9e0bf3a7ef1a97e84b4"
 

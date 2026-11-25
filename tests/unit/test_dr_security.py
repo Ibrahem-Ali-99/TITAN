@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from dr_security import secure_tree
+from scripts.dr_security import secure_tree
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Windows ACLs are not represented by mode bits")

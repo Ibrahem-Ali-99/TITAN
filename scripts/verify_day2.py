@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 from event_generator.generator import generate_orders
 from titan_contracts.money import order_total, parse_money
 

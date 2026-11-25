@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from staging_tls import SERVICES, provision, verify
+from scripts.staging_tls import SERVICES, provision, verify
 
 pytestmark = pytest.mark.skipif(
     shutil.which("openssl") is None, reason="OpenSSL executable unavailable"

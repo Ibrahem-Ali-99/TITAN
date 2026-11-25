@@ -10,7 +10,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from envfile import load_env_file
+from scripts.envfile import load_env_file
 
 ROOT = Path(__file__).resolve().parents[1]
 

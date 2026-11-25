@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from keycloak_fixture import USERS, KeycloakFixture
+from scripts.keycloak_fixture import USERS, KeycloakFixture
 
 
 def test_keycloak_fixture_contract_is_non_secret() -> None:
