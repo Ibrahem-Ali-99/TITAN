@@ -4,6 +4,7 @@ services:
   clickhouse:
     ports: !override []
     environment:
+      CLICKHOUSE_DB: ""
       CLICKHOUSE_SECURE: "true"
       CLICKHOUSE_VERIFY: "true"
     volumes:

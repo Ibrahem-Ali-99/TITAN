@@ -74,6 +74,9 @@ services:
       S3_CA_CERT: /tls/ca.crt
     volumes:
       - minio_tls:/tls:ro
+    tmpfs:
+      - /app/warehouse/dbt/logs:mode=1777
+      - /app/warehouse/dbt/target:mode=1777
 
 volumes:
   minio_tls:

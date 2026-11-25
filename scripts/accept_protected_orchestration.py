@@ -46,12 +46,21 @@ class Runner:
         self.timeout = timeout
         self.evidence = root / "benchmarks" / f"protected-orchestration-{project}.log"
         self.env = os.environ.copy()
+        source_roots = [
+            str(self.root / "pipelines" / "dagster" / "src"),
+            str(self.root / "pipelines" / "warehouse" / "src"),
+            str(self.root / "pipelines" / "quality" / "src"),
+        ]
+        existing_pythonpath = self.env.get("PYTHONPATH", "")
+        if existing_pythonpath:
+            source_roots.append(existing_pythonpath)
         self.env.update(
             {
                 "COMPOSE_PROJECT_NAME": self.project,
                 "TITAN_PROTECTED_STAGING": "true",
                 "TITAN_STAGING_VOLUME_PREFIX": self.project,
                 "COMPOSE_FILE": os.pathsep.join(COMPOSE_FILES),
+                "PYTHONPATH": os.pathsep.join(source_roots),
             }
         )
 
@@ -245,11 +254,20 @@ class Runner:
                     ("clickhouse-inspect", ["docker", "inspect", container]),
                     (
                         "clickhouse-error-log",
-                        ["docker", "exec", container, "sh", "-lc", "tail -200 /var/log/clickhouse-server/clickhouse-server.err.log"],
+                        [
+                            "docker",
+                            "exec",
+                            container,
+                            "sh",
+                            "-lc",
+                            "tail -200 /var/log/clickhouse-server/clickhouse-server.err.log",
+                        ],
                     ),
                 ]
                 for label, command in diagnostics:
-                    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
+                    result = subprocess.run(
+                        command, capture_output=True, text=True, timeout=30, check=False
+                    )
                     with self.evidence.open("a", encoding="utf-8") as stream:
                         stream.write(f"{label} exit={result.returncode}\n")
                         stream.write((result.stdout + result.stderr)[-12000:])
@@ -303,7 +321,49 @@ def main(argv: list[str] | None = None) -> int:
                 "api",
             ),
         )
-        runner.run("fixture", [sys.executable, "scripts/full_pipeline_ci.py"])
+        runner.run(
+            "clickhouse-db",
+            runner.compose(
+                "exec",
+                "-T",
+                "clickhouse",
+                "sh",
+                "-lc",
+                "clickhouse-client --config-file=/tls/config.xml --secure "
+                '--host clickhouse --port 9440 --user "$CLICKHOUSE_USER" '
+                '--password "$CLICKHOUSE_PASSWORD" '
+                "--query 'CREATE DATABASE IF NOT EXISTS titan'",
+            ),
+        )
+        fixture_mount = str((ROOT / "scripts" / "full_pipeline_ci.py").resolve())
+        benchmark_mount = str((ROOT / "benchmarks").resolve())
+        fixture_database = (
+            "postgresql://titan:"
+            f"{runner.env['POSTGRES_PASSWORD']}"
+            "@postgres:5432/titan?sslmode=verify-full&sslrootcert=/tls/ca.crt"
+        )
+        runner.env["DATABASE_URL"] = fixture_database
+        runner.run(
+            "fixture",
+            runner.compose(
+                "run",
+                "--rm",
+                "--no-deps",
+                "-v",
+                f"{fixture_mount}:/tmp/full_pipeline_ci.py:ro",
+                "-v",
+                f"{benchmark_mount}:/benchmarks",
+                "-e",
+                "KAFKA_BOOTSTRAP_SERVERS=kafka:19092",
+                "-e",
+                "DATABASE_URL",
+                "-e",
+                f"COMPOSE_PROJECT_NAME={runner.project}",
+                "ingestion",
+                "python",
+                "/tmp/full_pipeline_ci.py",
+            ),
+        )
         for stage, asset in (
             ("bronze", "bronze_evidence"),
             ("silver", "silver_publication"),
