@@ -63,6 +63,7 @@ def disposable_keycloak_fixture(
     timeout: int = 90,
     *,
     issuer_host: str = "127.0.0.1",
+    issuer_port: int | None = None,
     redirect_uri: str = "https://staging.local:8443/auth/callback",
 ) -> Iterator[KeycloakFixture]:
     project = f"titan-oidc-fixture-{secrets.token_hex(4)}"
@@ -94,7 +95,9 @@ def disposable_keycloak_fixture(
         path.write_text(password + "\n", encoding="utf-8")
         path.chmod(0o600)
         password_files[username] = path
-    issuer = f"http://{issuer_host}:{port}/realms/{REALM}"
+    advertised_port = port if issuer_port is None else issuer_port
+    issuer_base = f"http://{issuer_host}:{advertised_port}"
+    issuer = f"{issuer_base}/realms/{REALM}"
     discovery_url = f"http://127.0.0.1:{port}/realms/{REALM}"
     try:
         subprocess.run(["docker", "image", "inspect", IMAGE], check=True, capture_output=True)
@@ -116,6 +119,7 @@ def disposable_keycloak_fixture(
                 IMAGE,
                 "start-dev",
                 "--http-port=8080",
+                f"--hostname={issuer_base}",
                 "--import-realm",
             ],
             check=True,

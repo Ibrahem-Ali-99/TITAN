@@ -13,7 +13,10 @@ export class ApiError extends Error {
 }
 
 export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  });
   const text = await response.text();
   if (!response.ok) {
     throw new ApiError(text || `HTTP ${response.status}`, response.status);
@@ -23,7 +26,7 @@ export async function getJson<T>(path: string): Promise<T> {
 
 export function fetchOverview() {
   return Promise.all([
-    getJson<HealthReady>("/health/ready"),
+    getJson<HealthReady>("/api/health/ready"),
     getJson<IngestionStats>("/api/v1/ingestion/stats"),
     getJson<RecentEventsResponse>("/api/v1/events/recent?limit=20"),
   ] as const);

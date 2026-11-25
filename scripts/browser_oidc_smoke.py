@@ -53,6 +53,8 @@ def main() -> int:
     parser.add_argument("--screenshot", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--boundary-probe", action="store_true")
+    parser.add_argument("--staging-host", default="127.0.0.1")
+    parser.add_argument("--net-log", type=Path, default=None)
     args = parser.parse_args()
     password = args.password_file.read_text(encoding="utf-8").strip()
     evidence: dict[str, object] = {
@@ -66,8 +68,13 @@ def main() -> int:
         browser = playwright.chromium.launch(
             headless=True,
             args=[
-                "--host-resolver-rules=MAP staging.local 127.0.0.1,"
-                "MAP host.docker.internal 127.0.0.1"
+                "--no-proxy-server",
+                *(
+                    [f"--log-net-log={args.net_log}", "--net-log-capture-mode=Everything"]
+                    if args.net_log
+                    else []
+                ),
+                f"--host-resolver-rules=MAP staging.local {args.staging_host}"
             ],
         )
         context = browser.new_context(ignore_https_errors=False)
@@ -274,14 +281,30 @@ def main() -> int:
         if logout.count():
             logout.click()
         else:
-            page.goto(args.base_url + "/auth/logout", wait_until="domcontentloaded")
-        page.wait_for_url(
-            lambda url: url.startswith(args.base_url) or url.startswith(args.issuer), timeout=30000
-        )
-        evidence["logout_url"] = page.url
+            logout_result = page.evaluate(
+                """async () => {
+                  const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { origin: window.location.origin },
+                  });
+                  return {status: response.status, body: await response.text()};
+                }"""
+            )
+            evidence["logout_response"] = {
+                "status": logout_result["status"],
+                "body_excerpt": logout_result["body"][:240],
+            }
+            if logout_result["status"] != 200:
+                raise RuntimeError(f"logout failed: HTTP {logout_result['status']}")
         page.goto(args.base_url + "/", wait_until="domcontentloaded")
-        page.wait_for_url(lambda url: url.startswith(args.issuer), timeout=30000)
+        evidence["logout_url"] = page.url
         evidence["fresh_navigation_url"] = page.url
+        if not any(url.startswith(args.issuer) for url in evidence["redirects"]):
+            raise RuntimeError(
+                "fresh protected navigation did not redirect through the OIDC issuer"
+            )
+        evidence["fresh_navigation_required_oidc"] = True
         context.close()
         browser.close()
     evidence["logout_verified"] = True

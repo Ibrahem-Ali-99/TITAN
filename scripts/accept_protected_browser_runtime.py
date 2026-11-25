@@ -56,10 +56,15 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--project-name", default=None)
     parser.add_argument("--browser-smoke", action="store_true")
+    parser.add_argument("--container-browser", action="store_true")
     args = parser.parse_args()
     project = args.project_name or project_name()
     https_port = 18000 + secrets.randbelow(1000)
-    redirect_uri = f"https://staging.local:{https_port}/auth/callback"
+    redirect_uri = (
+        "https://staging.local:8443/auth/callback"
+        if args.container_browser
+        else f"https://staging.local:{https_port}/auth/callback"
+    )
     runner = Runner(ROOT, project, args.timeout)
     evidence_path = ROOT / "benchmarks" / f"protected-browser-{project}.json"
     work = Path(tempfile.mkdtemp(prefix="titan-protected-browser-"))
@@ -72,7 +77,10 @@ def main() -> int:
     try:
         runner.run("docker", ["docker", "info", "--format", "{{.ServerVersion}}"])
         with disposable_keycloak_fixture(
-            args.timeout, issuer_host="host.docker.internal", redirect_uri=redirect_uri
+            args.timeout,
+            issuer_host="keycloak",
+            issuer_port=8080,
+            redirect_uri=redirect_uri,
         ) as fixture:
             runner.bootstrap(work)
             tls_dir = work / "tls"
@@ -148,9 +156,21 @@ def main() -> int:
                     "ingress",
                 ),
             )
+            runner.run(
+                "keycloak-network",
+                [
+                    "docker",
+                    "network",
+                    "connect",
+                    "--alias",
+                    "keycloak",
+                    f"{project}_default",
+                    fixture.container,
+                ],
+            )
             discovery = request_json(f"{fixture.discovery_url}/.well-known/openid-configuration")
-            if not discovery.get("issuer"):
-                raise RuntimeError("OIDC discovery did not return an issuer")
+            if discovery.get("issuer") != fixture.issuer:
+                raise RuntimeError("OIDC discovery issuer does not match the configured issuer")
             runner.run(
                 "api-ready",
                 compose(
@@ -235,30 +255,78 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                 ca_file = tls_dir / "ca.crt"
                 certificate = x509.load_pem_x509_certificate(ca_file.read_bytes())
                 thumbprint = certificate.fingerprint(hashes.SHA1()).hex().upper()
-                runner.run(
-                    "browser-ca-install",
-                    ["certutil", "-user", "-addstore", "-f", "Root", str(ca_file)],
-                )
+                if not args.container_browser:
+                    runner.run(
+                        "browser-ca-install",
+                        ["certutil", "-user", "-addstore", "-f", "Root", str(ca_file)],
+                    )
                 try:
                     try:
-                        runner.run(
-                            "browser-smoke",
-                            [
-                                sys.executable,
-                                "scripts/browser_oidc_smoke.py",
-                                "--base-url",
-                                f"https://staging.local:{https_port}",
-                                "--issuer",
-                                fixture.issuer,
-                                "--password-file",
-                                str(fixture.password_files["viewer"]),
-                                "--screenshot",
-                                str(ROOT / "benchmarks" / f"protected-browser-{project}.png"),
-                                "--evidence",
-                                str(evidence_path),
-                                "--boundary-probe",
-                            ],
-                        )
+                        screenshot = ROOT / "benchmarks" / f"protected-browser-{project}.png"
+                        if args.container_browser:
+                            evidence_path.touch()
+                            screenshot.touch()
+                            netlog_path = ROOT / "benchmarks" / f"protected-browser-{project}-netlog.json"
+                            netlog_path.touch()
+                            ingress_ip = runner.run(
+                                "browser-network",
+                                [
+                                    "docker",
+                                    "inspect",
+                                    "--format",
+                                    "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                                    f"{project}-ingress-1",
+                                ],
+                            ).strip()
+                            runner.run(
+                                "browser-smoke",
+                                [
+                                    "docker",
+                                    "run",
+                                    "--rm",
+                                    "--network",
+                                    f"{project}_default",
+                                    "--add-host",
+                                    f"staging.local:{ingress_ip}",
+                                    "--add-host",
+                                    "host.docker.internal:host-gateway",
+                                    "-v",
+                                    f"{ROOT / 'scripts' / 'browser_oidc_smoke.py'}:/run/browser_oidc_smoke.py:ro",
+                                    "-v",
+                                    f"{fixture.password_files['viewer']}:/run/viewer-password:ro",
+                                    "-v",
+                                    f"{ca_file}:/run/staging-ca.crt:ro",
+                                    "-v",
+                                    f"{screenshot}:/run/browser.png",
+                                    "-v",
+                                    f"{evidence_path}:/run/browser.json",
+                                    "-v",
+                                    f"{netlog_path}:/run/netlog.json",
+                                    "mcr.microsoft.com/playwright/python:v1.65.1-noble",
+                                    "bash",
+                                    "-lc",
+                                    f"cp /run/staging-ca.crt /usr/local/share/ca-certificates/titan-staging.crt && update-ca-certificates >/dev/null && (command -v certutil >/dev/null || (apt-get update -qq && apt-get install -y -qq libnss3-tools)) && mkdir -p $HOME/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -L >/dev/null 2>&1 || certutil -d sql:$HOME/.pki/nssdb -N --empty-password) && certutil -d sql:$HOME/.pki/nssdb -A -n titan-staging-ca -t C,, -i /run/staging-ca.crt && python -c \"import socket,ssl,urllib.request; print(socket.gethostbyname('staging.local')); c=ssl.create_default_context(cafile='/run/staging-ca.crt'); r=urllib.request.urlopen('https://staging.local:8443/', context=c, timeout=10); print(r.status); print(urllib.request.urlopen('http://keycloak:8080/realms/titan-test/.well-known/openid-configuration', timeout=10).status)\" && python -m pip install --no-cache-dir playwright==1.65.1 >/dev/null && python /run/browser_oidc_smoke.py --base-url 'https://staging.local:8443' --issuer '{fixture.issuer}' --staging-host {ingress_ip} --net-log /run/netlog.json --password-file /run/viewer-password --screenshot /run/browser.png --evidence /run/browser.json --boundary-probe",
+                                ],
+                            )
+                        else:
+                            runner.run(
+                                "browser-smoke",
+                                [
+                                    sys.executable,
+                                    "scripts/browser_oidc_smoke.py",
+                                    "--base-url",
+                                    f"https://staging.local:{https_port}",
+                                    "--issuer",
+                                    fixture.issuer,
+                                    "--password-file",
+                                    str(fixture.password_files["viewer"]),
+                                    "--screenshot",
+                                    str(screenshot),
+                                    "--evidence",
+                                    str(evidence_path),
+                                    "--boundary-probe",
+                                ],
+                            )
                     except RuntimeError:
                         logs = runner.run(
                             "runtime-logs",
@@ -290,9 +358,11 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                             except (OSError, ValueError):
                                 pass
                 finally:
-                    runner.run(
-                        "browser-ca-remove", ["certutil", "-user", "-delstore", "Root", thumbprint]
-                    )
+                    if not args.container_browser:
+                        runner.run(
+                            "browser-ca-remove",
+                            ["certutil", "-user", "-delstore", "Root", thumbprint],
+                        )
             print(f"protected runtime ready: {project}")
             return 0
     finally:
