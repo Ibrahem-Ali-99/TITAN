@@ -138,6 +138,25 @@ def test_collect_once_does_not_overlap() -> None:
     assert calls["n"] == 1
 
 
+def test_collection_deadline_does_not_wait_for_a_blocked_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from titan_api import metrics as metrics_module
+
+    def blocked(_session: Session) -> bool:
+        time.sleep(0.2)
+        return True
+
+    monkeypatch.setattr(metrics_module, "_ready", blocked)
+    monkeypatch.setattr(metrics_module, "PROBE_TIMEOUT_SECONDS", 0.03)
+    collector = OperationalCollector(lambda: Session(), _settings())
+    started = time.perf_counter()
+    collector.collect_once()
+    elapsed = time.perf_counter() - started
+    assert elapsed < 0.15
+    assert _gauge("titan_metrics_collection_ok") == 0
+
+
 def test_traceparent_becomes_the_parent_span() -> None:
     exporter = InMemorySpanExporter()
     app = create_app(_settings())

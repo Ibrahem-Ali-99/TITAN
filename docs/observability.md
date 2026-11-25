@@ -36,7 +36,7 @@ A scrape that fails inside an exporter, or a trace export that fails, stays in t
 
 A finished collection attempt sets `titan_operational_metrics_fresh` to 1 for 45 seconds. That is three scrape intervals. `titan_operational_metrics_age_seconds` is the age of that attempt, computed when `/metrics` is rendered. If the thread stops, the fresh gauge returns to 0 and `TitanMetricsStale` can fire. The fresh gauge does not mean every dependency succeeded.
 
-Each signal has a separate known gauge. A failed read sets that known gauge to 0 and leaves the previous value in place. Zero is written only when a read succeeded and the recorded value is zero. A missing quality run does not become zero failures. An unavailable lag does not become zero lag. A warehouse query that throws does not become "not ready".
+Each signal has a separate known gauge. A failed read sets that known gauge to 0 and leaves the previous value in place. Zero is written only when a read succeeded and the recorded value is zero. A missing quality run does not become zero failures. An unavailable lag does not become zero lag. A warehouse query that throws does not become "not ready". Collection runs independent probes concurrently with at most four workers and a five-second overall probe deadline; each SQL probe owns and closes its own session. Timed-out probes mark the collection incomplete without blocking the API request or shutdown path.
 
 | Situation | What is stored |
 | --- | --- |

@@ -11,6 +11,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 from fastapi import FastAPI
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 COLLECT_INTERVAL_SECONDS = 15.0
 FRESH_SECONDS = 45.0
+PROBE_TIMEOUT_SECONDS = 5.0
 
 TRACKED_JOBS = (
     "bronze_stream",
@@ -212,20 +214,40 @@ class OperationalCollector:
                 return
 
     def _collect(self) -> bool:
+        probes: tuple[Callable[[], bool], ...] = (
+            lambda: self._with_session(_ready),
+            lambda: self._with_session(lambda session: _warehouse(session, self._settings)),
+            lambda: self._with_session(_freshness),
+            lambda: _lag_gauge(self._settings),
+            lambda: self._with_session(_quality),
+            lambda: self._with_session(_pipelines),
+            lambda: self._with_session(_spark),
+        )
+        executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="titan-metrics-probe")
+        futures = [executor.submit(probe) for probe in probes]
+        deadline = time.monotonic() + PROBE_TIMEOUT_SECONDS
+        results: list[bool] = []
+        try:
+            for future in futures:
+                remaining = max(0.0, deadline - time.monotonic())
+                try:
+                    results.append(bool(future.result(timeout=remaining)))
+                except TimeoutError:
+                    logger.warning("operational metrics probe timed out")
+                    results.append(False)
+                except Exception:
+                    logger.exception("operational metrics probe failed")
+                    results.append(False)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+        return all(results)
+
+    def _with_session(self, probe: Callable[[Session], bool]) -> bool:
         session = self._session_factory()
         try:
-            results = (
-                _ready(session),
-                _warehouse(session, self._settings),
-                _freshness(session),
-                _lag_gauge(self._settings),
-                _quality(session),
-                _pipelines(session),
-                _spark(session),
-            )
+            return probe(session)
         finally:
             session.close()
-        return all(results)
 
 
 def collector_enabled(settings: ApiSettings) -> bool:
