@@ -74,7 +74,7 @@ def main() -> int:
                     if args.net_log
                     else []
                 ),
-                f"--host-resolver-rules=MAP staging.local {args.staging_host}"
+                f"--host-resolver-rules=MAP staging.local {args.staging_host}",
             ],
         )
         context = browser.new_context(ignore_https_errors=False)

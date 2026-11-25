@@ -266,7 +266,9 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                         if args.container_browser:
                             evidence_path.touch()
                             screenshot.touch()
-                            netlog_path = ROOT / "benchmarks" / f"protected-browser-{project}-netlog.json"
+                            netlog_path = (
+                                ROOT / "benchmarks" / f"protected-browser-{project}-netlog.json"
+                            )
                             netlog_path.touch()
                             ingress_ip = runner.run(
                                 "browser-network",
