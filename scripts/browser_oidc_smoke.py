@@ -52,6 +52,7 @@ def main() -> int:
     parser.add_argument("--password-file", type=Path, required=True)
     parser.add_argument("--screenshot", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--boundary-probe", action="store_true")
     args = parser.parse_args()
     password = args.password_file.read_text(encoding="utf-8").strip()
     evidence: dict[str, object] = {
@@ -184,6 +185,34 @@ def main() -> int:
         except Exception as error:
             evidence["hydration_probe"] = f"unavailable:{type(error).__name__}"
         try:
+            if args.boundary_probe:
+                evidence["proxy_boundary_probe"] = page.evaluate(
+                    """async () => {
+                      const results = [];
+                      for (let i = 0; i < 8; i++) {
+                        for (const path of ["/api/v1/monitoring/overview", "/api/health/ready"]) {
+                          const started = performance.now();
+                          try {
+                            const response = await fetch(path, {
+                              credentials: "same-origin",
+                              signal: AbortSignal.timeout(10000),
+                            });
+                            await response.arrayBuffer();
+                            results.push({
+                              path, status: response.status,
+                              duration_ms: Math.round(performance.now() - started),
+                            });
+                          } catch (error) {
+                            results.push({
+                              path, error: String(error?.name || "Error"),
+                              duration_ms: Math.round(performance.now() - started),
+                            });
+                          }
+                        }
+                      }
+                      return results;
+                    }"""
+                )
             page.wait_for_selector("main h1", timeout=30000)
         except Exception as error:
             evidence["post_callback_url"] = page.url

@@ -174,6 +174,22 @@ def main() -> int:
                     "fetch('http://api:8000/health/ready', { headers: { authorization: `Bearer ${process.env.TITAN_READ_TOKEN}` }, signal: AbortSignal.timeout(5000) }).then(r => { console.log(r.status); process.exit(r.status === 200 ? 0 : 1) }).catch(e => { console.error(e.name); process.exit(1) })",
                 ),
             )
+            direct_probe = runner.run(
+                "direct-api-probe",
+                compose(
+                    project,
+                    "exec",
+                    "-T",
+                    "web",
+                    "node",
+                    "-e",
+                    """(async()=>{const paths=['/api/v1/monitoring/overview','/health/ready'];
+const out=[]; const started=Date.now();
+for(let i=0;i<8;i++){for(const path of paths){const t=Date.now();try{const r=await fetch('http://api:8000'+path,{headers:{authorization:`Bearer ${process.env.TITAN_READ_TOKEN}`},signal:AbortSignal.timeout(10000)});out.push({path,status:r.status,duration_ms:Date.now()-t});await r.arrayBuffer()}catch(e){out.push({path,error:e.name,message:String(e.message||'').slice(0,120),duration_ms:Date.now()-t})}}}
+console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,results:out}));})().catch(e=>{console.error(e.name);process.exit(1)});""",
+                ),
+            )
+            (work / "direct-api-probe.json").write_text(direct_probe, encoding="utf-8")
             runner.run(
                 "web-ready",
                 compose(
@@ -221,6 +237,7 @@ def main() -> int:
                                 str(ROOT / "benchmarks" / f"protected-browser-{project}.png"),
                                 "--evidence",
                                 str(evidence_path),
+                                "--boundary-probe",
                             ],
                         )
                     except RuntimeError:
@@ -231,6 +248,7 @@ def main() -> int:
                         if evidence_path.exists():
                             try:
                                 evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+                                evidence["direct_api_probe"] = json.loads(direct_probe)
                                 evidence["proxy_exceptions"] = [
                                     line.split("[titan-proxy-error]", 1)[1].strip()
                                     for line in logs.splitlines()
@@ -242,6 +260,16 @@ def main() -> int:
                             except (OSError, ValueError):
                                 pass
                         raise
+                    else:
+                        if evidence_path.exists():
+                            try:
+                                evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+                                evidence["direct_api_probe"] = json.loads(direct_probe)
+                                evidence_path.write_text(
+                                    json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+                                )
+                            except (OSError, ValueError):
+                                pass
                 finally:
                     runner.run(
                         "browser-ca-remove", ["certutil", "-user", "-delstore", "Root", thumbprint]
