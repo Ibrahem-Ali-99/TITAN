@@ -54,6 +54,9 @@ services:
     ports: !override []
     volumes: !override
       - prometheus_data:/prometheus
+      - ./observability/prometheus/prometheus-protected.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ${TITAN_METRICS_TOKEN_FILE:?staging metrics token file is required}:/run/secrets/metrics_read_token:ro
   grafana:
     ports: !override []
     volumes: !override

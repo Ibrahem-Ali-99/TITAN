@@ -202,6 +202,15 @@ def test_alert_rules_name_the_operational_conditions() -> None:
     assert "titan_operational_metrics_fresh == 0" in rules
 
 
+def test_protected_prometheus_uses_a_private_read_token_file() -> None:
+    config = (ROOT / "observability" / "prometheus" / "prometheus-protected.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "credentials_file: /run/secrets/metrics_read_token" in config
+    assert "Bearer " not in config
+    assert "TITAN_READ_TOKEN" not in config
+
+
 def test_collection_age_becomes_stale(monkeypatch: pytest.MonkeyPatch) -> None:
     from titan_api import metrics as metrics_module
 

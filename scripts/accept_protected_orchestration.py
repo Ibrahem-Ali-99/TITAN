@@ -81,6 +81,10 @@ class Runner:
             value = secrets.token_hex(32)
             (secrets_dir / name).write_text(value + "\n", encoding="utf-8")
             self.env[name] = value
+        metrics_token = secrets_dir / "metrics_read_token"
+        metrics_token.write_text(self.env["TITAN_READ_TOKEN"] + "\n", encoding="utf-8")
+        metrics_token.chmod(0o600)
+        self.env["TITAN_METRICS_TOKEN_FILE"] = str(metrics_token)
         self.env.update(
             {
                 "TITAN_ORCHESTRATION_IMAGE": os.environ.get(
@@ -323,16 +327,18 @@ def main(argv: list[str] | None = None) -> int:
     runner = Runner(ROOT, project, args.timeout)
     try:
         runner.run("docker", ["docker", "info", "--format", "{{.ServerVersion}}"])
-        with tempfile.TemporaryDirectory(prefix="titan-protected-accept-") as temporary:
-            runner.bootstrap(Path(temporary))
-            if args.bootstrap_only:
-                print(f"bootstrap succeeded for {project}")
-                return 0
+        temporary = Path(tempfile.mkdtemp(prefix="titan-protected-accept-"))
+        runner.bootstrap(temporary)
+        if args.bootstrap_only:
+            print(f"bootstrap succeeded for {project}")
+            return 0
         runner.run(
             "services",
             runner.compose(
                 "--profile",
                 "processing",
+                "--profile",
+                "observability",
                 "up",
                 "-d",
                 "--wait",
@@ -343,6 +349,43 @@ def main(argv: list[str] | None = None) -> int:
                 "migrate",
                 "ingestion",
                 "api",
+                "prometheus",
+                "grafana",
+            ),
+        )
+        runner.expected_failure(
+            "metrics-unauthenticated",
+            runner.compose(
+                "exec", "-T", "prometheus", "wget", "-q", "-O", "-", "http://api:8000/metrics"
+            ),
+        )
+        runner.run(
+            "metrics-scrape",
+            runner.compose(
+                "exec",
+                "-T",
+                "prometheus",
+                "sh",
+                "-lc",
+                "wget --header=\"Authorization:Bearer $(tr -d '\\r\\n' < /run/secrets/metrics_read_token)\" "
+                "-q -O - http://api:8000/metrics",
+            ),
+        )
+        runner.run(
+            "prometheus-target",
+            runner.compose(
+                "exec",
+                "-T",
+                "prometheus",
+                "sh",
+                "-lc",
+                "sleep 20; wget -q -O - 'http://127.0.0.1:9090/api/v1/query?query=up%7Bjob%3D%22titan-api%22%7D'",
+            ),
+        )
+        runner.run(
+            "grafana-health",
+            runner.compose(
+                "exec", "-T", "grafana", "wget", "-q", "-O", "-", "http://grafana:3000/api/health"
             ),
         )
         runner.run(
@@ -455,6 +498,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     finally:
         runner.cleanup()
+        if "temporary" in locals():
+            shutil.rmtree(temporary, ignore_errors=True)
 
 
 if __name__ == "__main__":
