@@ -190,6 +190,19 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                 ),
             )
             (work / "direct-api-probe.json").write_text(direct_probe, encoding="utf-8")
+            local_api_state = runner.run(
+                "api-local-state",
+                compose(
+                    project,
+                    "exec",
+                    "-T",
+                    "api",
+                    "sh",
+                    "-c",
+                    "python -c \"import json,time,urllib.request,os; t=time.monotonic(); out={};\ntry:\n r=urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5); out.update(status=r.status)\nexcept Exception as e: out.update(error=type(e).__name__,message=str(e)[:120])\nout['duration_ms']=round((time.monotonic()-t)*1000); out['pid']=os.getpid(); out['proc_stat']=open('/proc/self/stat').read().split()[2]; print(json.dumps(out))\"",
+                ),
+            )
+            (work / "api-local-state.txt").write_text(local_api_state, encoding="utf-8")
             runner.run(
                 "web-ready",
                 compose(
