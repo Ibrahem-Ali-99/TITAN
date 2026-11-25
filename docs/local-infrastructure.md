@@ -58,7 +58,7 @@ docker compose up --build -d
 docker compose run --rm --build migrate
 uv sync --all-packages
 uv sync --group orchestration
-uv run python scripts/verify_infrastructure.py
+uv run python -m scripts.verify_infrastructure
 ```
 
 `verify_infrastructure.py` checks Postgres, Kafka, ClickHouse, and MinIO on the ports in `.env`. For any project name other than `titan`, it also requires the Postgres container to mount `<project>_postgres_data` and refuses `titan_postgres_data`.
@@ -100,8 +100,8 @@ uv run --group orchestration dagster definitions validate -w pipelines/dagster/w
 Live scripts, each of which needs the stack:
 
 ```powershell
-uv run python scripts/verify_day7.py
-uv run python scripts/demo_day7.py
+uv run python -m scripts.verify_day7
+uv run python -m scripts.demo_day7
 $env:TITAN_WEB_BASE_URL = "http://localhost:3000"
 uv run --with playwright python scripts/audit_a11y.py
 ```
@@ -115,7 +115,7 @@ The 5,000-event acknowledgement sample:
 ```powershell
 $env:TITAN_BENCH_COUNT = "5000"
 $env:TITAN_BENCH_SEED = "71022"
-uv run python scripts/benchmark_ingestion.py
+uv run python -m scripts.benchmark_ingestion
 ```
 
 ## Troubleshooting

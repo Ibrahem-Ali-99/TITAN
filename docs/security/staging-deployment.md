@@ -117,7 +117,7 @@ restore-key procedures before shared data is introduced.
 Kafka TLS material must be seeded before Compose startup:
 
 ```bash
-uv run python scripts/staging_kafka_tls.py --source .staging-kafka-tls \
+uv run python -m scripts.staging_kafka_tls --source .staging-kafka-tls \
   --volume titan-staging-kafka-tls --password '<store-password>' \
   --username titan-staging --sasl-password '<generated-sasl-password>'
 ```
@@ -137,7 +137,7 @@ normal disposable staging certificates, copy the example XML to the generated
 directory as `config.xml`, then seed the empty named volume with:
 
 ```powershell
-python scripts/staging_clickhouse_tls.py --source .tmp-staging-tls --volume titan-staging-clickhouse-tls
+python -m scripts.staging_clickhouse_tls --source .tmp-staging-tls --volume titan-staging-clickhouse-tls
 ```
 
 The command validates the CA chain, `clickhouse` SAN, expiry and key match before
@@ -165,7 +165,7 @@ Generate fresh staging certificates with `scripts/staging_tls.py`, then seed a
 new empty volume without manually copying files:
 
 ```powershell
-python scripts/staging_minio_tls.py --source .tmp-staging-tls --volume titan-staging-minio-tls
+python -m scripts.staging_minio_tls --source .tmp-staging-tls --volume titan-staging-minio-tls
 ```
 
 The helper rejects missing, expired, untrusted, mismatched, partial, or
@@ -186,7 +186,7 @@ Provision the PostgreSQL server certificate into a fresh named volume before
 starting the protected project:
 
 ```powershell
-python scripts/staging_postgres_tls.py --source .tmp-staging-tls --volume titan-staging-postgres-tls
+python -m scripts.staging_postgres_tls --source .tmp-staging-tls --volume titan-staging-postgres-tls
 ```
 
 The command validates the `postgres` SAN, CA chain, expiry, and key match,
@@ -224,9 +224,9 @@ published directly.
 Generate fresh material and seed the dedicated ingress volume before startup:
 
 ```powershell
-python scripts/staging_tls.py provision --tls-dir .tmp-staging-tls --days 2 --windows-acl-verified
-python scripts/staging_ingress_tls.py --source .tmp-staging-tls --volume titan-staging-ingress-tls
-python scripts/staging_preflight.py --secrets-dir .staging-secrets --project-name titan-staging `
+python -m scripts.staging_tls provision --tls-dir .tmp-staging-tls --days 2 --windows-acl-verified
+python -m scripts.staging_ingress_tls --source .tmp-staging-tls --volume titan-staging-ingress-tls
+python -m scripts.staging_preflight --secrets-dir .staging-secrets --project-name titan-staging `
   --ingress-tls --ingress-tls-dir .tmp-staging-tls `
   --compose-file docker-compose.yml `
   --compose-file docker-compose.staging.yml `

@@ -103,7 +103,7 @@ JKS truststore and hostname verification.
 Provisioning is separate from Compose so private material is not committed:
 
 ```bash
-uv run python scripts/staging_kafka_tls.py --source .staging-tls \
+uv run python -m scripts.staging_kafka_tls --source .staging-tls \
   --destination .staging-kafka-tls --password '<generated-store-password>' \
   --username titan-staging --sasl-password '<generated-sasl-password>'
 ```

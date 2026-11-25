@@ -89,20 +89,20 @@ jobs:
           uv run --group orchestration python scripts/full_pipeline_ci.py
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm spark-bronze
           "${compose[@]}" --project-name "$SOURCE_PROJECT" "${source_compose[@]}" run --no-deps --rm spark-silver
-          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
+          uv run --group orchestration python -m scripts.run_pipeline titan_warehouse
 
           rm -rf .tmp-coordinated-pg .tmp-coordinated-minio .tmp-coordinated-kafka
           mkdir -p .tmp-coordinated-pg
           docker run --rm --network "${SOURCE_PROJECT}_default" -v "$PWD:/work" -w /work postgres:18 \
             pg_dump --format=custom --no-owner --no-acl --dbname "postgresql://titan:$PASSWORD@postgres:5432/titan" \
             --file /work/.tmp-coordinated-pg/titan-postgres.dump
-          uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
+          uv run python -m scripts.minio_dr --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
             backup --bucket titan-lake --output .tmp-coordinated-minio
           uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" \
             backup --topic titan.commerce.order-events --topic titan.commerce.payment-events --topic titan.commerce.inventory-events \
             --output .tmp-coordinated-kafka
           docker run --rm -v "$PWD:/work" -w /work postgres:18 pg_restore --list /work/.tmp-coordinated-pg/titan-postgres.dump >/dev/null
-          uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio >/dev/null
+          uv run python -m scripts.minio_dr verify --backup .tmp-coordinated-minio >/dev/null
           uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka >/dev/null
 
           export POSTGRES_DB=titan_restore POSTGRES_USER=titan POSTGRES_PASSWORD="$PASSWORD"
@@ -116,13 +116,13 @@ jobs:
           done
           docker run --rm --network "${DEST_PROJECT}_default" -v "$PWD:/work" -w /work postgres:18 pg_restore --exit-on-error --no-owner --no-acl \
             --dbname "postgresql://titan:$PASSWORD@postgres:5432/titan_restore" /work/.tmp-coordinated-pg/titan-postgres.dump
-          uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
+          uv run python -m scripts.minio_dr --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
             restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore
           uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$DEST_KAFKA_PORT" restore --backup .tmp-coordinated-kafka --topic-prefix restored.
           cp -a .tmp-coordinated-minio .tmp-coordinated-minio-missing
           missing="$(find .tmp-coordinated-minio-missing/objects -name '*.parquet' -print -quit)"
           rm -f "$missing"
-          if uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio-missing; then exit 1; fi
+          if uv run python -m scripts.minio_dr verify --backup .tmp-coordinated-minio-missing; then exit 1; fi
           cp -a .tmp-coordinated-kafka .tmp-coordinated-kafka-invalid
           printf '\n{"invalid":true}\n' >> .tmp-coordinated-kafka-invalid/records.jsonl
           if uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka-invalid; then exit 1; fi
@@ -130,7 +130,7 @@ jobs:
           cp .tmp-coordinated-pg/titan-postgres.dump .tmp-coordinated-pg/corrupt.dump
           truncate -s -64 .tmp-coordinated-pg/corrupt.dump
           test "$pg_sha256" != "$(sha256sum .tmp-coordinated-pg/corrupt.dump | cut -d' ' -f1)"
-          if uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore; then exit 1; fi
+          if uv run python -m scripts.minio_dr --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore; then exit 1; fi
           docker exec "${DEST_PROJECT}-postgres-1" psql -U titan -d titan_restore -c \
             "update lake_publications set version_uri=replace(version_uri,'s3a://titan-lake/','s3a://titan-lake-restore/') where status='published'"
           "${compose[@]}" --project-name "$DEST_PROJECT" "${dest_compose[@]}" run --build --detach --no-deps \

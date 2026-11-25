@@ -125,22 +125,22 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse --crash-after tested
+          uv run --group orchestration python -m scripts.run_pipeline titan_warehouse --crash-after tested
           status=$?
           set -e
           test "$status" -ne 0
           uv run --group orchestration python -c "import psycopg, os; c=psycopg.connect(os.environ['DATABASE_URL']); assert c.execute(\"select count(*) from warehouse_loads where status='failed'\").fetchone()[0] >= 1"
       - name: Publish warehouse and verify serving reconciliation
         run: |
-          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
-          uv run --group orchestration python scripts/run_pipeline.py titan_warehouse --reconcile
+          uv run --group orchestration python -m scripts.run_pipeline titan_warehouse
+          uv run --group orchestration python -m scripts.run_pipeline titan_warehouse --reconcile
           uv run --group orchestration python scripts/verify_full_pipeline.py
       - name: Verify ClickHouse disaster recovery rebuild
         run: uv run --group orchestration python scripts/clickhouse_dr_recovery.py
       - name: Capture and verify coordinated recovery boundary
         run: |
-          uv run --group orchestration python scripts/coordinated_dr.py capture --output benchmarks/coordinated-dr.json
-          uv run --group orchestration python scripts/coordinated_dr.py verify --manifest benchmarks/coordinated-dr.json
+          uv run --group orchestration python -m scripts.coordinated_dr capture --output benchmarks/coordinated-dr.json
+          uv run --group orchestration python -m scripts.coordinated_dr verify --manifest benchmarks/coordinated-dr.json
       - name: Run Spark regression tests
         run: >-
           docker run --rm

@@ -106,7 +106,7 @@ docker compose up --build -d
 docker compose run --rm --build migrate
 uv sync --all-packages
 uv sync --group orchestration
-uv run python scripts/verify_infrastructure.py
+uv run python -m scripts.verify_infrastructure
 ```
 
 The API is http://localhost:8000 and the console is http://localhost:3000. `docker compose down` stops the containers and keeps the volumes. Memory limits, the isolated checkout, local check commands, and troubleshooting are in [docs/local-infrastructure.md](docs/local-infrastructure.md).
@@ -117,14 +117,14 @@ A new database has no publication. From the same shell:
 uv run python -m event_generator --history-days 28 --seed 51022 --rate 0
 docker compose --profile processing run --rm spark-bronze
 docker compose --profile processing run --rm spark-silver
-uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
-uv run --group orchestration python scripts/run_pipeline.py titan_ml
+uv run --group orchestration python -m scripts.run_pipeline titan_warehouse
+uv run --group orchestration python -m scripts.run_pipeline titan_ml
 ```
 
 Wait until `GET /api/v1/warehouse/status` reports `"ready": true`. `titan_ml` serves `seasonal_naive` unless the candidate MAE is strictly lower.
 
 ```powershell
-uv run python scripts/demo_day7.py
+uv run python -m scripts.demo_day7
 ```
 
 The script adds one order to a warehouse that is already ready and leaves the serving forecast in place. Walkthrough: [DEMO.md](DEMO.md). Narration: [docs/portfolio/demo-script.md](docs/portfolio/demo-script.md).

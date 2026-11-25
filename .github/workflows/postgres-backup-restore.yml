@@ -56,9 +56,9 @@ jobs:
           backup_dir="$RUNNER_TEMP/titan-dr-backup"
           restore_db="postgresql://titan_dr:titan_dr_ci_password@127.0.0.1:55432/titan_restore"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE titan_restore'
-          uv run python scripts/postgres_dr.py backup --dsn "$DATABASE_URL" --database titan --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
-          uv run python scripts/postgres_dr.py verify --backup "$backup_dir"
-          uv run python scripts/postgres_dr.py restore --backup "$backup_dir" --dsn "$restore_db" > "$RUNNER_TEMP/restore.json"
+          uv run python -m scripts.postgres_dr backup --dsn "$DATABASE_URL" --database titan --output "$backup_dir" > "$RUNNER_TEMP/backup.json"
+          uv run python -m scripts.postgres_dr verify --backup "$backup_dir"
+          uv run python -m scripts.postgres_dr restore --backup "$backup_dir" --dsn "$restore_db" > "$RUNNER_TEMP/restore.json"
           python - <<'PY'
           import json, os
           result = json.load(open(os.path.join(os.environ['RUNNER_TEMP'], 'restore.json'), encoding='utf-8'))
@@ -81,11 +81,11 @@ jobs:
           mkdir "$RUNNER_TEMP/corrupt-backup"
           mv "$RUNNER_TEMP/corrupt.dump" "$RUNNER_TEMP/corrupt-backup/corrupt.dump"
           mv "$RUNNER_TEMP/corrupt-manifest.json" "$RUNNER_TEMP/corrupt-backup/manifest.json"
-          if uv run python scripts/postgres_dr.py verify --backup "$RUNNER_TEMP/corrupt-backup"; then
+          if uv run python -m scripts.postgres_dr verify --backup "$RUNNER_TEMP/corrupt-backup"; then
             echo 'corrupt backup was accepted' >&2
             exit 1
           fi
-          if uv run python scripts/postgres_dr.py restore --backup "$backup_dir" --dsn "$restore_db"; then
+          if uv run python -m scripts.postgres_dr restore --backup "$backup_dir" --dsn "$restore_db"; then
             echo 'non-empty destination was accepted' >&2
             exit 1
           fi
