@@ -1,7 +1,11 @@
 """Read quality, forecast, and monitoring rows. These routes do not train or publish."""
 
+import faulthandler
 import hashlib
 import json
+import logging
+import os
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -24,6 +28,17 @@ from titan_store.models import (
     SparkJobStatus,
     WarehouseLoad,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _monitoring_diag(stage: str, started: float) -> None:
+    if os.getenv("TITAN_MONITORING_DIAGNOSTICS") == "1":
+        logger.warning(
+            "[titan-monitoring-diagnostic] stage=%s elapsed_ms=%d",
+            stage,
+            (time.monotonic() - started) * 1000,
+        )
 
 
 class QualitySummary(BaseModel):
@@ -316,7 +331,11 @@ def ml_anomalies(session: Session, limit: int, flagged_only: bool) -> AnomaliesR
 
 
 def monitoring_overview(session: Session, settings: ApiSettings) -> MonitoringOverview:
+    started = time.monotonic()
+    _monitoring_diag("route-entry", started)
     _backfill_durations(session)
+    _monitoring_diag("database-backfill", started)
+    _monitoring_diag("kafka-lag-start", started)
     return MonitoringOverview(
         freshness=monitoring_freshness(session),
         ingestion_lag=_lag(settings.kafka_bootstrap_servers),
@@ -385,15 +404,22 @@ def _stage(stage: str, observed: datetime | None, detail: str) -> StageFreshness
 
 def _lag(bootstrap: str) -> LagView:
     consumer = None
+    started = time.monotonic()
+    dump_scheduled = os.getenv("TITAN_MONITORING_DIAGNOSTICS") == "1"
+    if dump_scheduled:
+        faulthandler.dump_traceback_later(8, repeat=False)
+        _monitoring_diag("kafka-lag-entry", started)
     try:
         from confluent_kafka.admin import AdminClient
 
         from titan_messaging.kafka_config import kafka_client_config
 
         admin = AdminClient(kafka_client_config(bootstrap))
+        _monitoring_diag("kafka-admin-created", started)
         request = ConsumerGroupTopicPartitions(CONSUMER_GROUP)
         listed = admin.list_consumer_group_offsets([request])
         description = next(iter(listed.values())).result(timeout=5)
+        _monitoring_diag("kafka-group-offsets", started)
         consumer_config = kafka_client_config(bootstrap)
         consumer_config.update(
             {
@@ -402,6 +428,7 @@ def _lag(bootstrap: str) -> LagView:
             }
         )
         consumer = Consumer(consumer_config)
+        _monitoring_diag("kafka-consumer-created", started)
         total = 0
         measured = 0
         for part in description.topic_partitions:
@@ -413,6 +440,7 @@ def _lag(bootstrap: str) -> LagView:
             )
             total += max(0, high - part.offset)
             measured += 1
+            _monitoring_diag("kafka-watermark", started)
         if measured == 0:
             return LagView(
                 consumer_group=CONSUMER_GROUP,
@@ -434,6 +462,9 @@ def _lag(bootstrap: str) -> LagView:
             detail=f"lag was not measured: {exc.__class__.__name__}",
         )
     finally:
+        if dump_scheduled:
+            faulthandler.cancel_dump_traceback_later()
+        _monitoring_diag("kafka-lag-cleanup", started)
         if consumer is not None:
             consumer.close()
 

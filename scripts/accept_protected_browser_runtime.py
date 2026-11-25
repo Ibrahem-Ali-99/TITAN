@@ -96,6 +96,7 @@ def main() -> int:
                     "TITAN_OIDC_AUDIENCE": "titan",
                     "TITAN_OIDC_SESSION_SECRET": os.urandom(32).hex(),
                     "TITAN_HTTPS_PORT": str(https_port),
+                    "TITAN_MONITORING_DIAGNOSTICS": "1",
                 }
             )
             files = [
@@ -130,6 +131,7 @@ def main() -> int:
             for name in files:
                 preflight.extend(("--compose-file", name))
             runner.run("preflight-ingress", preflight)
+            runner.run("api-build", compose(project, "build", "api"))
             runner.run("web-build", compose(project, "build", "web"))
             runner.run(
                 "services",
@@ -203,6 +205,10 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                 ),
             )
             (work / "api-local-state.txt").write_text(local_api_state, encoding="utf-8")
+            runner.run(
+                "monitoring-diagnostics",
+                compose(project, "logs", "--no-color", "api"),
+            )
             runner.run(
                 "web-ready",
                 compose(
