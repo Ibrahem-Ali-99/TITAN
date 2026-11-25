@@ -38,11 +38,11 @@ def main() -> None:
             page = browser.new_page(viewport={"width": width, "height": height})
             for path in PAGES:
                 console_errors: list[str] = []
-                page.on(
+                page.on(  # type: ignore[call-overload]
                     "console",
                     lambda message, errors=console_errors: _remember_console(errors, message),
                 )
-                page.on("pageerror", lambda error, errors=console_errors: errors.append(str(error)))
+                page.on("pageerror", lambda error, errors=console_errors: errors.append(str(error)))  # type: ignore[call-overload]
                 page.goto(f"{base}{path}", wait_until="networkidle", timeout=60000)
                 page.evaluate(axe)
                 result = page.evaluate(

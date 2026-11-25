@@ -6,6 +6,7 @@ import argparse
 import atexit
 import json
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from playwright.sync_api import sync_playwright
@@ -60,7 +61,8 @@ def main() -> int:
     parser.add_argument("--expected-role", choices=("viewer", "analyst", "operator", "admin"))
     args = parser.parse_args()
     password = args.password_file.read_text(encoding="utf-8").strip()
-    evidence: dict[str, object] = {
+    # Browser event payloads and evaluate() results are heterogeneous JSON values.
+    evidence: dict[str, Any] = {
         "result": "incomplete",
         "console_errors": [],
         "failed_requests": [],
@@ -84,11 +86,11 @@ def main() -> int:
         context = browser.new_context(ignore_https_errors=False)
         page = context.new_page()
         evidence["browser_context"] = {"javascript_enabled": True, "ignore_https_errors": False}
-        page.on(
+        page.on(  # type: ignore[call-overload]
             "domcontentloaded",
             lambda: evidence.setdefault("lifecycle", []).append("domcontentloaded"),
         )
-        page.on("load", lambda: evidence.setdefault("lifecycle", []).append("load"))
+        page.on("load", lambda: evidence.setdefault("lifecycle", []).append("load"))  # type: ignore[call-overload]
         page.on(
             "console",
             lambda message: (
@@ -101,12 +103,12 @@ def main() -> int:
                 if message.type == "error" or message.text.startswith("[titan-smoke]")
                 else None
             ),
-        )  # type: ignore[union-attr]
+        )
         page.on(
             "pageerror",
             lambda error: evidence.setdefault("page_errors", []).append(str(error)[:240]),
         )
-        page.on("requestfailed", lambda request: evidence["failed_requests"].append(request.url))  # type: ignore[union-attr]
+        page.on("requestfailed", lambda request: evidence["failed_requests"].append(request.url))
         page.on(
             "request",
             lambda request: (
@@ -170,7 +172,7 @@ def main() -> int:
             lambda frame: (
                 evidence["redirects"].append(frame.url) if frame == page.main_frame else None
             ),
-        )  # type: ignore[union-attr]
+        )
         page.goto(args.base_url, wait_until="domcontentloaded", timeout=60000)
         evidence["initial_url"] = page.url
         page.wait_for_url(args.issuer + "**", timeout=30000)
