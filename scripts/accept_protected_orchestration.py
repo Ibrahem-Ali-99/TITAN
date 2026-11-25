@@ -8,6 +8,7 @@ does not contain fixture, TLS, or warehouse business logic.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import secrets
 import shutil
@@ -231,6 +232,29 @@ class Runner:
             )
         return completed.stdout
 
+    def expected_failure(self, stage: str, command: list[str]) -> str:
+        started = time.monotonic()
+        completed = subprocess.run(
+            command,
+            cwd=self.root,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        detail = (completed.stdout + completed.stderr)[-4000:]
+        with self.evidence.open("a", encoding="utf-8") as stream:
+            stream.write(
+                f"{stage} expected_exit={completed.returncode} "
+                f"seconds={time.monotonic() - started:.2f}\n"
+            )
+            stream.write(detail.replace("password", "[redacted]").replace("token", "[redacted]"))
+            stream.write("\n")
+        if completed.returncode == 0:
+            raise RuntimeError(f"stage {stage} unexpectedly succeeded; see {self.evidence}")
+        return detail
+
     def compose(self, *args: str) -> list[str]:
         command = ["docker", "compose", "--project-name", self.project]
         for compose_file in COMPOSE_FILES:
@@ -370,6 +394,64 @@ def main(argv: list[str] | None = None) -> int:
             ("warehouse", "clickhouse_load"),
         ):
             runner.run(stage, [sys.executable, "-m", "titan_dagster", asset])
+        reconcile = (
+            "import json; from titan_warehouse.load import _clickhouse, _database_url, "
+            "_money, _published_loads; c=_clickhouse(); "
+            "p=_published_loads(_database_url())[0]; "
+            "a=c.query('select warehouse_publication_id from wh_active limit 1').result_rows[0][0]; "
+            "counts={t:int(c.query(f'select count() from {t} where warehouse_publication_id = {repr(p[\"id\"])}').result_rows[0][0]) for t in ['wh_orders','wh_payments','wh_inventory','wh_order_items']}; "
+            "revenue=_money(c,p['id']); print(json.dumps({'load_id':p['load_id'],'publication_id':p['id'],'active':str(a),'counts':counts,'revenue':revenue})); "
+            "assert str(a)==p['id'] and counts=={'wh_orders':86,'wh_payments':86,'wh_inventory':84,'wh_order_items':86} and revenue=={'EUR':'2308.38','GBP':'2171.39','USD':'1995.90'}"
+        )
+        before_output = runner.run(
+            "warehouse-reconcile",
+            runner.compose(
+                "run", "--rm", "--no-deps", "warehouse-publish", "python", "-c", reconcile
+            ),
+        )
+        before = json.loads(
+            next(line for line in before_output.splitlines() if line.startswith("{"))
+        )
+        failed = runner.expected_failure(
+            "warehouse-failure",
+            runner.compose(
+                "run",
+                "--rm",
+                "--no-deps",
+                "warehouse-publish",
+                "python",
+                "-m",
+                "titan_warehouse.load",
+                "--crash-after",
+                "tested",
+            ),
+        )
+        if "crash after dbt tests and before publication" not in failed:
+            raise RuntimeError("warehouse failure injection did not reach its controlled boundary")
+        failure_output = runner.run(
+            "warehouse-reconcile-after-failure",
+            runner.compose(
+                "run", "--rm", "--no-deps", "warehouse-publish", "python", "-c", reconcile
+            ),
+        )
+        failure_state = json.loads(
+            next(line for line in failure_output.splitlines() if line.startswith("{"))
+        )
+        if failure_state["active"] != before["active"]:
+            raise RuntimeError("failed warehouse candidate changed the active publication")
+        runner.run(
+            "warehouse-retry",
+            runner.compose("run", "--rm", "--no-deps", "warehouse-publish"),
+        )
+        after_output = runner.run(
+            "warehouse-reconcile-retry",
+            runner.compose(
+                "run", "--rm", "--no-deps", "warehouse-publish", "python", "-c", reconcile
+            ),
+        )
+        after = json.loads(next(line for line in after_output.splitlines() if line.startswith("{")))
+        if after["active"] == before["active"]:
+            raise RuntimeError("warehouse retry did not create a new active publication")
         return 0
     finally:
         runner.cleanup()
