@@ -15,8 +15,13 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+
 from accept_protected_orchestration import COMPOSE_FILES, ROOT, Runner, project_name
 from keycloak_fixture import disposable_keycloak_fixture, request_json
+
+BROWSER_OVERRIDE: Path | None = None
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -37,8 +42,11 @@ def verify_ingress(url: str, ca_file: Path) -> int:
 
 def compose(project: str, *args: str) -> list[str]:
     command = ["docker", "compose", "--project-name", project]
-    for name in (*COMPOSE_FILES, "docker-compose.staging-ingress.yml"):
+    files = (*COMPOSE_FILES, "docker-compose.staging-ingress.yml")
+    for name in files:
         command.extend(("-f", name))
+    if BROWSER_OVERRIDE is not None:
+        command.extend(("-f", str(BROWSER_OVERRIDE)))
     return command + list(args)
 
 
@@ -46,12 +54,20 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--project-name", default=None)
+    parser.add_argument("--browser-smoke", action="store_true")
     args = parser.parse_args()
     project = args.project_name or project_name()
     https_port = 18000 + secrets.randbelow(1000)
     redirect_uri = f"https://staging.local:{https_port}/auth/callback"
     runner = Runner(ROOT, project, args.timeout)
+    evidence_path = ROOT / "benchmarks" / f"protected-browser-{project}.json"
     work = Path(tempfile.mkdtemp(prefix="titan-protected-browser-"))
+    global BROWSER_OVERRIDE
+    BROWSER_OVERRIDE = work / "browser-override.yml"
+    BROWSER_OVERRIDE.write_text(
+        "services:\n  api:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n",
+        encoding="utf-8",
+    )
     try:
         runner.run("docker", ["docker", "info", "--format", "{{.ServerVersion}}"])
         with disposable_keycloak_fixture(
@@ -85,6 +101,7 @@ def main() -> int:
                 str((ROOT / name).resolve())
                 for name in (*COMPOSE_FILES, "docker-compose.staging-ingress.yml")
             ]
+            files.append(str(BROWSER_OVERRIDE))
             preflight = [
                 sys.executable,
                 "scripts/staging_preflight.py",
@@ -112,10 +129,20 @@ def main() -> int:
             for name in files:
                 preflight.extend(("--compose-file", name))
             runner.run("preflight-ingress", preflight)
+            runner.run("web-build", compose(project, "build", "web"))
             runner.run(
                 "services",
                 compose(
-                    project, "up", "-d", "--wait", "postgres", "migrate", "api", "web", "ingress"
+                    project,
+                    "up",
+                    "-d",
+                    "--wait",
+                    "postgres",
+                    "kafka",
+                    "migrate",
+                    "api",
+                    "web",
+                    "ingress",
                 ),
             )
             discovery = request_json(f"{fixture.discovery_url}/.well-known/openid-configuration")
@@ -132,6 +159,18 @@ def main() -> int:
                     "-c",
                     "import urllib.request; urllib.request.urlopen("
                     "'http://127.0.0.1:8000/health/ready', timeout=5)",
+                ),
+            )
+            runner.run(
+                "web-api-ready",
+                compose(
+                    project,
+                    "exec",
+                    "-T",
+                    "web",
+                    "node",
+                    "-e",
+                    "fetch('http://api:8000/health/ready', { headers: { authorization: `Bearer ${process.env.TITAN_READ_TOKEN}` }, signal: AbortSignal.timeout(5000) }).then(r => { console.log(r.status); process.exit(r.status === 200 ? 0 : 1) }).catch(e => { console.error(e.name); process.exit(1) })",
                 ),
             )
             runner.run(
@@ -156,9 +195,52 @@ def main() -> int:
                     str(tls_dir / "ca.crt"),
                 ],
             )
+            if args.browser_smoke:
+                ca_file = tls_dir / "ca.crt"
+                certificate = x509.load_pem_x509_certificate(ca_file.read_bytes())
+                thumbprint = certificate.fingerprint(hashes.SHA1()).hex().upper()
+                runner.run(
+                    "browser-ca-install",
+                    ["certutil", "-user", "-addstore", "-f", "Root", str(ca_file)],
+                )
+                try:
+                    runner.run(
+                        "browser-smoke",
+                        [
+                            sys.executable,
+                            "scripts/browser_oidc_smoke.py",
+                            "--base-url",
+                            f"https://staging.local:{https_port}",
+                            "--issuer",
+                            fixture.issuer,
+                            "--password-file",
+                            str(fixture.password_files["viewer"]),
+                            "--screenshot",
+                            str(ROOT / "benchmarks" / f"protected-browser-{project}.png"),
+                            "--evidence",
+                            str(evidence_path),
+                        ],
+                    )
+                finally:
+                    runner.run(
+                        "browser-ca-remove", ["certutil", "-user", "-delstore", "Root", thumbprint]
+                    )
             print(f"protected runtime ready: {project}")
             return 0
     finally:
+        summary = "unavailable"
+        if evidence_path.exists():
+            try:
+                import json
+
+                summary = str(
+                    json.loads(evidence_path.read_text(encoding="utf-8")).get(
+                        "result", "incomplete"
+                    )
+                )
+            except (OSError, ValueError):
+                summary = "unreadable"
+        print(f"browser evidence: {evidence_path} result={summary}")
         subprocess.run(
             compose(project, "down", "--volumes", "--remove-orphans"),
             cwd=ROOT,
