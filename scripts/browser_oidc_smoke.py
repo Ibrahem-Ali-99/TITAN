@@ -158,9 +158,11 @@ def main() -> int:
                       credentials: "same-origin",
                       signal: controller.signal,
                     });
+                    const body = await response.text();
                     return {
                       status: response.status,
                       content_type: response.headers.get("content-type"),
+                      body_excerpt: body.slice(0, 240),
                       duration_ms: Math.round(performance.now() - started),
                     };
                   } catch (error) {
@@ -223,10 +225,18 @@ def main() -> int:
             )
             raise RuntimeError(f"authenticated overview did not render: {error}") from error
         evidence["overview_heading"] = page.locator("main h1").inner_text()
-        response = page.request.get(args.base_url + "/api/v1/health/ready")
-        evidence["authorized_api_status"] = response.status
-        if response.status != 200:
-            raise RuntimeError(f"authorized API read failed: HTTP {response.status}")
+        evidence["authorized_api_status"] = page.evaluate(
+            """async () => {
+              const response = await fetch("/api/health/ready", { credentials: "same-origin" });
+              return {
+                status: response.status,
+                body_excerpt: (await response.text()).slice(0, 240),
+              };
+            }"""
+        )
+        if evidence["authorized_api_status"]["status"] != 200:
+            status = evidence["authorized_api_status"]["status"]
+            raise RuntimeError(f"authorized API read failed: HTTP {status}")
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(args.screenshot), full_page=True)
         page.locator('form[action="/auth/logout"] button, button:has-text("Log out")').first.click()

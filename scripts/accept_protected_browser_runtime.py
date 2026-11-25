@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import secrets
 import shutil
@@ -65,7 +66,7 @@ def main() -> int:
     global BROWSER_OVERRIDE
     BROWSER_OVERRIDE = work / "browser-override.yml"
     BROWSER_OVERRIDE.write_text(
-        "services:\n  api:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n",
+        'services:\n  api:\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    command: ["sh", "-c", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]\n    extra_hosts:\n      - host.docker.internal:host-gateway\n',
         encoding="utf-8",
     )
     try:
@@ -204,23 +205,43 @@ def main() -> int:
                     ["certutil", "-user", "-addstore", "-f", "Root", str(ca_file)],
                 )
                 try:
-                    runner.run(
-                        "browser-smoke",
-                        [
-                            sys.executable,
-                            "scripts/browser_oidc_smoke.py",
-                            "--base-url",
-                            f"https://staging.local:{https_port}",
-                            "--issuer",
-                            fixture.issuer,
-                            "--password-file",
-                            str(fixture.password_files["viewer"]),
-                            "--screenshot",
-                            str(ROOT / "benchmarks" / f"protected-browser-{project}.png"),
-                            "--evidence",
-                            str(evidence_path),
-                        ],
-                    )
+                    try:
+                        runner.run(
+                            "browser-smoke",
+                            [
+                                sys.executable,
+                                "scripts/browser_oidc_smoke.py",
+                                "--base-url",
+                                f"https://staging.local:{https_port}",
+                                "--issuer",
+                                fixture.issuer,
+                                "--password-file",
+                                str(fixture.password_files["viewer"]),
+                                "--screenshot",
+                                str(ROOT / "benchmarks" / f"protected-browser-{project}.png"),
+                                "--evidence",
+                                str(evidence_path),
+                            ],
+                        )
+                    except RuntimeError:
+                        logs = runner.run(
+                            "runtime-logs",
+                            compose(project, "logs", "--no-color", "web", "api", "ingress"),
+                        )
+                        if evidence_path.exists():
+                            try:
+                                evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+                                evidence["proxy_exceptions"] = [
+                                    line.split("[titan-proxy-error]", 1)[1].strip()
+                                    for line in logs.splitlines()
+                                    if "[titan-proxy-error]" in line
+                                ]
+                                evidence_path.write_text(
+                                    json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+                                )
+                            except (OSError, ValueError):
+                                pass
+                        raise
                 finally:
                     runner.run(
                         "browser-ca-remove", ["certutil", "-user", "-delstore", "Root", thumbprint]
@@ -231,8 +252,6 @@ def main() -> int:
         summary = "unavailable"
         if evidence_path.exists():
             try:
-                import json
-
                 summary = str(
                     json.loads(evidence_path.read_text(encoding="utf-8")).get(
                         "result", "incomplete"
