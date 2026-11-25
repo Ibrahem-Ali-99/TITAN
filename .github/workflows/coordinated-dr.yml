@@ -98,12 +98,12 @@ jobs:
             --file /work/.tmp-coordinated-pg/titan-postgres.dump
           uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
             backup --bucket titan-lake --output .tmp-coordinated-minio
-          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" \
+          uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" \
             backup --topic titan.commerce.order-events --topic titan.commerce.payment-events --topic titan.commerce.inventory-events \
             --output .tmp-coordinated-kafka
           docker run --rm -v "$PWD:/work" -w /work postgres:18 pg_restore --list /work/.tmp-coordinated-pg/titan-postgres.dump >/dev/null
           uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio >/dev/null
-          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka >/dev/null
+          uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka >/dev/null
 
           export POSTGRES_DB=titan_restore POSTGRES_USER=titan POSTGRES_PASSWORD="$PASSWORD"
           export TITAN_KAFKA_PORT="$DEST_KAFKA_PORT" TITAN_POSTGRES_PORT="$DEST_POSTGRES_PORT" TITAN_CLICKHOUSE_PORT="$DEST_CLICKHOUSE_PORT" TITAN_MINIO_PORT="$DEST_MINIO_PORT" TITAN_MINIO_CONSOLE_PORT="$DEST_MINIO_CONSOLE_PORT"
@@ -118,14 +118,14 @@ jobs:
             --dbname "postgresql://titan:$PASSWORD@postgres:5432/titan_restore" /work/.tmp-coordinated-pg/titan-postgres.dump
           uv run python scripts/minio_dr.py --endpoint "127.0.0.1:$SOURCE_MINIO_PORT" --access-key titan --secret-key "$PASSWORD" \
             restore --backup .tmp-coordinated-minio --destination-endpoint "127.0.0.1:$DEST_MINIO_PORT" --destination-access-key titan --destination-secret-key "$PASSWORD" --destination-bucket titan-lake-restore
-          uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$DEST_KAFKA_PORT" restore --backup .tmp-coordinated-kafka --topic-prefix restored.
+          uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$DEST_KAFKA_PORT" restore --backup .tmp-coordinated-kafka --topic-prefix restored.
           cp -a .tmp-coordinated-minio .tmp-coordinated-minio-missing
           missing="$(find .tmp-coordinated-minio-missing/objects -name '*.parquet' -print -quit)"
           rm -f "$missing"
           if uv run python scripts/minio_dr.py verify --backup .tmp-coordinated-minio-missing; then exit 1; fi
           cp -a .tmp-coordinated-kafka .tmp-coordinated-kafka-invalid
           printf '\n{"invalid":true}\n' >> .tmp-coordinated-kafka-invalid/records.jsonl
-          if uv run python scripts/kafka_dr.py --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka-invalid; then exit 1; fi
+          if uv run python -m scripts.kafka_dr --bootstrap "127.0.0.1:$SOURCE_KAFKA_PORT" verify --backup .tmp-coordinated-kafka-invalid; then exit 1; fi
           pg_sha256="$(sha256sum .tmp-coordinated-pg/titan-postgres.dump | cut -d' ' -f1)"
           cp .tmp-coordinated-pg/titan-postgres.dump .tmp-coordinated-pg/corrupt.dump
           truncate -s -64 .tmp-coordinated-pg/corrupt.dump

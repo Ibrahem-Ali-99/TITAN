@@ -27,9 +27,9 @@ Use a disposable Compose project or broker, create isolated topic names with the
 same partition count, publish deterministic records, then run:
 
 ```text
-python scripts/kafka_dr.py --bootstrap HOST:PORT backup --topic titan.dr.events --output OUT
-python scripts/kafka_dr.py --bootstrap HOST:PORT verify --backup OUT
-python scripts/kafka_dr.py --bootstrap HOST:PORT restore --backup OUT
+python -m scripts.kafka_dr --bootstrap HOST:PORT backup --topic titan.dr.events --output OUT
+python -m scripts.kafka_dr --bootstrap HOST:PORT verify --backup OUT
+python -m scripts.kafka_dr --bootstrap HOST:PORT restore --backup OUT
 ```
 
 The restore command refuses nonempty topics and mismatched partition counts. The

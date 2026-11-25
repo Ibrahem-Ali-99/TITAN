@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from kafka_dr import RECORDS, verify_backup
+from scripts.kafka_dr import RECORDS, verify_backup
 
 
 def _backup(tmp_path: Path) -> Path:

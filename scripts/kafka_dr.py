@@ -17,7 +17,7 @@ from typing import Any, cast
 
 from confluent_kafka import Consumer, Producer, TopicPartition, admin
 
-from dr_security import secure_tree
+from scripts.dr_security import secure_tree
 from titan_messaging.kafka_config import kafka_client_config
 
 MANIFEST = "manifest.json"
