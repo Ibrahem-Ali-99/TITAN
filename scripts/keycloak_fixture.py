@@ -51,6 +51,7 @@ class KeycloakFixture:
     client_secret_file: Path
     password_files: dict[str, Path]
     credential_dir: Path
+    discovery_url: str
 
     @property
     def browser_issuer(self) -> str:
@@ -58,7 +59,12 @@ class KeycloakFixture:
 
 
 @contextmanager
-def disposable_keycloak_fixture(timeout: int = 90) -> Iterator[KeycloakFixture]:
+def disposable_keycloak_fixture(
+    timeout: int = 90,
+    *,
+    issuer_host: str = "127.0.0.1",
+    redirect_uri: str = "https://staging.local:8443/auth/callback",
+) -> Iterator[KeycloakFixture]:
     project = f"titan-oidc-fixture-{secrets.token_hex(4)}"
     port = 18080 + secrets.randbelow(500)
     container = f"{project}-keycloak"
@@ -69,6 +75,8 @@ def disposable_keycloak_fixture(timeout: int = 90) -> Iterator[KeycloakFixture]:
     template = (ROOT / "tests" / "fixtures" / "keycloak" / "titan-realm.template.json").read_text()
     values = {
         "CLIENT_SECRET": client_secret,
+        "REDIRECT_URI": redirect_uri,
+        "BROWSER_ORIGIN": redirect_uri.rsplit("/auth/callback", 1)[0],
         **{f"{n.upper()}_PASSWORD": v for n, v in passwords.items()},
     }
     realm = template
@@ -86,7 +94,8 @@ def disposable_keycloak_fixture(timeout: int = 90) -> Iterator[KeycloakFixture]:
         path.write_text(password + "\n", encoding="utf-8")
         path.chmod(0o600)
         password_files[username] = path
-    issuer = f"http://127.0.0.1:{port}/realms/{REALM}"
+    issuer = f"http://{issuer_host}:{port}/realms/{REALM}"
+    discovery_url = f"http://127.0.0.1:{port}/realms/{REALM}"
     try:
         subprocess.run(["docker", "image", "inspect", IMAGE], check=True, capture_output=True)
         subprocess.run(
@@ -113,9 +122,15 @@ def disposable_keycloak_fixture(timeout: int = 90) -> Iterator[KeycloakFixture]:
             capture_output=True,
             text=True,
         )
-        wait_for(f"{issuer}/.well-known/openid-configuration", timeout)
+        wait_for(f"{discovery_url}/.well-known/openid-configuration", timeout)
         yield KeycloakFixture(
-            container, issuer, "titan-browser", client_file, password_files, credential_dir
+            container,
+            issuer,
+            "titan-browser",
+            client_file,
+            password_files,
+            credential_dir,
+            discovery_url,
         )
     finally:
         subprocess.run(["docker", "rm", "--force", container], capture_output=True)

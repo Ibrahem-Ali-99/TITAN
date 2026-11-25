@@ -16,7 +16,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=90)
     args = parser.parse_args()
     with disposable_keycloak_fixture(args.timeout) as fixture:
-        discovery = request_json(f"{fixture.issuer}/.well-known/openid-configuration")
+        discovery = request_json(f"{fixture.discovery_url}/.well-known/openid-configuration")
         if discovery.get("issuer") != fixture.issuer:
             raise RuntimeError("issuer mismatch")
         jwks = request_json(discovery["jwks_uri"])

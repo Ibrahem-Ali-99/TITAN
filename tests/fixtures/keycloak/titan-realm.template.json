@@ -13,9 +13,9 @@
     "publicClient": false,
     "directAccessGrantsEnabled": true,
     "standardFlowEnabled": true,
-    "redirectUris": ["https://staging.local:8443/auth/callback"],
-    "webOrigins": ["https://staging.local:8443"],
-    "attributes": {"post.logout.redirect.uris": "https://staging.local:8443/*"},
+    "redirectUris": ["${REDIRECT_URI}"],
+    "webOrigins": ["${BROWSER_ORIGIN}"],
+    "attributes": {"post.logout.redirect.uris": "${BROWSER_ORIGIN}/*"},
     "protocolMappers": [{
       "name": "titan-audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
       "config": {"included.client.audience": "titan", "access.token.claim": "true", "id.token.claim": "true"}
