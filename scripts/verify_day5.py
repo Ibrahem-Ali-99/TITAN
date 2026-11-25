@@ -12,8 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
-from scripts.envfile import load_env_file
 from event_generator.generator import generate_history
+from scripts.envfile import load_env_file
 from titan_contracts.events import OrderCreatedEvent
 
 ROOT = Path(__file__).resolve().parents[1]

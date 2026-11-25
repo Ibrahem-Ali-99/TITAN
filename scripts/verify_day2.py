@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from scripts.envfile import load_env_file
 from event_generator.generator import generate_orders
+from scripts.envfile import load_env_file
 from titan_contracts.money import order_total, parse_money
 
 

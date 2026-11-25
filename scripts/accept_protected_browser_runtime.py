@@ -56,9 +56,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def verify_ingress(url: str, ca_file: Path) -> int:
     context = ssl.create_default_context(cafile=str(ca_file))
-    opener = urllib.request.build_opener(
-        _NoRedirect, urllib.request.HTTPSHandler(context=context)
-    )
+    opener = urllib.request.build_opener(_NoRedirect, urllib.request.HTTPSHandler(context=context))
     request = urllib.request.Request(url)
     try:
         with opener.open(request, timeout=10) as response:

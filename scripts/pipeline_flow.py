@@ -15,9 +15,9 @@ from uuid import uuid4
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import Session
 
-from scripts.envfile import load_env_file
 from event_generator.generator import generate_orders
 from event_generator.producer import connect_producer, publish_one
+from scripts.envfile import load_env_file
 from titan_contracts.topics import ORDER_EVENTS_TOPIC
 from titan_store.models import CommerceEvent, QuarantineRecord
 

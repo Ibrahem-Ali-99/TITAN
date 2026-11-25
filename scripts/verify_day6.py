@@ -12,8 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from scripts.envfile import load_env_file
 from event_generator.generator import generate_orders
+from scripts.envfile import load_env_file
 
 ROOT = Path(__file__).resolve().parents[1]
 
