@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import secrets
@@ -14,7 +15,9 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+import urllib.response
 from pathlib import Path
+from typing import IO
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -40,17 +43,26 @@ def extract_browser_evidence(text: str) -> dict[str, object] | None:
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def http_error_302(self, request, fp, code, msg, headers):
+    def http_error_302(
+        self,
+        request: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: http.client.HTTPMessage,
+    ) -> IO[bytes]:
         return fp
 
 
 def verify_ingress(url: str, ca_file: Path) -> int:
     context = ssl.create_default_context(cafile=str(ca_file))
-    opener = urllib.request.build_opener(_NoRedirect)
+    opener = urllib.request.build_opener(
+        _NoRedirect, urllib.request.HTTPSHandler(context=context)
+    )
     request = urllib.request.Request(url)
     try:
-        with opener.open(request, context=context, timeout=10) as response:
-            return response.status
+        with opener.open(request, timeout=10) as response:
+            return int(response.status)
     except urllib.error.HTTPError as error:
         return error.code
 
