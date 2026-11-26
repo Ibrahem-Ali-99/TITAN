@@ -86,3 +86,11 @@ Fresh final RC captures are in [`docs/assets/v020-final-rc`](../assets/v020-fina
 - Forecasts and demand metrics are synthetic demonstration evidence, not production demand commitments.
 - The global time-range selector is explicitly scoped to observed activity charts; snapshot metrics and non-windowed API responses remain current.
 - The protected acceptance is disposable local staging evidence, not a claim about an externally hosted deployment.
+
+## Final visual polish pass — 2026-11-26
+
+- Overview and Streaming now render a deliberate, bounded empty state when the selected observed window contains no persisted buckets; the live event table remains the source of truth below.
+- Data Quality is scan-first: humanized rule names, compact rule metadata, result/severity, observed-versus-expected evidence, and blocking state are visible in the primary table. Verbose rule details, IDs, and historical samples remain available through disclosures.
+- Data Sources received a readable trust-boundary note, aligned tabs, stronger helper text, and preserved upload/import interactions. Monitoring activity and duration labels use concise operational names without changing the underlying evidence.
+- Final browser review covered all eight routes at 1440×900 dark, 390×844 dark, and 1440×900 light. The refreshed 24-image archive is [`docs/assets/v020-visual-polish`](../assets/v020-visual-polish) with packaged evidence at [`docs/assets/v020-visual-polish.zip`](../assets/v020-visual-polish.zip).
+- Functional smoke verified eight route headings, Streaming search and pagination, Data Quality evidence disclosure, and Data Sources REST/import-history tabs. The final accessibility audit reported zero violations.

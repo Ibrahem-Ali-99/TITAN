@@ -28,6 +28,9 @@ export function ActivityChart({
   points: { label: string; persisted: number }[];
 }) {
   const peak = points.reduce((max, point) => Math.max(max, point.persisted), 0);
+  if (!points.length || peak === 0) {
+    return <div className="chart-empty" role="status"><strong>No persisted events in this window</strong><span>The recent-event table remains available below.</span></div>;
+  }
   return (
     <div>
       <div className="h-52" role="img" aria-label="Persisted events by minute">

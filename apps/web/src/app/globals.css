@@ -349,3 +349,36 @@ table td code { font-size: var(--type-technical); }
   .source-card { grid-template-columns:36px minmax(0,1fr) auto; }
   .source-card>.status { max-width:92px; white-space:normal; text-align:right; }
 }
+
+/* Final visual polish: keep technical evidence available without making it the headline. */
+.chart-empty { min-height: 128px; margin: 14px 16px 16px; padding: 24px 20px; border: 1px dashed var(--border); border-radius: 8px; background: color-mix(in srgb, var(--raised) 55%, transparent); display:flex; flex-direction:column; justify-content:center; gap:6px; color:var(--secondary); }
+.chart-empty strong { color:var(--text); font-size:14px; font-weight:600; }
+.chart-empty span { color:var(--muted); font-size:12px; }
+.quality-rule-meta { margin-top:4px; color:var(--muted); font-size:11px; }
+.quality-blocking { margin-top:4px; color:var(--muted); font-size:10px; }
+.quality-evidence summary { font-weight:600; }
+.validation-groups-list>div { padding:10px 0; }
+.validation-groups-list small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
+.history-evidence { margin:7px 0 4px; }
+.history-evidence summary { color:var(--accent); cursor:pointer; font-size:11px; }
+.history-evidence p { margin:6px 0 0; color:var(--secondary); font-size:11px; line-height:1.4; }
+.source-note { margin:0 0 14px; padding:11px 14px; border:1px solid var(--border); border-radius:6px; background:var(--card); display:flex; gap:10px; align-items:baseline; color:var(--secondary); font-size:12px; line-height:1.4; }
+.source-note b { color:var(--text); font-size:12px; white-space:nowrap; }
+.source-tabs { margin-bottom:16px; }
+.source-tabs button { min-height:40px; }
+.dropzone small { max-width:480px; color:var(--secondary); font-size:12px; line-height:1.4; text-align:center; }
+.upload-rules span { font-size:11px; color:var(--secondary); }
+.streaming-tools { align-items:center; gap:10px; }
+.streaming-tools .small-search { flex:1; max-width:360px; width:auto; }
+.streaming-tools select { min-height:31px; }
+.timeline small { color:var(--muted); }
+
+@media (max-width: 640px) {
+  .source-note { align-items:flex-start; flex-direction:column; gap:3px; }
+  .source-tabs { gap:12px; overflow-x:auto; }
+  .source-tabs button { flex:0 0 auto; }
+  .streaming-tools { align-items:stretch; flex-wrap:wrap; }
+  .streaming-tools .small-search { flex:1 1 100%; max-width:none; }
+  .streaming-tools select { width:100%; }
+  .chart-empty { margin:10px 12px 14px; min-height:110px; padding:18px; }
+}

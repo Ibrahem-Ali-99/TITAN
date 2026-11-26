@@ -205,7 +205,7 @@ export function OverviewDashboard() {
       </div>
       <div className="overview-grid">
         <Panel className="span-8" title="Event throughput" detail="Persisted events · observed minute buckets" action={<StatusPill tone="info">UTC · recorded</StatusPill>}>
-          {activity.length ? <ActivityChart points={activity} /> : <Empty>No events were persisted in the last {stats.activity_window_minutes} minutes.</Empty>}
+          {activity.length ? <ActivityChart points={activity} /> : <div className="chart-empty" role="status"><strong>No persisted events in this window</strong><span>Recent event records remain available below.</span></div>}
         </Panel>
         <Panel className="span-4" title="Revenue by currency" detail="Published snapshot totals">
           <div className="revenue-list">

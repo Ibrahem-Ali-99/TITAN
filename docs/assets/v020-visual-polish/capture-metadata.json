@@ -1,0 +1,173 @@
+{
+  "base_url": "http://localhost:23000",
+  "captures": [
+    {
+      "route": "/",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "overview-dark-1440x900-full.png",
+      "heading": "Overview"
+    },
+    {
+      "route": "/",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "overview-dark-390x844-full.png",
+      "heading": "Overview"
+    },
+    {
+      "route": "/",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "overview-light-1440x900-full.png",
+      "heading": "Overview"
+    },
+    {
+      "route": "/streaming",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "streaming-dark-1440x900-full.png",
+      "heading": "Event streaming"
+    },
+    {
+      "route": "/streaming",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "streaming-dark-390x844-full.png",
+      "heading": "Event streaming"
+    },
+    {
+      "route": "/streaming",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "streaming-light-1440x900-full.png",
+      "heading": "Event streaming"
+    },
+    {
+      "route": "/data-quality",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "data-quality-dark-1440x900-full.png",
+      "heading": "Data quality"
+    },
+    {
+      "route": "/data-quality",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "data-quality-dark-390x844-full.png",
+      "heading": "Data quality"
+    },
+    {
+      "route": "/data-quality",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "data-quality-light-1440x900-full.png",
+      "heading": "Data quality"
+    },
+    {
+      "route": "/data-sources",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "data-sources-dark-1440x900-full.png",
+      "heading": "Data sources"
+    },
+    {
+      "route": "/data-sources",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "data-sources-dark-390x844-full.png",
+      "heading": "Data sources"
+    },
+    {
+      "route": "/data-sources",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "data-sources-light-1440x900-full.png",
+      "heading": "Data sources"
+    },
+    {
+      "route": "/ml",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "ml-dark-1440x900-full.png",
+      "heading": "Machine Learning"
+    },
+    {
+      "route": "/ml",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "ml-dark-390x844-full.png",
+      "heading": "Machine Learning"
+    },
+    {
+      "route": "/ml",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "ml-light-1440x900-full.png",
+      "heading": "Machine Learning"
+    },
+    {
+      "route": "/monitoring",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "monitoring-dark-1440x900-full.png",
+      "heading": "Monitoring"
+    },
+    {
+      "route": "/monitoring",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "monitoring-dark-390x844-full.png",
+      "heading": "Monitoring"
+    },
+    {
+      "route": "/monitoring",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "monitoring-light-1440x900-full.png",
+      "heading": "Monitoring"
+    },
+    {
+      "route": "/pipelines",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "pipelines-dark-1440x900-full.png",
+      "heading": "Pipelines"
+    },
+    {
+      "route": "/pipelines",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "pipelines-dark-390x844-full.png",
+      "heading": "Pipelines"
+    },
+    {
+      "route": "/pipelines",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "pipelines-light-1440x900-full.png",
+      "heading": "Pipelines"
+    },
+    {
+      "route": "/warehouse",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "warehouse-dark-1440x900-full.png",
+      "heading": "Warehouse analytics"
+    },
+    {
+      "route": "/warehouse",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "warehouse-dark-390x844-full.png",
+      "heading": "Warehouse analytics"
+    },
+    {
+      "route": "/warehouse",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "warehouse-light-1440x900-full.png",
+      "heading": "Warehouse analytics"
+    }
+  ]
+}

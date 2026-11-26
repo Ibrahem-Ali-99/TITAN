@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { DataTable, Empty, ErrorState, LoadingState, MetaList, Notice, PageHeader, Panel, ScopeBar, StatusBadge, StatusPill, Td, Th } from "@/components/ui/ops";
+import { DataTable, Empty, ErrorState, LoadingState, MetaList, Notice, PageHeader, Panel, StatusBadge, StatusPill, Td, Th } from "@/components/ui/ops";
 import { API_BASE_URL, ApiError, getJson } from "@/lib/api";
 import type { CsvImportList, IngestionStats, SourceSubmissionList } from "@/lib/types";
 import { formatCount, formatUtc } from "@/lib/utils";
@@ -88,8 +88,8 @@ export function DataSourcesDashboard() {
         <article className="source-card card"><div className="source-icon">▤</div><div><h3>CSV imports</h3><span>Validated bounded upload</span><div className="source-metric"><b>{imports?.items.length ?? 0}</b><span>recorded imports</span></div></div><StatusPill tone="info">500 rows · 1 MiB</StatusPill></article>
         <article className="source-card card"><div className="source-icon">✦</div><div><h3>Synthetic producer</h3><span>Reproducible commerce events</span><div className="source-metric"><b>{formatCount(stats?.persisted_events)}</b><span>persisted records observed</span></div></div><StatusPill tone="info">CLI profile</StatusPill></article>
       </section>
-      <ScopeBar>A Kafka acknowledgement is not a PostgreSQL persistence guarantee. CSV upload and resume actions remain protected by the API.</ScopeBar>
-      <div className="tabs" role="tablist" aria-label="Data source tools">{(["CSV upload", "REST ingestion", "Import history"] as SourceTab[]).map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</div>
+      <div className="source-note" role="note"><b>Trust boundary</b><span>Kafka acknowledgement is not PostgreSQL persistence. CSV upload and resume are protected API actions.</span></div>
+      <div className="tabs source-tabs" role="tablist" aria-label="Data source tools">{(["CSV upload", "REST ingestion", "Import history"] as SourceTab[]).map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</div>
 
       {tab === "CSV upload" ? <div className="upload-layout">
         <Panel title="Upload a CSV" detail="The API validates rows before publication">

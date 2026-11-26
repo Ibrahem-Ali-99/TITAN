@@ -103,3 +103,12 @@ This inventory records the acceptance work completed against the authoritative F
 - Disposable CSV acceptance verified a real 202 upload, asynchronous completion, published and rejected row outcomes, durable valid-row persistence, resume 200, unauthorized resume 403, and malformed upload 422. Disposable protected browser acceptance verified OIDC login/logout, session enforcement, all eight routes, TLS, API proxy behavior, and all four RBAC roles.
 - Final RC captures are stored in `docs/assets/v020-final-rc` (24 images plus metadata). The live local dashboard remains at `http://localhost:23000` with the representative synthetic dataset.
 - Packaged final RC evidence is also available as `docs/assets/v020-final-rc.zip`.
+
+## Final visual polish — 2026-11-26
+
+- Added an explicit shared empty state for zero-activity charts, preserving truthful live-data semantics without leaving blank visualization frames.
+- Reduced Data Quality visual noise by moving verbose detail and historical samples behind evidence disclosures while retaining observed/expected values, severity, blocking semantics, and raw identifiers.
+- Refined Streaming controls and responsive layout, including bounded/paginated event presentation, readable distribution metrics, and a clear empty state.
+- Refined Data Sources trust-boundary copy, tab spacing, helper-text contrast, and source-card alignment; shortened Monitoring operational labels and duration metadata.
+- Refreshed 24 screenshots in `docs/assets/v020-visual-polish` and packaged them as `docs/assets/v020-visual-polish.zip`.
+- Verification: frontend tests, lint, typecheck, build, Python tests, Ruff, mypy, secret/supply-chain checks, eight-route accessibility audit, and functional interaction smoke all passed.

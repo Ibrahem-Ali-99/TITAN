@@ -65,7 +65,7 @@ export function MonitoringDashboard() {
   if (!overview) return <ErrorState title="Monitoring unavailable" detail={error} />;
 
   const health = platformHealth({ warehouseReady: warehouse === null ? null : warehouse.ready, activeFailures: summary.active.length, latestUnresolved: jobs === null || jobs.some((job) => classifyIncident(job, [], job, now).kind !== "succeeded") });
-  const durationPoints = runs.filter((run) => run.duration_ms !== null).slice(0, 8).reverse().map((run, index) => ({ label: `${run.job_name.slice(0, 12)} ${index + 1}`, duration_ms: run.duration_ms ?? 0 }));
+  const durationPoints = runs.filter((run) => run.duration_ms !== null).slice(0, 8).reverse().map((run, index) => ({ label: `${shortJobName(run.job_name)} ${index + 1}`, duration_ms: run.duration_ms ?? 0 }));
   const services = [
     { name: "Kafka consumer", status: overview.ingestion_lag.available ? "Healthy" : "Unavailable", metric: overview.ingestion_lag.available ? `${overview.ingestion_lag.total_lag ?? 0} lag` : "Unavailable", signal: overview.ingestion_lag.available ? "Observed" : "No current signal", tone: overview.ingestion_lag.available ? "ok" : "warn" },
     { name: "Spark checkpoints", status: overview.spark_progress ? "Healthy" : "Unavailable", metric: overview.spark_progress ? "Report stored" : "Unavailable", signal: overview.spark_progress ? "Observed" : "No current signal", tone: overview.spark_progress ? "ok" : "warn" },
@@ -90,18 +90,34 @@ export function MonitoringDashboard() {
       </div>
     </Panel>
     <div className="two-col">
-      <Panel title="Pipeline run duration" detail="Recorded durations; milliseconds are not normalized across jobs">
+      <Panel title="Pipeline run duration" detail="Stored duration · milliseconds">
         {durationPoints.length ? <RunDurationChart points={durationPoints} /> : <Empty>No run telemetry is stored.</Empty>}
       </Panel>
-      <Panel title="Operational activity" detail="Run activity is separate from active incident state">
-        <div className="timeline">{runs.slice(0, 5).map((run) => { const incident = classifyIncident(run, runs, matchLatest(run, jobs)); const label = incident.tone === "bad" ? "Failed" : incident.tone === "warn" ? "Review" : "Recorded"; return <div key={run.id}><code>{formatUtc(run.started_at).slice(11, 16)}</code><i className={incident.tone} /><span><b>{run.job_name}</b><small>{run.detail ?? run.state}</small></span><StatusPill tone={incident.tone === "bad" ? "bad" : incident.tone === "warn" ? "warn" : "neutral"}>{label}</StatusPill></div>; })}</div>
+      <Panel title="Operational activity" detail="Recent runs · incidents are separate">
+        <div className="timeline">{runs.slice(0, 5).map((run) => { const incident = classifyIncident(run, runs, matchLatest(run, jobs)); const label = incident.tone === "bad" ? "Failed" : incident.tone === "warn" ? "Review" : "Recorded"; return <div key={run.id}><code>{formatUtc(run.started_at).slice(11, 16)}</code><i className={incident.tone} /><span><b>{run.job_name}</b><small>{activitySummary(run)}</small></span><StatusPill tone={incident.tone === "bad" ? "bad" : incident.tone === "warn" ? "warn" : "neutral"}>{label}</StatusPill></div>; })}</div>
       </Panel>
     </div>
     <div className="stale-note"><span><b>Missing metrics policy:</b> unavailable or stale telemetry is labeled explicitly and is never represented as zero.</span></div>
-    <ScopeBar>Current status, last activity, and historical incidents stay distinct. <a className="text-btn" href="http://localhost:3001" target="_blank" rel="noreferrer">Open Grafana</a> · <a className="text-btn" href="http://localhost:9090" target="_blank" rel="noreferrer">Open Prometheus</a></ScopeBar>
+    <ScopeBar>Current status, recent activity, and incidents are separate. <a className="text-btn" href="http://localhost:3001" target="_blank" rel="noreferrer">Open Grafana</a> · <a className="text-btn" href="http://localhost:9090" target="_blank" rel="noreferrer">Open Prometheus</a></ScopeBar>
     <TechnicalDetails summary="Full monitoring history">
       {runs.length === 0 ? <Empty>No pipeline attempts are stored.</Empty> : <DataTable label="Pipeline runs"><thead><tr><Th>Started UTC</Th><Th>Job</Th><Th>Reading</Th><Th>Duration</Th><Th>Open</Th></tr></thead><tbody>{runs.map((run, index) => { const incident = summary.incidents[index] ?? classifyIncident(run, runs, matchLatest(run, jobs)); return <tr key={run.id}><Td className="font-mono text-xs">{formatUtc(run.started_at)}</Td><Td>{run.job_name}</Td><Td><StatusBadge tone={incident.tone === "ok" ? "ok" : incident.tone === "bad" ? "bad" : incident.tone === "warn" ? "warn" : "neutral"}>{incident.label}</StatusBadge><span className="ml-2 text-xs text-zinc-400">stored {run.state}</span></Td><Td>{formatDuration(run.duration_ms)}</Td><Td><button type="button" className="text-xs text-sky-300" onClick={() => setOpenId(openId === run.id ? null : run.id)}>Details</button></Td></tr>; })}</tbody></DataTable>}
     </TechnicalDetails>
     {openId !== null ? <TechnicalDetails summary={`Run ${openId}`}><p>{runs.find((run) => run.id === openId)?.detail ?? "No detail stored."}</p></TechnicalDetails> : null}
   </div>;
+}
+
+function shortJobName(value: string) {
+  if (value === "warehouse_load") return "Warehouse";
+  if (value === "quality_gate") return "Quality";
+  if (value === "warehouse_models") return "Models";
+  if (value === "bronze_stream") return "Bronze";
+  return value.slice(0, 10);
+}
+
+function activitySummary(run: Run) {
+  if (run.job_name === "warehouse_load") return "Warehouse publication";
+  if (run.job_name === "quality_gate") return "Quality gate";
+  if (run.job_name === "warehouse_models") return "Serving models";
+  if (run.job_name === "bronze_stream") return "Bronze checkpoint";
+  return run.state;
 }
