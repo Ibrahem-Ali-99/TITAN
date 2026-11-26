@@ -78,3 +78,11 @@ This inventory records the acceptance work completed against the authoritative F
 - Dagster: [http://localhost:3002](http://localhost:3002)
 - Grafana: [http://localhost:3001](http://localhost:3001)
 - Prometheus: [http://localhost:9090](http://localhost:9090)
+
+## Deep product, data, and ML audit follow-up
+
+- Future demand forecasting is now exposed under the API/UI contract `kind=forecast`. The training job already generated recursive forward rows, but the previous storage value `recursive_forecast` did not match the dashboard query and made the panel appear empty. The corrected serving run `2a605c15-2e40-4e42-b326-d3b9ed064174` contains 56 future rows for 8 products over 7 dates, with `actual_quantity = null` for every forward row.
+- The ML run remains scientifically separated: chronological last-7-date holdout, one-step evaluation rows with actuals, candidate model retained separately from the serving seasonal-naive strategy, and recursive future steps generated only from observed history plus prior predictions. Current measured metrics remain MAE 0.036 / WAPE 1.000 for the served baseline and MAE 34.516 / WAPE 966.436 for the candidate.
+- Data Quality now humanizes rule names, keeps raw rule IDs, renders structured currency evidence, adds search, and exposes expandable observed/expected/business-ID details. Current publication status is PASS with zero failed checks; historical findings remain visible as historical evidence.
+- Streaming event types, dispositions, quarantine reasons, and replay states are human-readable; event rows are keyboard-inspectable as well as clickable. The live API reports 966 persisted events: 598 order events, 193 payments, and 175 inventory updates, with 487 accepted logical orders, 567 repeated-delivery observations, 95 duplicate business-key operations, 16 conflicts, and 18 quarantined records.
+- API settings no longer load checkout-local `.env` implicitly inside the settings object. Docker Compose continues to inject the documented local runtime values, while isolated tests correctly verify missing-token fail-closed behavior.
