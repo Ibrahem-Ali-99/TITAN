@@ -96,8 +96,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.profile == "forecasting" and args.count is not None:
         print("forecasting profile requires --history-days, not --count", file=sys.stderr)
         sys.exit(2)
-    if args.profile != "forecasting" and args.history_days is None and (
-        args.count is None or args.count < 1 or args.count > 100_000
+    if (
+        args.profile != "forecasting"
+        and args.history_days is None
+        and (args.count is None or args.count < 1 or args.count > 100_000)
     ):
         print("pass --count between 1 and 100000, or --history-days", file=sys.stderr)
         sys.exit(2)

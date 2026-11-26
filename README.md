@@ -6,16 +6,18 @@ A commerce report is only useful when it names the orders that were accepted, th
 
 The events are synthetic. Delivery is at-least-once with idempotent persistence. It is not end-to-end exactly-once. The running system is one workstation Compose project, not a production deployment. That boundary is [below](#portfolio-scale-and-production-readiness).
 
-The v0.2.0 frontend redesign is implemented on a review branch and is ready for
-user acceptance. It preserves the existing API contracts while adding the grouped
-TITAN operations shell, responsive layouts, theme control, and live-data states
-across all eight console screens. Validation evidence and local interface URLs are
-in [docs/releases/v0.2.0-redesign.md](docs/releases/v0.2.0-redesign.md). It has not
-been published or tagged.
+TITAN v0.2.0 preserves the existing API contracts while adding the grouped TITAN
+operations shell, responsive layouts, theme control, and live-data states across
+all eight console screens. Release evidence, acceptance limits, and local
+interface URLs are in [docs/releases/v0.2.0-redesign.md](docs/releases/v0.2.0-redesign.md)
+and the [release audit](docs/audits/v020-final-release-candidate.md).
 
-![Operations overview: warehouse ready, 362 accepted orders, quality passed, consumer lag 0, and separate EUR, GBP, and USD revenue](docs/assets/overview.png)
+![Operations overview: warehouse-ready commerce analytics with populated activity and quality signals](docs/assets/v020-visual-polish/overview-dark-1440x900-full.png)
 
-Serving publication `50d22fe5-8db0-4f2f-bc00-47bda48152fc`: 362 accepted orders, EUR 18711.58, GBP 16558.03, USD 17768.77. Captured 2026-11-23 from `http://localhost:3000` at 1440×1100. The freshness on the frame is the age of the 2026-11-22T17:35:14Z publication. Currencies are not added. Notes: [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md).
+The demonstration data is synthetic and runs locally in one workstation Compose
+project. The complete dark/light desktop and mobile capture set is in
+[`docs/assets/v020-visual-polish`](docs/assets/v020-visual-polish), with capture
+metadata and route assertions alongside the images. Notes: [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md).
 
 ## Capabilities
 
@@ -89,19 +91,19 @@ These runs were executed and written down. They were not repeated for this READM
 
 The same capture, in the order a reader meets the product: the published warehouse, the publication path, the serving forecast, the quality gate, monitoring, streaming, and intake.
 
-![Warehouse analytics: 362 orders, 540 items, 193 payments, 175 inventory events, and currency totals that are not added together](docs/assets/warehouse.png)
+![Warehouse analytics with chronological demand and currency-separated totals](docs/assets/v020-visual-polish/warehouse-dark-1440x900-full.png)
 
-![Pipeline orchestration: Kafka, Bronze, Silver, ClickHouse, dbt, the quality gate, and the published snapshot](docs/assets/pipelines.png)
+![Pipeline orchestration from Kafka through the published warehouse snapshot](docs/assets/v020-visual-polish/pipelines-dark-1440x900-full.png)
 
-![Demand intelligence: seasonal naive MAE 1.469 on 49 test rows, candidate MAE 2.597, baseline served](docs/assets/ml.png)
+![Demand intelligence with model evaluation and future forecast presentation](docs/assets/v020-visual-polish/ml-dark-1440x900-full.png)
 
-![Data quality: the serving publication passed, and the injected revenue mismatch stays historical](docs/assets/data-quality.png)
+![Data quality with readable rule results and evidence](docs/assets/v020-visual-polish/data-quality-dark-1440x900-full.png)
 
-![Monitoring: Kafka lag 0, warehouse ready, and a historical failure labeled recovery unknown](docs/assets/monitoring.png)
+![Monitoring with service health and operational metrics](docs/assets/v020-visual-polish/monitoring-dark-1440x900-full.png)
 
-![Event streaming: 751 stored events, 362 logical orders, 16 quarantined payloads, at-least-once delivery](docs/assets/streaming.png)
+![Event streaming with throughput, distributions, and recent commerce events](docs/assets/v020-visual-polish/streaming-dark-1440x900-full.png)
 
-![Data sources: REST, CSV, and the synthetic producer, with 751 persisted operational records](docs/assets/data-sources.png)
+![Data sources with REST, CSV, and synthetic producer entry points](docs/assets/v020-visual-polish/data-sources-dark-1440x900-full.png)
 
 ## Quick start
 

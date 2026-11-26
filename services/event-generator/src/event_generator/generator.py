@@ -410,9 +410,7 @@ def forecasting_quarantine_fixture(seed: int) -> dict[str, object]:
         "payload": {
             "order_id": f"ord_bad{seed % 100000:05d}",
             "customer_id": f"cus_bad{seed % 100000:05d}",
-            "items": [
-                {"product_id": "prd_fcst0001", "quantity": 0, "unit_price": "18.50"}
-            ],
+            "items": [{"product_id": "prd_fcst0001", "quantity": 0, "unit_price": "18.50"}],
             "currency": "USD",
             "total_amount": "0.00",
         },
