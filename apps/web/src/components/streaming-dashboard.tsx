@@ -84,19 +84,19 @@ export function StreamingDashboard() {
         </Panel>
         <Panel title="Event distribution" detail="Event types in the recent persisted page">
           <div className="mini-bars p-4" aria-label="Recent event type distribution">
-            {distribution.length ? distribution.map(([name, count]) => <div key={name} className="mini-bar-row"><span>{name}</span><i><b style={{ width: `${Math.max(8, (count / distribution[0][1]) * 100)}%` }} /></i><strong>{count}</strong></div>) : <Empty>No recent events returned.</Empty>}
+            {distribution.length ? distribution.map(([name, count]) => <div key={name} className="mini-bar-row"><span>{formatEventType(name)}</span><i><b style={{ width: `${Math.max(8, (count / distribution[0][1]) * 100)}%` }} /></i><strong>{count}</strong></div>) : <Empty>No recent events returned.</Empty>}
           </div>
         </Panel>
       </div>
 
       <Panel title="Recent event stream" detail="Real persisted events; filter by event type, source, order or event id" action={<StatusPill tone="info">{visibleEvents.length} shown</StatusPill>}>
-        <div className="table-tools p-4 pb-0"><input className="small-search" aria-label="Search recent events" placeholder="Search event, order or source" value={query} onChange={(event) => setQuery(event.target.value)} /><select aria-label="Filter event type" value={eventType} onChange={(event) => setEventType(event.target.value)}>{eventTypes.map((item) => <option key={item} value={item}>{item === "all" ? "All event types" : item}</option>)}</select></div>
-        {visibleEvents.length ? <DataTable label="Recent event stream"><thead><tr><Th>Ingested UTC</Th><Th>Type</Th><Th>Order</Th><Th>Source</Th><Th>Disposition</Th><Th>Amount</Th><Th>Topic / offset</Th></tr></thead><tbody>{visibleEvents.map((item) => <tr key={item.event_id} onClick={() => setSelectedEvent(item)}><Td className="font-mono text-xs">{formatUtc(item.ingested_at)}</Td><Td>{item.event_type}</Td><Td className="font-mono text-xs">{item.order_id ?? "—"}</Td><Td>{item.source}</Td><Td><StatusBadge tone={item.disposition === "accepted" || item.disposition === "persisted" ? "ok" : item.disposition.includes("quarantine") ? "warn" : "neutral"}>{item.disposition}</StatusBadge></Td><Td>{item.total_amount ? `${item.total_amount} ${item.currency ?? ""}` : "—"}</Td><Td className="font-mono text-xs">{item.kafka_topic}:{item.kafka_offset}</Td></tr>)}</tbody></DataTable> : <Empty>No persisted events match this filter.</Empty>}
+        <div className="table-tools p-4 pb-0"><input className="small-search" aria-label="Search recent events" placeholder="Search event, order or source" value={query} onChange={(event) => setQuery(event.target.value)} /><select aria-label="Filter event type" value={eventType} onChange={(event) => setEventType(event.target.value)}>{eventTypes.map((item) => <option key={item} value={item}>{item === "all" ? "All event types" : formatEventType(item)}</option>)}</select></div>
+        {visibleEvents.length ? <DataTable label="Recent event stream"><thead><tr><Th>Ingested UTC</Th><Th>Type</Th><Th>Order</Th><Th>Source</Th><Th>Disposition</Th><Th>Amount</Th><Th>Topic / offset</Th></tr></thead><tbody>{visibleEvents.map((item) => <tr key={item.event_id} tabIndex={0} aria-label={`Inspect ${formatEventType(item.event_type)} ${item.event_id}`} onClick={() => setSelectedEvent(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedEvent(item); }}><Td className="font-mono text-xs">{formatUtc(item.ingested_at)}</Td><Td>{formatEventType(item.event_type)}</Td><Td className="font-mono text-xs">{item.order_id ?? "—"}</Td><Td>{item.source}</Td><Td><StatusBadge tone={item.disposition === "accepted" || item.disposition === "persisted" ? "ok" : item.disposition.includes("quarantine") ? "warn" : "neutral"}>{formatDisposition(item.disposition)}</StatusBadge></Td><Td>{item.total_amount ? `${item.total_amount} ${item.currency ?? ""}` : "—"}</Td><Td className="font-mono text-xs">{item.kafka_topic}:{item.kafka_offset}</Td></tr>)}</tbody></DataTable> : <Empty>No persisted events match this filter.</Empty>}
       </Panel>
 
       <div className="two-col mt-4">
         <Panel title="Quarantine queue" detail="Rejected payloads remain traceable" action={<StatusPill tone={stats.quarantined_records ? "warn" : "ok"}>{formatCount(stats.quarantined_records)} records</StatusPill>}>
-          {inbox.length ? <DataTable label="Quarantine queue"><thead><tr><Th>Received UTC</Th><Th>Reason</Th><Th>Stream</Th><Th>Replay</Th></tr></thead><tbody>{inbox.map((item) => <tr key={item.id}><Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td><Td>{item.reason_code}</Td><Td>{streamLabel(item.kafka_topic)}</Td><Td>{item.replay_status}</Td></tr>)}</tbody></DataTable> : <Empty>No quarantined records are currently returned.</Empty>}
+          {inbox.length ? <DataTable label="Quarantine queue"><thead><tr><Th>Received UTC</Th><Th>Reason</Th><Th>Stream</Th><Th>Replay</Th></tr></thead><tbody>{inbox.map((item) => <tr key={item.id}><Td className="font-mono text-xs">{formatUtc(item.received_at)}</Td><Td>{formatDisposition(item.reason_code)}</Td><Td>{streamLabel(item.kafka_topic)}</Td><Td>{formatDisposition(item.replay_status)}</Td></tr>)}</tbody></DataTable> : <Empty>No quarantined records are currently returned.</Empty>}
         </Panel>
         <Panel title="Delivery contract" detail="Operational semantics exposed by the API">
           <MetaList rows={[{ label: "Offset commit", value: "After durable storage" }, { label: "Duplicate event id", value: "Idempotent" }, { label: "Conflicting business key", value: "Not counted in revenue" }, { label: "Replay", value: "Audited and protected" }]} />
@@ -117,4 +117,13 @@ function streamLabel(topic: string) {
   if (name.includes("payment")) return "Payment events";
   if (name.includes("inventory")) return "Inventory events";
   return topic;
+}
+
+function formatEventType(value: string) {
+  const known: Record<string, string> = { order_created: "Order created", payment_completed: "Payment completed", inventory_updated: "Inventory updated" };
+  return known[value] ?? formatDisposition(value);
+}
+
+function formatDisposition(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

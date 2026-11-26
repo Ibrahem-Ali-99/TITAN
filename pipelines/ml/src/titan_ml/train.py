@@ -178,7 +178,14 @@ def _store_forward(
                         actual_quantity, kind, generated_at
                     ) values (%s, %s, %s, %s, null, %s, %s)
                     """,
-                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", FORECAST_KIND, now),
+                    (
+                        run_id,
+                        product_id,
+                        cursor.isoformat(),
+                        f"{predicted:.3f}",
+                        FORECAST_KIND,
+                        now,
+                    ),
                 )
         connection.commit()
 
@@ -207,7 +214,14 @@ def _store_forward_naive(
                         actual_quantity, kind, generated_at
                     ) values (%s, %s, %s, %s, null, %s, %s)
                     """,
-                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", FORECAST_KIND, now),
+                    (
+                        run_id,
+                        product_id,
+                        cursor.isoformat(),
+                        f"{predicted:.3f}",
+                        FORECAST_KIND,
+                        now,
+                    ),
                 )
         connection.commit()
 
