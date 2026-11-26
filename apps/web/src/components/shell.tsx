@@ -84,7 +84,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <label className="global-search"><Search className="icon" aria-hidden /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search TITAN" aria-label="Search screens" /><kbd>⌘ K</kbd></label>
               {query ? <div className="search-results">{matches.length ? matches.map((item) => <NavLink item={item} onNavigate={() => setQuery("")} key={item.href} />) : <span>No matching screens</span>}</div> : null}
             </div>
-            <select aria-label="Time range" defaultValue="12h"><option>1h</option><option>12h</option><option>24h</option><option>7d</option><option>30d</option></select>
+            <label className="time-range-control" title="Applies to observed activity charts only; snapshot metrics remain current"><span>Charts</span><select aria-label="Chart time range (observed activity charts only)" defaultValue="12h"><option>1h</option><option>12h</option><option>24h</option><option>7d</option><option>30d</option></select></label>
             <span className="health-pill"><i /> Live data connected</span>
             <button className="icon-btn" title="Refresh current screen" aria-label="Refresh current screen" onClick={() => window.location.reload()}><RefreshCw className="icon" /></button>
             <button className="icon-btn" title={light ? "Use dark theme" : "Use light theme"} aria-label={light ? "Use dark theme" : "Use light theme"} aria-pressed={light} onClick={() => setLight((value) => !value)}>{light ? <Moon className="icon" /> : <Sun className="icon" />}</button>

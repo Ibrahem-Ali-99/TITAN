@@ -364,14 +364,14 @@ def main() -> int:
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(args.screenshot), full_page=True)
         screen_routes = {
-            "/": ("Overview", "Operations overview"),
+            "/": ("Overview", "Overview"),
             "/streaming": ("Streaming", "Event streaming"),
             "/data-sources": ("Data Sources", "Data sources"),
-            "/pipelines": ("Pipelines", "Pipeline orchestration"),
+            "/pipelines": ("Pipelines", "Pipelines"),
             "/warehouse": ("Warehouse", "Warehouse analytics"),
             "/data-quality": ("Data Quality", "Data quality"),
-            "/monitoring": ("Monitoring", "System monitoring"),
-            "/ml": ("ML", "Demand intelligence"),
+            "/monitoring": ("Monitoring", "Monitoring"),
+            "/ml": ("ML", "Machine Learning"),
         }
         screen_results: dict[str, object] = {}
         for path, (label, expected_heading) in screen_routes.items():

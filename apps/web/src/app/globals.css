@@ -308,3 +308,44 @@ table td code { font-size: var(--type-technical); }
   table td { font-size: var(--type-table-head); }
   .copy-id code { max-width: 18ch; }
 }
+
+/* v0.2.0 release-candidate closure: explicit scope, timing, and small-screen composition. */
+.time-range-control { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:var(--type-table-head); white-space:nowrap; }
+.time-range-control select { min-width:74px; }
+.forecast-timing { display:grid; grid-template-columns:repeat(5,1fr); gap:0; margin-bottom:10px; }
+.forecast-timing>div { min-width:0; padding:14px 16px; border-left:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+.forecast-timing>div:first-child { border-left:0; }
+.forecast-timing span { color:var(--muted); font-size:var(--type-table-head); }
+.forecast-timing b { color:var(--text); font:500 var(--type-technical)/1.35 "JetBrains Mono",monospace; overflow-wrap:anywhere; }
+.forecast-timing small { color:var(--secondary); font-size:var(--type-table-head); line-height:var(--leading-body); }
+.app.light { --muted:#64748b; }
+.app.light .status.success, .app.light .status.ok { color:#15803d; }
+.app.light .status.warning { color:#b45309; }
+.app.light .status.critical { color:#b91c1c; }
+.app.light .status.info { color:#4338ca; }
+.app.light .status.neutral { color:#526076; }
+.app.light .prototype-note { color:#b45309; }
+.app.light .evaluation-note { color:#15803d; }
+.source-card { grid-template-columns:38px minmax(0,1fr) auto; }
+.source-card>div:nth-child(2) { min-width:0; }
+.source-card>.status { align-self:start; justify-self:end; margin-top:3px; }
+.table-footer>span { line-height:1.35; }
+@media (max-width: 800px) {
+  .forecast-timing { grid-template-columns:repeat(3,1fr); }
+  .forecast-timing>div:nth-child(4) { border-left:0; border-top:1px solid var(--border); }
+  .forecast-timing>div:nth-child(5) { border-top:1px solid var(--border); }
+  .stage-flow { overflow-x:auto; scroll-snap-type:x proximity; }
+  .stage { min-width:108px; scroll-snap-align:start; }
+}
+@media (max-width: 520px) {
+  .time-range-control { display:none; }
+  .forecast-timing { grid-template-columns:1fr 1fr; }
+  .forecast-timing>div { padding:12px; border-left:0; border-top:1px solid var(--border); }
+  .forecast-timing>div:nth-child(-n+2) { border-top:0; }
+  .forecast-timing>div:last-child { grid-column:1/-1; }
+  .kpi { min-height:128px; padding:14px 13px; display:flex; flex-direction:column; }
+  .kpi-foot { min-height:34px; align-items:flex-start; }
+  .kpi-foot>span:first-child { overflow-wrap:anywhere; }
+  .source-card { grid-template-columns:36px minmax(0,1fr) auto; }
+  .source-card>.status { max-width:92px; white-space:normal; text-align:right; }
+}
