@@ -1,0 +1,52 @@
+{
+  "base_url": "http://localhost:23000",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "theme": "dark",
+  "routes": {
+    "/": {
+      "heading": "Overview",
+      "screenshot": "overview-dark-1440x900-full.png"
+    },
+    "/data-sources": {
+      "heading": "Data sources",
+      "screenshot": "data-sources-dark-1440x900-full.png"
+    },
+    "/streaming": {
+      "heading": "Event streaming",
+      "screenshot": "streaming-dark-1440x900-full.png"
+    },
+    "/pipelines": {
+      "heading": "Pipelines",
+      "screenshot": "pipelines-dark-1440x900-full.png"
+    },
+    "/warehouse": {
+      "heading": "Warehouse analytics",
+      "screenshot": "warehouse-dark-1440x900-full.png"
+    },
+    "/data-quality": {
+      "heading": "Data quality",
+      "screenshot": "data-quality-dark-1440x900-full.png"
+    },
+    "/monitoring": {
+      "heading": "Monitoring",
+      "screenshot": "monitoring-dark-1440x900-full.png"
+    },
+    "/ml": {
+      "heading": "Machine Learning",
+      "screenshot": "ml-dark-1440x900-full.png"
+    }
+  },
+  "assertions": [
+    "/: heading, loaded state, live content",
+    "/data-sources: heading, loaded state, live content",
+    "/streaming: heading, loaded state, live content",
+    "/pipelines: heading, loaded state, live content",
+    "/warehouse: heading, loaded state, live content",
+    "/data-quality: heading, loaded state, live content",
+    "/monitoring: heading, loaded state, live content",
+    "/ml: heading, loaded state, live content"
+  ]
+}
