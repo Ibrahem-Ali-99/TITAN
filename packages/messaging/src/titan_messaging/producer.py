@@ -111,3 +111,41 @@ def publish_record(
         f"event {event.event_id} was not acknowledged: {last_error}",
         uncertain=uncertain,
     )
+
+
+def publish_raw_record(
+    producer: Producer,
+    *,
+    topic: str,
+    key: str,
+    payload: bytes,
+    max_attempts: int = 3,
+) -> None:
+    """Publish a raw fixture for testing the consumer's quarantine path."""
+    last_error = "delivery was not acknowledged"
+    for attempt in range(1, max_attempts + 1):
+        box: dict[str, Any] = {}
+
+        def on_delivery(err: object, msg: Any, box: dict[str, Any] = box) -> None:
+            box["err"] = err
+            box["msg"] = msg
+
+        try:
+            producer.produce(
+                topic=topic,
+                key=key.encode("utf-8"),
+                value=payload,
+                on_delivery=on_delivery,
+            )
+        except BufferError as exc:
+            producer.poll(0.5)
+            last_error = str(exc)
+            time.sleep(min(2**attempt, 8))
+            continue
+        remaining = producer.flush(30)
+        error = box.get("err")
+        if remaining == 0 and error is None and box.get("msg") is not None:
+            return
+        last_error = str(error) if error is not None else f"{remaining} message(s) still buffered"
+        time.sleep(min(2**attempt, 8))
+    raise PublishError(f"raw fixture was not acknowledged: {last_error}", uncertain=True)

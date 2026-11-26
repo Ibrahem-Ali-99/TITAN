@@ -11,9 +11,21 @@ from confluent_kafka import Producer
 
 from event_generator.admin import ensure_order_topic
 from titan_contracts.events import OrderCreatedEvent
-from titan_messaging.producer import PublishError, connect_producer, publish_record
+from titan_messaging.producer import (
+    PublishError,
+    connect_producer,
+    publish_raw_record,
+    publish_record,
+)
 
-__all__ = ["PublishError", "PublishResult", "connect_producer", "publish_events", "publish_one"]
+__all__ = [
+    "PublishError",
+    "PublishResult",
+    "connect_producer",
+    "publish_events",
+    "publish_one",
+    "publish_raw_record",
+]
 
 
 @dataclass(frozen=True)

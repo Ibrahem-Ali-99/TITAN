@@ -1,15 +1,22 @@
 """Publish N synthetic order_created events and require broker acknowledgements."""
 
 import argparse
+import json
 import os
 import sys
 import time
 from collections.abc import Sequence
 from datetime import timedelta
 
-from event_generator.generator import generate_history, generate_orders
-from event_generator.producer import PublishError, connect_producer, publish_one
+from event_generator.generator import (
+    forecasting_quarantine_fixture,
+    generate_forecasting_history,
+    generate_history,
+    generate_orders,
+)
+from event_generator.producer import PublishError, connect_producer, publish_one, publish_raw_record
 from titan_contracts.events import CommerceEvent, OrderCreatedEvent
+from titan_contracts.topics import ORDER_EVENTS_TOPIC
 from titan_messaging.admin import ensure_commerce_topics
 from titan_messaging.producer import publish_record
 
@@ -23,6 +30,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Publish a deterministic multi-day backfill instead of --count.",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=("legacy", "forecasting"),
+        default="legacy",
+        help=(
+            "Synthetic history profile. Forecasting adds product variation "
+            "and controlled edge cases."
+        ),
     )
     parser.add_argument(
         "--rate",
@@ -77,7 +93,12 @@ def _load_cwd_env() -> None:
 def main(argv: list[str] | None = None) -> None:
     _load_cwd_env()
     args = build_parser().parse_args(argv)
-    if args.history_days is None and (args.count is None or args.count < 1 or args.count > 100_000):
+    if args.profile == "forecasting" and args.count is not None:
+        print("forecasting profile requires --history-days, not --count", file=sys.stderr)
+        sys.exit(2)
+    if args.profile != "forecasting" and args.history_days is None and (
+        args.count is None or args.count < 1 or args.count > 100_000
+    ):
         print("pass --count between 1 and 100000, or --history-days", file=sys.stderr)
         sys.exit(2)
     if args.history_days is not None and args.count is not None:
@@ -89,7 +110,9 @@ def main(argv: list[str] | None = None) -> None:
     span = None if args.occurred_span_hours is None else timedelta(hours=args.occurred_span_hours)
     late = None if args.late_hours is None else timedelta(hours=args.late_hours)
     events: Sequence[CommerceEvent]
-    if args.history_days is not None:
+    if args.profile == "forecasting":
+        events = generate_forecasting_history(args.history_days or 42, args.seed)
+    elif args.history_days is not None:
         events = generate_history(args.history_days, args.seed)
     else:
         events = generate_orders(
@@ -126,6 +149,14 @@ def main(argv: list[str] | None = None) -> None:
                     time.sleep(interval - elapsed)
         finally:
             producer.flush(10)
+        if args.profile == "forecasting":
+            publish_raw_record(
+                producer,
+                topic=ORDER_EVENTS_TOPIC,
+                key=f"ord_bad{args.seed % 100000:05d}",
+                payload=json.dumps(forecasting_quarantine_fixture(args.seed)).encode("utf-8"),
+                max_attempts=args.max_attempts,
+            )
     except PublishError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)

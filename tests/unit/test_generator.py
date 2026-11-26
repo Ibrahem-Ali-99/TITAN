@@ -1,6 +1,13 @@
 from datetime import timedelta
 
-from event_generator.generator import TIMELINE_ORIGIN, generate_orders
+from event_generator.generator import (
+    FORECASTING_SOURCE,
+    FORECASTING_TIMELINE_ORIGIN,
+    TIMELINE_ORIGIN,
+    generate_forecasting_history,
+    generate_orders,
+)
+from titan_contracts.events import OrderCreatedEvent, PaymentCompletedEvent
 from titan_contracts.identifiers import SYNTHETIC_SOURCE
 
 
@@ -42,3 +49,24 @@ def test_different_seeds_change_orders() -> None:
     left = generate_orders(3, seed=1, deterministic_event_ids=True)
     right = generate_orders(3, seed=2, deterministic_event_ids=True)
     assert [event.payload.order_id for event in left] != [event.payload.order_id for event in right]
+
+
+def test_forecasting_profile_is_reproducible_and_varied() -> None:
+    first = generate_forecasting_history(42, seed=61226)
+    second = generate_forecasting_history(42, seed=61226)
+    assert [event.model_dump(mode="json") for event in first] == [
+        event.model_dump(mode="json") for event in second
+    ]
+    assert {event.source for event in first} == {FORECASTING_SOURCE}
+    orders = [event for event in first if isinstance(event, OrderCreatedEvent)]
+    payments = [event for event in first if isinstance(event, PaymentCompletedEvent)]
+    assert len(orders) > 300
+    assert len(payments) == len(orders) - 2
+    assert len({item.payload.items[0].product_id for item in orders}) == 12
+    assert {item.payload.currency for item in orders} == {"USD", "EUR", "GBP"}
+    dates = {item.occurred_at.date() for item in orders}
+    assert min(dates) == FORECASTING_TIMELINE_ORIGIN.date()
+    assert max(dates) == FORECASTING_TIMELINE_ORIGIN.date() + timedelta(days=41)
+    order_ids = [item.payload.order_id for item in orders]
+    assert len(order_ids) > len(set(order_ids))  # one duplicate and one conflict fixture
+    assert len({item.payload.total_amount for item in orders}) > 20
