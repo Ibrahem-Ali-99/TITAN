@@ -13,6 +13,7 @@ export function StreamingDashboard() {
   const [events, setEvents] = useState<RecentEventsResponse | null>(null);
   const [quarantine, setQuarantine] = useState<QuarantineList | null>(null);
   const [replays, setReplays] = useState<ReplayList | null>(null);
+  const [lag, setLag] = useState<{ available: boolean; total_lag: number | null; detail: string } | null>(null);
   const [query, setQuery] = useState("");
   const [eventType, setEventType] = useState("all");
   const [selectedEvent, setSelectedEvent] = useState<RecentEvent | null>(null);
@@ -23,14 +24,15 @@ export function StreamingDashboard() {
     let cancelled = false;
     async function load() {
       try {
-        const [nextStats, nextEvents, nextQuarantine, nextReplays] = await Promise.all([
+        const [nextStats, nextEvents, nextQuarantine, nextReplays, nextMonitoring] = await Promise.all([
           getJson<IngestionStats>("/api/v1/ingestion/stats"),
           getJson<RecentEventsResponse>("/api/v1/events/recent?limit=100"),
           getJson<QuarantineList>("/api/v1/ingestion/quarantine?limit=50"),
           getJson<ReplayList>("/api/v1/ingestion/replays?limit=20"),
+          getJson<{ ingestion_lag: { available: boolean; total_lag: number | null; detail: string } }>("/api/v1/monitoring/overview").catch(() => null),
         ]);
         if (cancelled) return;
-        setStats(nextStats); setEvents(nextEvents); setQuarantine(nextQuarantine); setReplays(nextReplays); setError(null);
+        setStats(nextStats); setEvents(nextEvents); setQuarantine(nextQuarantine); setReplays(nextReplays); setLag(nextMonitoring?.ingestion_lag ?? null); setError(null);
       } catch (caught) {
         if (!cancelled) setError(caught instanceof ApiError ? caught.message : "The API request failed.");
       } finally {
@@ -73,7 +75,7 @@ export function StreamingDashboard() {
         <div><span>Duplicates</span><b>{formatCount(stats.duplicate_deliveries)}</b><small>idempotent delivery</small></div>
         <div><span>Conflicts</span><b>{formatCount(stats.order_conflicts)}</b><small>excluded from revenue</small></div>
         <div><span>Quarantined</span><b>{formatCount(stats.quarantined_records)}</b><small>traceable records</small></div>
-        <div><span>Consumer lag</span><b>—</b><small>not measured by API</small></div>
+        <div><span>Consumer lag</span><b>{lag?.available ? formatCount(lag.total_lag) : "—"}</b><small>{lag?.available ? "measured records" : "not measured by API"}</small></div>
       </section>
 
       <div className="two-col mt-4">
@@ -100,7 +102,7 @@ export function StreamingDashboard() {
           <MetaList rows={[{ label: "Offset commit", value: "After durable storage" }, { label: "Duplicate event id", value: "Idempotent" }, { label: "Conflicting business key", value: "Not counted in revenue" }, { label: "Replay", value: "Audited and protected" }]} />
         </Panel>
       </div>
-      <ScopeBar>Consumed outcomes {formatCount(stats.kafka_consumed_events)}. Replay requires authorization. Consumer lag is not exposed by the current API.</ScopeBar>
+      <ScopeBar>Consumed outcomes {formatCount(stats.kafka_consumed_events)}. Replay requires authorization. {lag?.available ? `Consumer lag ${formatCount(lag.total_lag)} records, using the Monitoring API view.` : "Consumer lag is not exposed by the current API."}</ScopeBar>
       <TechnicalDetails summary="Quarantine payload evidence and replay history">
         {selectedEvent ? <pre className="json-preview">{JSON.stringify(selectedEvent, null, 2)}</pre> : <Empty>Select a recent event to inspect its stored fields.</Empty>}
         {replays.items.length ? <DataTable label="Replay attempts"><thead><tr><Th>Requested UTC</Th><Th>Outcome</Th><Th>Downstream</Th><Th>Mode</Th><Th>Detail</Th></tr></thead><tbody>{replays.items.map((item) => <tr key={item.id}><Td className="font-mono text-xs">{formatUtc(item.requested_at)}</Td><Td>{item.outcome}</Td><Td>{item.downstream_state}</Td><Td>{item.mode}</Td><Td>{item.detail}</Td></tr>)}</tbody></DataTable> : <Empty>No replay attempts have been recorded.</Empty>}

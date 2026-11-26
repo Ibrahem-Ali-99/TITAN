@@ -213,7 +213,6 @@ export function OverviewDashboard() {
               <div className="revenue-row" key={currency}>
                 <span className={`currency c${index % 3}`}>{currency}</span>
                 <div><b>{formatMoney(amount, currency)}</b><span>Accepted revenue</span></div>
-                <svg className="sparkline" viewBox="0 0 80 25" aria-hidden="true"><polyline points="0,19 12,16 24,18 36,11 48,13 60,7 80,9" fill="none" stroke="#22c55e" strokeWidth="1.5" /></svg>
               </div>
             )) : <Empty>{snapshot.warehouseError ?? warehouse?.reason ?? "No published revenue is available."}</Empty>}
           </div>

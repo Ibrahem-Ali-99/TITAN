@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,7 @@ export function DataTable({ children, label }: { children: ReactNode; label: str
 }
 
 export function Th({ children }: { children: ReactNode }) { return <th>{children}</th>; }
-export function Td({ children, className }: { children: ReactNode; className?: string }) { return <td className={className}>{children}</td>; }
+export function Td({ children, ...props }: ComponentProps<"td"> & { children: ReactNode }) { return <td {...props}>{children}</td>; }
 
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (value: T) => void; label: string }) {
   return <div className="tabs" role="group" aria-label={label}>{options.map((option) => <button key={option.id} type="button" aria-pressed={value === option.id} className={value === option.id ? "active" : ""} onClick={() => onChange(option.id)}>{option.label}</button>)}</div>;

@@ -121,6 +121,22 @@ export function ProductChart({
   );
 }
 
+export function ProductPerformanceChart({ points }: { points: { product: string; quantity: number; revenue: string }[] }) {
+  return (
+    <div className="h-64" role="img" aria-label="Horizontal product performance by quantity sold">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={points} layout="vertical" margin={{ top: 8, right: 18, left: 18, bottom: 8 }}>
+          <CartesianGrid stroke={grid} horizontal={false} />
+          <XAxis type="number" stroke={axis} fontSize={11} allowDecimals={false} tickLine={false} />
+          <YAxis type="category" dataKey="product" stroke={axis} fontSize={11} tickLine={false} width={86} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value, _name, item) => { const payload = item.payload as { revenue?: string }; return [`${value} units · ${payload.revenue ?? ""}`, "Quantity"]; }} />
+          <Bar dataKey="quantity" name="Quantity" fill="#2dd4bf" radius={[0, 3, 3, 0]} barSize={18} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function MetricCompareChart({
   rows,
   candidateName = "Candidate",

@@ -40,12 +40,14 @@ This inventory records the acceptance work completed against the authoritative F
 
 - Replaced competing KPI rows with one compact metric strip covering orders, items, payments, inventory, and currency-separated revenue.
 - Kept chronological event-time analytics, currency/product selectors, active publication, source identifiers, and freshness evidence visible.
+- Added a compact horizontal product-performance chart, a visible revenue-by-currency panel, and publication history/lineage below the primary analytics.
 
 ### Data Quality
 
 - Added an explicit current publication quality hero with pass/fail, current failures, historical failures, finding groups, and blocking state.
 - Kept historical findings separate from the serving publication and made execution history visible without hiding the primary experience behind a disclosure.
 - Retained real severity, injection, publication, and reconciliation evidence; no unsupported score or threshold was introduced.
+- Promoted the structured validation-check table to the primary content, with actual observed/expected values, rule type, dataset, result, and blocking metadata; history and group breakdown use recorded run findings.
 
 ### Monitoring
 
@@ -57,9 +59,18 @@ This inventory records the acceptance work completed against the authoritative F
 
 - Preserved the model banner, serving metrics, actual-vs-predicted evaluation chart, comparison, product selector, evaluation results, model history, and anomaly table.
 - Removed fabricated KPI sparklines and clarified MAE/WAPE semantics, serving status, and technical product IDs where no authoritative name dimension exists.
+- Default product selection prefers observed evaluation activity; algorithm names, strategies, timestamps, and IDs are readable while preserving raw values in titles. Evaluation rows, candidate/serving models, and future forecasts are labeled separately, with a truthful empty state when no future rows are returned.
+
+### Streaming and overview precision
+
+- Consumer lag now reads the authoritative monitoring value when available and explicitly reports measured/not measured rather than implying a local estimate.
+- The documented synthetic generator was run with a fixed seed at one event per second, then Bronze, Silver, Warehouse, and ML pipelines were rerun. The overview and streaming charts therefore show observed collection buckets and persisted event evidence from the live run.
+- Removed decorative KPI sparklines and retained only supported event/status data; no backdated or interpolated activity was added.
 
 ## Evidence
 
+- Refreshed archive: [docs/assets/v020-acceptance.zip](/D:/TITAN/docs/assets/v020-acceptance.zip)
+- Per route, the evidence directory contains the supplied 1440x900 reference, a full-page reference capture, 1440x900 dark actual, full-page dark actual, 390x844 mobile actual, and 1440x900 light actual. The actual captures were inspected after the final data refresh.
 - Reference captures and current route captures: [docs/assets/v020-acceptance](/D:/TITAN/docs/assets/v020-acceptance)
 - Live browser route: [http://localhost:23000](http://localhost:23000)
 - Dagster: [http://localhost:3002](http://localhost:3002)

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { CurrencyOrdersChart, ProductChart } from "@/components/ui/charts";
+import { CurrencyOrdersChart, ProductPerformanceChart } from "@/components/ui/charts";
 import {
   CopyId,
+  DataTable,
   Empty,
   ErrorState,
   LoadingState,
@@ -15,8 +16,10 @@ import {
   ScopeBar,
   SectionTitle,
   Segmented,
+  StatusBadge,
   StatusPill,
-  TechnicalDetails,
+  Td,
+  Th,
 } from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
 import type { ProductsResponse, RevenueResponse, WarehouseStatus } from "@/lib/types";
@@ -99,7 +102,7 @@ export function WarehouseDashboard() {
       merged.set(label, row);
     }
   }
-  const points = [...merged.values()];
+  const points = [...merged.values()].sort((left, right) => left.label.localeCompare(right.label));
   const productPoints =
     products?.products.map((product) => ({
       product: product.product_id.replace("prd_", ""),
@@ -126,10 +129,10 @@ export function WarehouseDashboard() {
           <section className="metric-strip warehouse-strip card" aria-label="Warehouse metrics" tabIndex={0}>
             <div><span>Orders</span><b>{formatCount(status.order_count)}</b><small>accepted</small></div><div><span>Items</span><b>{formatCount(status.item_count)}</b><small>order lines</small></div><div><span>Payments</span><b>{formatCount(status.payment_count)}</b><small>accepted</small></div><div><span>Inventory</span><b>{formatCount(status.inventory_count)}</b><small>events</small></div>{CURRENCIES.map((code) => <div key={code}><span>{code} revenue</span><b>{formatMoney(status.accepted_revenue[code], code)}</b><small>currency separated</small></div>)}
           </section>
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
+          <div className="two-col warehouse-charts">
             <Panel
               title="Order activity by event time"
-              detail="Orders per bucket · UTC · recorded data points. Amounts stay in separate currency cards."
+              detail="Observed event-time buckets · UTC · missing intervals are not interpolated."
               action={
                 <Segmented
                   label="Time grain"
@@ -144,43 +147,29 @@ export function WarehouseDashboard() {
             >
               {points.length === 0 ? <Empty>No order rows for this grain.</Empty> : <CurrencyOrdersChart points={points} />}
             </Panel>
-            <Panel title="Active snapshot">
-              <MetaList
-                rows={[
-                  { label: "Publication", value: <CopyId value={status.warehouse_publication_id} /> },
-                  { label: "Silver source", value: <CopyId value={status.silver_publication_id} /> },
-                  { label: "Status", value: status.ready ? "Ready" : "Not ready" },
-                  { label: "Query source", value: "ClickHouse serving views" },
-                  { label: "Freshness", value: formatAge(status.freshness_seconds) },
-                ]}
-              />
+            <Panel title="Product performance" detail="Horizontal quantity view · selected currency only" action={<Segmented label="Currency" value={currency} onChange={setCurrency} options={CURRENCIES.map((code) => ({ id: code, label: code }))} />}>
+              {productPoints.length === 0 ? <Empty>No product lines for this currency.</Empty> : <ProductPerformanceChart points={productPoints} />}
             </Panel>
           </div>
-          <div className="mt-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <SectionTitle title={`${currency} product quantity`} detail="Returned product rows for the selected currency." />
-              <Segmented
-                label="Currency"
-                value={currency}
-                onChange={setCurrency}
-                options={CURRENCIES.map((code) => ({ id: code, label: code }))}
-              />
-            </div>
-            {productPoints.length === 0 ? <Empty>No product lines for this currency.</Empty> : <ProductChart points={productPoints} />}
+          <div className="two-col mt-4">
+            <Panel title="Revenue by currency" detail="Accepted snapshot totals; currencies remain separate">
+              <div className="revenue-list">{CURRENCIES.map((code, index) => <div className="revenue-row" key={code}><span className={`currency c${index}`}>{code}</span><div><b>{formatMoney(status.accepted_revenue[code], code)}</b><span>Accepted revenue · no FX conversion</span></div></div>)}</div>
+            </Panel>
+            <Panel title="Active snapshot" detail="Current ClickHouse serving pointer">
+              <MetaList rows={[{ label: "Publication", value: <CopyId value={status.warehouse_publication_id} /> }, { label: "Silver source", value: <CopyId value={status.silver_publication_id} /> }, { label: "Status", value: status.ready ? "Ready" : "Not ready" }, { label: "Query source", value: "ClickHouse serving views" }, { label: "Freshness", value: formatAge(status.freshness_seconds) }]} />
+            </Panel>
+          </div>
+          <div className="two-col mt-4">
+            <Panel title="Publication history" detail="Recorded warehouse loads; the active publication remains explicit">
+              {status.recent_loads.length ? <DataTable label="Warehouse publication history"><thead><tr><Th>Finished UTC</Th><Th>Status</Th><Th>Orders</Th><Th>Publication</Th></tr></thead><tbody>{status.recent_loads.slice(0, 8).map((load) => <tr key={load.load_id}><Td className="font-mono text-xs">{formatUtc(load.finished_at ?? load.started_at)}</Td><Td><StatusBadge tone={load.status === "succeeded" || load.status === "published" ? "ok" : load.status === "failed" ? "bad" : "neutral"}>{load.status}</StatusBadge></Td><Td>{formatCount(load.order_count)}</Td><Td className="font-mono text-xs">{load.warehouse_publication_id.slice(0, 8)}</Td></tr>)}</tbody></DataTable> : <Empty>No warehouse loads are recorded.</Empty>}
+            </Panel>
+            <Panel title="Publication lineage" detail="Copyable identifiers from the current response">
+              <div className="lineage-flow"><div className="lineage-node"><span>01</span><b>Silver</b><small><CopyId value={status.silver_publication_id} /></small></div><i className="lineage-connector" aria-hidden>→</i><div className="lineage-node"><span>02</span><b>Warehouse</b><small><CopyId value={status.warehouse_publication_id} /></small></div><i className="lineage-connector" aria-hidden>→</i><div className="lineage-node"><span>03</span><b>ClickHouse</b><small><CopyId value={status.clickhouse_publication_id} /></small></div></div>
+            </Panel>
           </div>
         </>
       )}
       <ScopeBar>ClickHouse publication · EUR, GBP and USD are never combined. Published {formatUtc(status.published_at)} UTC.</ScopeBar>
-      <div className="mt-4">
-        <TechnicalDetails summary="Publication lineage">
-          <p>Warehouse <CopyId value={status.warehouse_publication_id} /></p>
-          <p>Silver source <CopyId value={status.silver_publication_id} /></p>
-          <p>ClickHouse pointer <CopyId value={status.clickhouse_publication_id} /></p>
-          <p className="text-xs text-zinc-400">
-            Payments {formatCount(status.payment_count)} · inventory events {formatCount(status.inventory_count)}
-          </p>
-        </TechnicalDetails>
-      </div>
     </div>
   );
 }
