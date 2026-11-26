@@ -3,7 +3,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ApiSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
+    # Deployment entrypoints (Docker Compose, staging, and production) inject
+    # the environment explicitly. Keeping dotenv loading out of the settings
+    # object prevents a developer checkout's local secrets from leaking into
+    # isolated tests or overriding deliberate fail-closed configuration.
+    model_config = SettingsConfigDict(env_file=None, extra="ignore", populate_by_name=True)
 
     database_url: str
     security_profile: str = Field(default="local", validation_alias="TITAN_SECURITY_PROFILE")
