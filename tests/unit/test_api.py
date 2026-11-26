@@ -3,12 +3,13 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
 from event_generator.generator import generate_orders
 from titan_api.config import ApiSettings
 from titan_api.main import create_app
 from titan_api.queries import METRIC_DEFINITIONS, load_ingestion_stats
-from titan_store.models import Base, CommerceEvent
+from titan_store.models import Base, CommerceEvent, PipelineRun
 
 
 class BrokenSession:
@@ -31,6 +32,51 @@ class BrokenSession:
 def _client(url: str = "sqlite://") -> TestClient:
     app = create_app(ApiSettings(database_url=url, cors_origins="http://localhost:3000"))
     return TestClient(app)
+
+
+def test_monitoring_reads_legacy_durations_without_updating_history() -> None:
+    app = create_app(ApiSettings(database_url="sqlite://"))
+    engine = app.state.engine
+    Base.metadata.create_all(engine)
+    started = datetime.now(UTC)
+    with Session(engine) as session:
+        legacy = PipelineRun(
+            job_name="legacy",
+            state="success",
+            started_at=started,
+            finished_at=started + timedelta(microseconds=2500),
+        )
+        session.add_all(
+            [
+                legacy,
+                PipelineRun(
+                    job_name="recorded",
+                    state="success",
+                    started_at=started,
+                    finished_at=started + timedelta(seconds=1),
+                    duration_ms=900,
+                ),
+                PipelineRun(job_name="in_progress", state="running", started_at=started),
+            ]
+        )
+        session.commit()
+        legacy_id = legacy.id
+
+    client = TestClient(app)
+    assert client.get("/api/v1/monitoring/overview").status_code == 200
+    for endpoint, key in (("runs", "runs"), ("jobs", "jobs")):
+        response = client.get(f"/api/v1/monitoring/{endpoint}")
+        assert response.status_code == 200
+        assert {row["job_name"]: row["duration_ms"] for row in response.json()[key]} == {
+            "legacy": 3,
+            "recorded": 900,
+            "in_progress": None,
+        }
+
+    with Session(engine) as session:
+        row = session.get(PipelineRun, legacy_id)
+        assert row is not None
+        assert row.duration_ms is None
 
 
 def test_liveness_does_not_require_the_database() -> None:
@@ -88,8 +134,6 @@ def test_ready_requires_migrated_tables_and_stats_read_real_rows() -> None:
     event = generate_orders(1, seed=21, deterministic_event_ids=True)[0]
     older = datetime.now(UTC) - timedelta(hours=3)
     recent = datetime.now(UTC)
-    from sqlalchemy.orm import Session
-
     with Session(app.state.engine) as session:
         session.add(
             CommerceEvent(

@@ -56,7 +56,6 @@ def main() -> int:
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--boundary-probe", action="store_true")
     parser.add_argument("--staging-host", default="127.0.0.1")
-    parser.add_argument("--net-log", type=Path, default=None)
     parser.add_argument("--role-check", action="store_true")
     parser.add_argument("--expected-role", choices=("viewer", "analyst", "operator", "admin"))
     args = parser.parse_args()
@@ -75,11 +74,6 @@ def main() -> int:
             headless=True,
             args=[
                 "--no-proxy-server",
-                *(
-                    [f"--log-net-log={args.net_log}", "--net-log-capture-mode=Everything"]
-                    if args.net_log
-                    else []
-                ),
                 f"--host-resolver-rules=MAP staging.local {args.staging_host}",
             ],
         )
@@ -279,7 +273,7 @@ def main() -> int:
             )
             args.screenshot.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(args.screenshot), full_page=True)
-            print(json.dumps(evidence, indent=2))
+            print(json.dumps(_sanitize(evidence), indent=2))
             print(
                 json.dumps(
                     {
@@ -365,7 +359,7 @@ def main() -> int:
             write_evidence(args.evidence, evidence)
             context.close()
             browser.close()
-            print(json.dumps(evidence, indent=2))
+            print(json.dumps(_sanitize(evidence), indent=2))
             return 0
         args.screenshot.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(args.screenshot), full_page=True)
@@ -446,7 +440,7 @@ def main() -> int:
     evidence["logout_verified"] = True
     evidence["result"] = "passed"
     write_evidence(args.evidence, evidence)
-    print(json.dumps(evidence, indent=2))
+    print(json.dumps(_sanitize(evidence), indent=2))
     return 0
 
 

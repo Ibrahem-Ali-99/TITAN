@@ -148,6 +148,7 @@ def test_collection_deadline_does_not_wait_for_a_blocked_probe(
         return True
 
     monkeypatch.setattr(metrics_module, "_ready", blocked)
+    monkeypatch.setattr(metrics_module, "_lag_gauge", lambda _settings: False)
     monkeypatch.setattr(metrics_module, "PROBE_TIMEOUT_SECONDS", 0.03)
     collector = OperationalCollector(lambda: Session(), _settings())
     started = time.perf_counter()

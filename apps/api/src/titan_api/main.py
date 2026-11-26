@@ -273,7 +273,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
 
     @app.get("/api/v1/monitoring/overview", response_model=MonitoringOverview)
     def monitoring_overview_route(session: Session = Depends(get_session)) -> MonitoringOverview:
-        return _read(lambda: monitoring_overview(session, resolved))
+        return _read(lambda: monitoring_overview(session))
 
     @app.get("/api/v1/monitoring/runs", response_model=RunsResponse)
     def monitoring_runs_route(

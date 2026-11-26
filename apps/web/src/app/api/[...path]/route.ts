@@ -52,7 +52,7 @@ async function forward(
     return NextResponse.json({ detail: "authentication required" }, { status: 401 });
   }
   if (adminOperation && oidcEnabled() && !roles.has("admin")) {
-    return NextResponse.json({ detail: "administrative actions require an authenticated operator client" }, { status: 403 });
+    return NextResponse.json({ detail: "administrative actions require the admin role" }, { status: 403 });
   }
   if (request.method !== "GET" && oidcEnabled() && !roles.has("admin") && !roles.has("operator")) {
     return NextResponse.json({ detail: "insufficient scope" }, { status: 403 });
@@ -66,7 +66,8 @@ async function forward(
     return NextResponse.json({ detail: "dashboard API authentication is not configured" }, { status: 503 });
   }
   headers.set("authorization", `Bearer ${token}`);
-  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]);
+  const deadline = AbortSignal.timeout(10_000);
+  const signal = AbortSignal.any([request.signal, deadline]);
   let responseHeadersReceived = false;
   try {
     const response = await fetch(target, {
@@ -102,7 +103,7 @@ async function forward(
         response_headers_received: responseHeadersReceived,
       }),
     );
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (signal.aborted && signal.reason === deadline.reason) {
       return NextResponse.json({ detail: "dashboard API upstream timed out" }, { status: 504 });
     }
     return NextResponse.json({ detail: "dashboard API upstream unavailable" }, { status: 502 });

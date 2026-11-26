@@ -91,7 +91,8 @@ def main() -> int:
         else f"https://staging.local:{https_port}/auth/callback"
     )
     runner = Runner(ROOT, project, args.timeout)
-    evidence_path = ROOT / "benchmarks" / f"protected-browser-{project}.json"
+    evidence_path = ROOT / "artifacts" / f"protected-browser-{project}.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="titan-protected-browser-"))
     global BROWSER_OVERRIDE
     BROWSER_OVERRIDE = work / "browser-override.yml"
@@ -264,7 +265,7 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                     "web",
                     "node",
                     "-e",
-                    "fetch('http://127.0.0.1:3000/', { redirect: 'manual' }).then(r => { console.log(r.status); process.exit((r.ok || (r.status >= 300 && r.status < 400)) ? 0 : 1) }).catch(e => { console.error(e.message); process.exit(1) })",
+                    "(async()=>{const deadline=Date.now()+60000;let last='unavailable';while(Date.now()<deadline){try{const r=await fetch('http://127.0.0.1:3000/',{redirect:'manual',signal:AbortSignal.timeout(5000)});console.log(r.status);if(r.ok||(r.status>=300&&r.status<400))process.exit(0);last=`HTTP ${r.status}`}catch(e){last=String(e.message||e)}await new Promise(resolve=>setTimeout(resolve,1000))}console.error(last);process.exit(1)})()",
                 ),
             )
             runner.run(
@@ -288,14 +289,9 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                     )
                 try:
                     try:
-                        screenshot = ROOT / "benchmarks" / f"protected-browser-{project}.png"
+                        screenshot = evidence_path.with_suffix(".png")
                         if args.container_browser:
-                            evidence_path.touch()
                             screenshot.touch()
-                            netlog_path = (
-                                ROOT / "benchmarks" / f"protected-browser-{project}-netlog.json"
-                            )
-                            netlog_path.touch()
                             ingress_ip = runner.run(
                                 "browser-network",
                                 [
@@ -316,9 +312,12 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                                 if args.rbac_smoke
                                 else (("viewer", fixture.password_files["viewer"]),)
                             )
+                            role_results: dict[str, object] = {}
                             for role, password_file in role_runs:
-                                role_evidence = evidence_path.with_name(
-                                    f"{evidence_path.stem}-{role}{evidence_path.suffix}"
+                                role_evidence = (
+                                    evidence_path.with_name(f"{evidence_path.stem}-{role}.json")
+                                    if args.rbac_smoke
+                                    else evidence_path
                                 )
                                 role_evidence.touch()
                                 runner.run(
@@ -343,13 +342,24 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                                         f"{screenshot}:/run/browser.png",
                                         "-v",
                                         f"{role_evidence}:/run/browser.json",
-                                        "-v",
-                                        f"{netlog_path}:/run/netlog.json",
                                         "mcr.microsoft.com/playwright/python:v1.65.1-noble",
                                         "bash",
                                         "-lc",
-                                        f"cp /run/staging-ca.crt /usr/local/share/ca-certificates/titan-staging.crt && update-ca-certificates >/dev/null && (command -v certutil >/dev/null || (apt-get update -qq && apt-get install -y -qq libnss3-tools)) && mkdir -p $HOME/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -L >/dev/null 2>&1 || certutil -d sql:$HOME/.pki/nssdb -N --empty-password) && certutil -d sql:$HOME/.pki/nssdb -A -n titan-staging-ca -t C,, -i /run/staging-ca.crt && python -c \"import socket,ssl,urllib.request; print(socket.gethostbyname('staging.local')); c=ssl.create_default_context(cafile='/run/staging-ca.crt'); r=urllib.request.urlopen('https://staging.local:8443/', context=c, timeout=10); print(r.status); print(urllib.request.urlopen('http://keycloak:8080/realms/titan-test/.well-known/openid-configuration', timeout=10).status)\" && python -m pip install --no-cache-dir playwright==1.65.1 >/dev/null && python /run/browser_oidc_smoke.py --base-url 'https://staging.local:8443' --issuer '{fixture.issuer}' --username {role} --staging-host {ingress_ip} --net-log /run/netlog.json --password-file /run/viewer-password --screenshot /run/browser.png --evidence /run/browser.json --boundary-probe {'--role-check --expected-role ' + role if args.rbac_smoke else ''} > /run/browser.json",
+                                        f"cp /run/staging-ca.crt /usr/local/share/ca-certificates/titan-staging.crt && update-ca-certificates >/dev/null && (command -v certutil >/dev/null || (apt-get update -qq && apt-get install -y -qq libnss3-tools)) && mkdir -p $HOME/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -L >/dev/null 2>&1 || certutil -d sql:$HOME/.pki/nssdb -N --empty-password) && certutil -d sql:$HOME/.pki/nssdb -A -n titan-staging-ca -t C,, -i /run/staging-ca.crt && python -c \"import socket,ssl,urllib.request; print(socket.gethostbyname('staging.local')); c=ssl.create_default_context(cafile='/run/staging-ca.crt'); r=urllib.request.urlopen('https://staging.local:8443/', context=c, timeout=10); print(r.status); print(urllib.request.urlopen('http://keycloak:8080/realms/titan-test/.well-known/openid-configuration', timeout=10).status)\" && python -m pip install --no-cache-dir playwright==1.65.1 >/dev/null && python /run/browser_oidc_smoke.py --base-url 'https://staging.local:8443' --issuer '{fixture.issuer}' --username {role} --staging-host {ingress_ip} --password-file /run/viewer-password --screenshot /run/browser.png --evidence /run/browser.json --boundary-probe {'--role-check --expected-role ' + role if args.rbac_smoke else ''}",
                                     ],
+                                )
+                                result = json.loads(role_evidence.read_text(encoding="utf-8"))
+                                if not isinstance(result, dict) or result.get("result") != "passed":
+                                    raise RuntimeError(f"browser evidence did not pass for {role}")
+                                if args.rbac_smoke:
+                                    role_results[role] = result["role_check"]
+                            if args.rbac_smoke:
+                                evidence_path.write_text(
+                                    json.dumps(
+                                        {"result": "passed", "roles": role_results}, indent=2
+                                    )
+                                    + "\n",
+                                    encoding="utf-8",
                                 )
                         else:
                             browser_output = runner.run(

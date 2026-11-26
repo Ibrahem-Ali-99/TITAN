@@ -77,10 +77,21 @@ export function DataSourcesDashboard() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     setUploadMessage(null);
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports`, { method: "POST", body: form });
-    const text = await response.text();
-      if (response.status === 401 || response.status === 403) {
-      setUploadMessage("The import was rejected with 401. CSV upload itself does not use the admin token.");
+    let response: Response;
+    let text: string;
+    try {
+      response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports`, { method: "POST", body: form });
+      text = await response.text();
+    } catch {
+      setUploadMessage("The upload result could not be confirmed. Check recent imports before retrying.");
+      return;
+    }
+    if (response.status === 401 || response.status === 403) {
+      setUploadMessage(response.status === 401 ? "Sign in to upload a CSV." : "CSV upload requires the operator or admin role.");
+      return;
+    }
+    if (response.status === 502 || response.status === 504) {
+      setUploadMessage("The upload result could not be confirmed. Check recent imports before retrying.");
       return;
     }
     setUploadMessage(response.ok ? "Upload accepted. Kafka publication continues after this response. Downstream persistence is separate." : `Import rejected (${response.status}): ${text}`);
@@ -114,15 +125,22 @@ export function DataSourcesDashboard() {
 
   async function resume(importId: string) {
     setResumeMessage(null);
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports/${importId}/publish`, {
-      method: "POST",
-    });
-    const text = await response.text();
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/ingestion/imports/${importId}/publish`, {
+        method: "POST",
+      });
       if (response.status === 401 || response.status === 403) {
-      setResumeMessage("Resume requires an authenticated operator client and is not available from the browser proxy.");
-      return;
+        setResumeMessage("An admin session or an API client with the admin token is required to resume publishing.");
+        return;
+      }
+      if (response.status === 502 || response.status === 504) {
+        setResumeMessage("The resume result could not be confirmed. Check the import status before retrying.");
+        return;
+      }
+      setResumeMessage(response.ok ? "Resume accepted. Rows still marked publishing will be sent to Kafka." : `Resume failed (${response.status}): ${await response.text()}`);
+    } catch {
+      setResumeMessage("The resume result could not be confirmed. Check the import status before retrying.");
     }
-    setResumeMessage(response.ok ? "Resume accepted. Rows still marked publishing will be sent to Kafka." : `Resume failed (${response.status}): ${text}`);
   }
 
   if (loading) {
@@ -158,7 +176,7 @@ export function DataSourcesDashboard() {
               { label: "Accepted", value: "Acknowledged by Kafka" },
               { label: "Persistence", value: "Asynchronous consumer" },
               { label: "Rejected rows", value: "Retain validation errors" },
-              { label: "Administrative actions", value: "Bearer token required" },
+              { label: "Administrative actions", value: "Admin access required" },
             ]}
           />
         </Panel>
@@ -177,7 +195,7 @@ export function DataSourcesDashboard() {
           />
           <Button type="submit">Upload</Button>
         </form>
-        {uploadMessage ? <p className="mt-3 text-xs text-zinc-300">{uploadMessage}</p> : null}
+        <div role="status">{uploadMessage ? <p className="mt-3 text-xs text-zinc-300">{uploadMessage}</p> : null}</div>
       </section>
       <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle title="Recent submissions" />
@@ -216,12 +234,9 @@ export function DataSourcesDashboard() {
       <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <SectionTitle
           title="CSV imports"
-          detail="Resume sends rows still marked publishing. It is an admin call. A missing token is reported as 401 and does not pretend to succeed."
+          detail="Resume sends rows still marked publishing. In protected staging, this action requires an admin session."
         />
-        <label className="mb-3 block text-xs text-zinc-400">
-          Browser sessions never receive backend bearer tokens. Administrative resume requires an authenticated operator client.
-        </label>
-        {resumeMessage ? <p className="mb-3 text-xs text-amber-100">{resumeMessage}</p> : null}
+        <div role="status">{resumeMessage ? <p className="mb-3 text-xs text-amber-100">{resumeMessage}</p> : null}</div>
         {imports && imports.items.length > 0 ? (
           <DataTable label="CSV imports">
             <thead>

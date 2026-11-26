@@ -7,15 +7,14 @@ import logging
 import os
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from confluent_kafka import Consumer, ConsumerGroupTopicPartitions, TopicPartition
 from pydantic import BaseModel
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from titan_api.config import ApiSettings
 from titan_contracts.topics import CONSUMER_GROUP
 from titan_store.models import (
     CommerceEvent,
@@ -352,12 +351,7 @@ def ml_anomalies(session: Session, limit: int, flagged_only: bool) -> AnomaliesR
     )
 
 
-def monitoring_overview(session: Session, settings: ApiSettings) -> MonitoringOverview:
-    started = time.monotonic()
-    _monitoring_diag("route-entry", started)
-    _backfill_durations(session)
-    _monitoring_diag("database-backfill", started)
-    _monitoring_diag("kafka-lag-start", started)
+def monitoring_overview(session: Session) -> MonitoringOverview:
     return MonitoringOverview(
         freshness=monitoring_freshness(session),
         ingestion_lag=cached_lag_view(),
@@ -370,7 +364,6 @@ def monitoring_overview(session: Session, settings: ApiSettings) -> MonitoringOv
 
 
 def monitoring_runs(session: Session, limit: int) -> RunsResponse:
-    _backfill_durations(session)
     rows = session.scalars(select(PipelineRun).order_by(PipelineRun.id.desc()).limit(limit)).all()
     return RunsResponse(
         returned=len(rows),
@@ -510,13 +503,17 @@ def _spark(session: Session) -> str | None:
 
 
 def _run_view(row: PipelineRun) -> RunView:
+    duration_ms = row.duration_ms
+    if duration_ms is None and row.finished_at is not None and row.finished_at > row.started_at:
+        elapsed = row.finished_at - row.started_at
+        duration_ms = (elapsed + timedelta(microseconds=500)) // timedelta(milliseconds=1)
     return RunView(
         id=row.id,
         job_name=row.job_name,
         state=row.state,
         started_at=row.started_at,
         finished_at=row.finished_at,
-        duration_ms=row.duration_ms,
+        duration_ms=duration_ms,
         detail=row.detail,
         error_detail=row.error_detail,
         scope=_publication_scope(row.metadata_json),
@@ -602,21 +599,3 @@ def _model(row: MlRun) -> ModelView:
         trained_at=row.trained_at,
         detail=row.detail,
     )
-
-
-def _backfill_durations(session: Session) -> None:
-    bind = session.get_bind()
-    if bind.dialect.name != "postgresql":
-        return
-    session.execute(
-        text(
-            """
-            update pipeline_runs
-            set duration_ms = cast(extract(epoch from (finished_at - started_at)) * 1000 as integer)
-            where duration_ms is null
-              and finished_at is not null
-              and finished_at > started_at
-            """
-        )
-    )
-    session.commit()

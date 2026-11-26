@@ -115,7 +115,7 @@ def _assert_unique_order_keys(client: Any, publication_id: str, expected: int) -
 
 def _run(*args: str) -> None:
     subprocess.run(
-        [sys.executable, "scripts/run_pipeline.py", "titan_warehouse", *args],
+        [sys.executable, "-m", "scripts.run_pipeline", "titan_warehouse", *args],
         cwd=ROOT,
         check=True,
         env=os.environ.copy(),
@@ -133,7 +133,8 @@ def main() -> None:
         failed = subprocess.run(
             [
                 sys.executable,
-                "scripts/run_pipeline.py",
+                "-m",
+                "scripts.run_pipeline",
                 "titan_warehouse",
                 "--crash-after",
                 "tested",
@@ -174,7 +175,8 @@ def main() -> None:
         rejected = subprocess.run(
             [
                 sys.executable,
-                "scripts/run_pipeline.py",
+                "-m",
+                "scripts.run_pipeline",
                 "titan_warehouse",
                 "--silver",
                 "00000000-0000-0000-0000-000000000000",
