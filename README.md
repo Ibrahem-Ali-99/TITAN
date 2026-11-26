@@ -6,6 +6,13 @@ A commerce report is only useful when it names the orders that were accepted, th
 
 The events are synthetic. Delivery is at-least-once with idempotent persistence. It is not end-to-end exactly-once. The running system is one workstation Compose project, not a production deployment. That boundary is [below](#portfolio-scale-and-production-readiness).
 
+The v0.2.0 frontend redesign is implemented on a review branch and is ready for
+user acceptance. It preserves the existing API contracts while adding the grouped
+TITAN operations shell, responsive layouts, theme control, and live-data states
+across all eight console screens. Validation evidence and local interface URLs are
+in [docs/releases/v0.2.0-redesign.md](docs/releases/v0.2.0-redesign.md). It has not
+been published or tagged.
+
 ![Operations overview: warehouse ready, 362 accepted orders, quality passed, consumer lag 0, and separate EUR, GBP, and USD revenue](docs/assets/overview.png)
 
 Serving publication `50d22fe5-8db0-4f2f-bc00-47bda48152fc`: 362 accepted orders, EUR 18711.58, GBP 16558.03, USD 17768.77. Captured 2026-11-23 from `http://localhost:3000` at 1440×1100. The freshness on the frame is the age of the 2026-11-22T17:35:14Z publication. Currencies are not added. Notes: [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md).

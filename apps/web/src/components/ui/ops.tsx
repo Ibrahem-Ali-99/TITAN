@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function StatusPill({ tone, children }: { tone: "ok" | "warn" | "bad" | "info" | "neutral"; children: ReactNode }) {
   const dot = { ok: "bg-[var(--ok)]", warn: "bg-[var(--warn)]", bad: "bg-[var(--bad)]", info: "bg-[var(--accent)]", neutral: "bg-[var(--muted)]" }[tone];
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--foreground)]">
+    <span className="ops-status-pill inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--foreground)]">
       <span className={cn("size-1.5 rounded-full", dot)} aria-hidden />
       {children}
     </span>
@@ -16,7 +16,7 @@ export function StatusPill({ tone, children }: { tone: "ok" | "warn" | "bad" | "
 
 export function ScopeBar({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">{children}</p>
+    <p className="ops-scope-bar mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">{children}</p>
   );
 }
 
@@ -32,7 +32,7 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+    <section className="ops-panel min-w-0 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-sm font-medium text-[var(--foreground)]">{title}</h2>
@@ -68,8 +68,9 @@ export function PageHeader({
   aside?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="ops-page-header mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="max-w-3xl">
+        <p className="ops-eyebrow">TITAN / {title.toUpperCase()}</p>
         <h1 className="text-[1.65rem] font-semibold tracking-tight text-[var(--foreground)]">{title}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
       </div>
@@ -90,7 +91,7 @@ export function Kpi({
   footnote?: string;
 }) {
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+    <section className="ops-kpi rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
       <div className="flex items-center gap-2">
         <h2 className="text-[11px] font-medium tracking-[0.14em] text-[var(--muted)] uppercase">{label}</h2>
         {hint ? <Hint text={hint} /> : null}
@@ -222,18 +223,18 @@ export function SectionTitle({ title, detail }: { title: string; detail?: string
 
 export function DataTable({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div className="max-w-full min-w-0 overflow-x-auto" role="region" aria-label={label} tabIndex={0}>
+    <div className="ops-table max-w-full min-w-0 overflow-x-auto" role="region" aria-label={label} tabIndex={0}>
       <table className="w-full min-w-[720px] text-left text-sm">{children}</table>
     </div>
   );
 }
 
 export function Th({ children }: { children: ReactNode }) {
-  return <th className="py-2 pr-3 text-xs font-medium tracking-wide text-zinc-400 uppercase">{children}</th>;
+  return <th className="ops-th py-2 pr-3 text-xs font-medium tracking-wide text-zinc-400 uppercase">{children}</th>;
 }
 
 export function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn("border-t border-[var(--line)] py-2 pr-3 align-top text-[var(--foreground)]", className)}>{children}</td>;
+  return <td className={cn("ops-td border-t border-[var(--line)] py-2 pr-3 align-top text-[var(--foreground)]", className)}>{children}</td>;
 }
 
 export function Segmented<T extends string>({
