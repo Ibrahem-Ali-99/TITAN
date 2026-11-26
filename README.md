@@ -6,17 +6,18 @@ A commerce report is only useful when it names the orders that were accepted, th
 
 The events are synthetic. Delivery is at-least-once with idempotent persistence. It is not end-to-end exactly-once. The running system is one workstation Compose project, not a production deployment. That boundary is [below](#portfolio-scale-and-production-readiness).
 
-TITAN v0.2.0 preserves the existing API contracts while adding the grouped TITAN
+TITAN v0.2.1 preserves the existing API contracts while adding the grouped TITAN
 operations shell, responsive layouts, theme control, and live-data states across
 all eight console screens. Release evidence, acceptance limits, and local
-interface URLs are in [docs/releases/v0.2.0-redesign.md](docs/releases/v0.2.0-redesign.md)
+interface URLs are in [docs/releases/v0.2.1-monitoring-acceptance.md](docs/releases/v0.2.1-monitoring-acceptance.md)
 and the [release audit](docs/audits/v020-final-release-candidate.md).
 
-![Operations overview: warehouse-ready commerce analytics with populated activity and quality signals](docs/assets/v020-visual-polish/overview-dark-1440x900-full.png)
+![Operations overview: warehouse-ready commerce analytics with populated activity and quality signals](docs/assets/v021-portfolio/overview-dark-1440x900-full.png)
 
 The demonstration data is synthetic and runs locally in one workstation Compose
 project. The complete dark/light desktop and mobile capture set is in
-[`docs/assets/v020-visual-polish`](docs/assets/v020-visual-polish), with capture
+[the v0.2.1 portfolio archive](docs/assets/titan-v0.2.1-portfolio-screenshots.zip) and
+[`docs/assets/v021-portfolio`](docs/assets/v021-portfolio), with capture
 metadata and route assertions alongside the images. Notes: [docs/portfolio/screenshots.md](docs/portfolio/screenshots.md).
 
 ## Capabilities
@@ -91,19 +92,19 @@ These runs were executed and written down. They were not repeated for this READM
 
 The same capture, in the order a reader meets the product: the published warehouse, the publication path, the serving forecast, the quality gate, monitoring, streaming, and intake.
 
-![Warehouse analytics with chronological demand and currency-separated totals](docs/assets/v020-visual-polish/warehouse-dark-1440x900-full.png)
+![Warehouse analytics with chronological demand and currency-separated totals](docs/assets/v021-portfolio/warehouse-dark-1440x900-full.png)
 
-![Pipeline orchestration from Kafka through the published warehouse snapshot](docs/assets/v020-visual-polish/pipelines-dark-1440x900-full.png)
+![Pipeline orchestration from Kafka through the published warehouse snapshot](docs/assets/v021-portfolio/pipelines-dark-1440x900-full.png)
 
-![Demand intelligence with model evaluation and future forecast presentation](docs/assets/v020-visual-polish/ml-dark-1440x900-full.png)
+![Demand intelligence with model evaluation and future forecast presentation](docs/assets/v021-portfolio/ml-dark-1440x900-full.png)
 
-![Data quality with readable rule results and evidence](docs/assets/v020-visual-polish/data-quality-dark-1440x900-full.png)
+![Data quality with readable rule results and evidence](docs/assets/v021-portfolio/data-quality-dark-1440x900-full.png)
 
-![Monitoring with service health and operational metrics](docs/assets/v020-visual-polish/monitoring-dark-1440x900-full.png)
+![Monitoring with service health and operational metrics](docs/assets/v021-portfolio/monitoring-dark-1440x900-full.png)
 
-![Event streaming with throughput, distributions, and recent commerce events](docs/assets/v020-visual-polish/streaming-dark-1440x900-full.png)
+![Event streaming with throughput, distributions, and recent commerce events](docs/assets/v021-portfolio/streaming-dark-1440x900-full.png)
 
-![Data sources with REST, CSV, and synthetic producer entry points](docs/assets/v020-visual-polish/data-sources-dark-1440x900-full.png)
+![Data sources with REST, CSV, and synthetic producer entry points](docs/assets/v021-portfolio/data-sources-dark-1440x900-full.png)
 
 ## Quick start
 
@@ -147,6 +148,8 @@ docker compose --profile observability up -d
 ```
 
 Prometheus is http://127.0.0.1:9090. Grafana is http://127.0.0.1:3001, user `titan`, with the same local password placeholder as the databases. Request tracing stays off until `OTEL_ENABLED=1` and the API container is recreated. The Next.js Monitoring page is unchanged. Setup, metrics, alerts, and the verification record are in [docs/observability.md](docs/observability.md).
+
+Dagster is available as the orchestration runtime when its profile is enabled, but this local release does not publish a Dagster webserver on port 3002. Use the TITAN Pipelines and Monitoring screens, the Dagster daemon logs, and the documented API evidence for pipeline status; an absent Dagster browser UI is an intentional local deployment limitation.
 
 ## Evidence
 

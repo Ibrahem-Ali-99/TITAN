@@ -13,6 +13,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { formatDuration } from "@/lib/utils";
+
 const grid = "#26394b";
 const axis = "#8ea0b5";
 const tooltipStyle = {
@@ -186,15 +188,15 @@ export function EvaluationChart({
   );
 }
 
-export function RunDurationChart({ points }: { points: { label: string; duration_ms: number }[] }) {
+export function RunDurationChart({ points }: { points: { label: string; job_name?: string; run_id?: number; duration_ms: number }[] }) {
   return (
     <div className="h-56" role="img" aria-label="Observed pipeline run durations in milliseconds">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke={grid} vertical={false} />
           <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} interval={0} angle={-18} textAnchor="end" height={42} />
-          <YAxis stroke={axis} fontSize={11} tickLine={false} width={48} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} ms`, "Duration"]} />
+          <YAxis stroke={axis} fontSize={11} tickLine={false} width={52} tickFormatter={(value) => formatDuration(Number(value))} />
+          <Tooltip contentStyle={tooltipStyle} labelFormatter={(label, payload) => { const point = payload?.[0]?.payload as { job_name?: string; run_id?: number } | undefined; return point?.job_name ? `${point.job_name} · run ${point.run_id ?? "—"}` : String(label); }} formatter={(value) => { const numeric = Number(value); return [`${numeric} ms · ${formatDuration(numeric)}`, "Duration"]; }} />
           <Bar dataKey="duration_ms" name="Duration" fill="#60a5fa" radius={[3, 3, 0, 0]} maxBarSize={30} />
         </BarChart>
       </ResponsiveContainer>
