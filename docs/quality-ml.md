@@ -71,3 +71,15 @@ A failed quality load stays in `warehouse_loads` with status `failed`. Republish
 A failed training run is visible in `/api/v1/ml/models`. The serving row and its predictions stay in place. Analytics do not depend on the model. The serving choice and the cross-database warehouse recovery are described in [reliability.md](reliability.md).
 
 Local training uses the host `uv run --group orchestration` environment. The API image does not install scikit-learn. Expect the ClickHouse, Spark, and API memory limits already set in Compose. A 28-day backfill is enough for the chronological split. A million events are not required.
+
+## Representative forecasting profile
+
+The deep-audit demonstration workload is separate from the legacy `generate_history` mode and is reproducible through the real Kafka and warehouse path:
+
+```powershell
+docker compose --profile generate run --rm --build event-generator --profile forecasting --history-days 42 --seed 61226 --rate 0
+```
+
+It defines 12 stable products with weekday, weekend, steady, and payday patterns; seeded Gaussian variation; controlled intermittent zeros; EUR/GBP/USD prices; deterministic event IDs; matching payments; cumulative inventory; one duplicate; one conflict; and one malformed quarantine fixture. The 2026-11-26 live run persisted 544 accepted orders, 544 payments, 504 inventory updates, one duplicate operation, one conflict, and one schema-validation quarantine record from this profile. It was then processed by Bronze, Silver, warehouse publication, quality, and ML training. Forecast rows are produced by the model workflow and published with `kind=forecast`; they are never inserted directly into serving tables.
+
+The current audited ML run has 624 training rows (2026-01-01–2026-11-15), 140 chronological evaluation rows (2026-11-16–2026-11-22), 20 products, and a seven-day future horizon (2026-11-23–2026-11-29). Seasonal naive wins fairly on the held-out week at MAE 1.657143/WAPE 0.320442; the retained HistGradientBoosting candidate measures MAE 15.590441/WAPE 3.014726. The earlier extreme candidate error came from the sparse legacy publication and its large one-day spike, not from changing evaluation rules to favor the baseline.
