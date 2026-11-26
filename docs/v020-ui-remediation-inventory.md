@@ -1,0 +1,115 @@
+# TITAN v0.2.0 UI/UX remediation inventory
+
+This inventory records the acceptance work completed against the authoritative Figma Make archive in `D:\Downloads\TITAN Data Platform.zip`, the current TITAN routes, and the live API responses. No fabricated business values were added.
+
+## Shared design system
+
+- Consolidated page title, panel, KPI, metric-strip, status, table, tab, source-card, lineage, and empty/loading/error patterns in the exported visual system.
+- Increased the practical type scale and row spacing for desktop and responsive layouts; retained compact mobile breakpoints.
+- Removed the legacy sky-blue action treatment from the shared `Button` component and routed actions through the TITAN visual tokens.
+- Added bounded chart bars, readable chart labels, keyboard-visible focus, and explicit unavailable/not-measured states.
+
+## Eight-screen completion inventory
+
+### Overview
+
+- Four real KPI cards remain, with synthetic sparkline values removed.
+- Event throughput uses observed minute buckets and bounded bars; sparse activity remains visibly sparse.
+- Topology now includes Kafka, PostgreSQL, MinIO, Spark Bronze, Spark Silver, ClickHouse, and dbt. Kafka/MinIO are marked not measured/configured when the API does not expose a direct health check.
+- Revenue remains separated by EUR, GBP, and USD with a no-FX-conversion note.
+
+### Streaming
+
+- Replaced quarantine-first hierarchy with metric strip, throughput, recent event distribution, and a prominent recent persisted-event table.
+- Added real search and event-type filtering; selecting a row exposes the stored event payload fields.
+- Kept quarantine and replay evidence secondary and labeled consumer lag unavailable because the API does not measure it.
+
+### Data Sources
+
+- Rebuilt the source-card row for REST, CSV, and the deterministic synthetic producer using live counts.
+- Added CSV upload, REST ingestion contract, and import history tabs.
+- Added a professional dropzone-style file control while preserving the live 500-row/1 MiB validation boundary, protected upload/resume behavior, and row-error inspection.
+
+### Pipelines
+
+- Running count now excludes stale runs; stale is a separate, visible state.
+- Reworked publication lineage into non-overlapping nodes with copyable real identifiers and a Dagster link.
+- Stage flow and execution history distinguish succeeded, failed, recovered, running, stale, and unknown states from the shared classifier.
+
+### Warehouse
+
+- Replaced competing KPI rows with one compact metric strip covering orders, items, payments, inventory, and currency-separated revenue.
+- Kept chronological event-time analytics, currency/product selectors, active publication, source identifiers, and freshness evidence visible.
+- Added a compact horizontal product-performance chart, a visible revenue-by-currency panel, and publication history/lineage below the primary analytics.
+
+### Data Quality
+
+- Added an explicit current publication quality hero with pass/fail, current failures, historical failures, finding groups, and blocking state.
+- Kept historical findings separate from the serving publication and made execution history visible without hiding the primary experience behind a disclosure.
+- Retained real severity, injection, publication, and reconciliation evidence; no unsupported score or threshold was introduced.
+- Promoted the structured validation-check table to the primary content, with actual observed/expected values, rule type, dataset, result, and blocking metadata; history and group breakdown use recorded run findings.
+
+### Monitoring
+
+- Replaced raw duration text bars with a labeled observed-duration visualization in milliseconds.
+- Changed the top summary from a synthetic availability percentage to readiness/current-state semantics.
+- Separated operational activity from incidents and linked to local Grafana and Prometheus interfaces.
+
+### Machine Learning
+
+- Preserved the model banner, serving metrics, actual-vs-predicted evaluation chart, comparison, product selector, evaluation results, model history, and anomaly table.
+- Removed fabricated KPI sparklines and clarified MAE/WAPE semantics, serving status, and technical product IDs where no authoritative name dimension exists.
+- Default product selection prefers observed evaluation activity; algorithm names, strategies, timestamps, and IDs are readable while preserving raw values in titles. Evaluation rows, candidate/serving models, and future forecasts are labeled separately, with a truthful empty state when no future rows are returned.
+
+### Streaming and overview precision
+
+- Consumer lag now reads the authoritative monitoring value when available and explicitly reports measured/not measured rather than implying a local estimate.
+- The documented synthetic generator was run with a fixed seed at one event per second, then Bronze, Silver, Warehouse, and ML pipelines were rerun. The overview and streaming charts therefore show observed collection buckets and persisted event evidence from the live run.
+- Removed decorative KPI sparklines and retained only supported event/status data; no backdated or interpolated activity was added.
+
+## Evidence
+
+- Refreshed archive: [docs/assets/v020-acceptance.zip](/D:/TITAN/docs/assets/v020-acceptance.zip)
+- Per route, the evidence directory contains the supplied 1440x900 reference, a full-page reference capture, 1440x900 dark actual, full-page dark actual, 390x844 mobile actual, and 1440x900 light actual. The actual captures were inspected after the final data refresh.
+- The typography pass also includes 1920x1080 and 1280x800 dark captures, computed-style evidence in `typography-metrics.json`, and zero-overflow/loading checks in `visual-layout-checks.json`.
+- Canonical rendered values: 28px page heading, 30px KPI value, 15px section heading, 12px supporting/status text, 12px table header, 13px table content, 13px controls/navigation, and 12px technical identifiers.
+- Reference captures and current route captures: [docs/assets/v020-acceptance](/D:/TITAN/docs/assets/v020-acceptance)
+- Live browser route: [http://localhost:23000](http://localhost:23000)
+- Dagster: [http://localhost:3002](http://localhost:3002)
+- Grafana: [http://localhost:3001](http://localhost:3001)
+- Prometheus: [http://localhost:9090](http://localhost:9090)
+
+## Deep product, data, and ML audit follow-up
+
+- Future demand forecasting is now exposed under the API/UI contract `kind=forecast`. The training job already generated recursive forward rows, but the previous storage value `recursive_forecast` did not match the dashboard query and made the panel appear empty. The corrected serving run `2a605c15-2e40-4e42-b326-d3b9ed064174` contains 56 future rows for 8 products over 7 dates, with `actual_quantity = null` for every forward row.
+- The ML run remains scientifically separated: chronological last-7-date holdout, one-step evaluation rows with actuals, candidate model retained separately from the serving seasonal-naive strategy, and recursive future steps generated only from observed history plus prior predictions. Current measured metrics remain MAE 0.036 / WAPE 1.000 for the served baseline and MAE 34.516 / WAPE 966.436 for the candidate.
+- Data Quality now humanizes rule names, keeps raw rule IDs, renders structured currency evidence, adds search, and exposes expandable observed/expected/business-ID details. Current publication status is PASS with zero failed checks; historical findings remain visible as historical evidence.
+- Streaming event types, dispositions, quarantine reasons, and replay states are human-readable; event rows are keyboard-inspectable as well as clickable. The live API reports 966 persisted events: 598 order events, 193 payments, and 175 inventory updates, with 487 accepted logical orders, 567 repeated-delivery observations, 95 duplicate business-key operations, 16 conflicts, and 18 quarantined records.
+- API settings no longer load checkout-local `.env` implicitly inside the settings object. Docker Compose continues to inject the documented local runtime values, while isolated tests correctly verify missing-token fail-closed behavior.
+
+## Deep audit evidence refresh — 2026-11-26
+
+- Added and executed the reproducible `synthetic.forecasting-profile` with `--history-days 42 --seed 61226 --rate 0`. The profile adds 544 accepted orders, 544 matching payments, 504 inventory updates, three currencies, 12 stable products, weekly/product variation, stochastic noise, one duplicate operation, one conflict, and one schema-validation quarantine fixture without deleting the prior development dataset.
+- The live warehouse now serves 1,031 accepted orders, 1,347 order items, 737 accepted payments, and 679 inventory events across EUR, GBP, and USD. The profile contributes 504 product-days with 47 zero-demand cells and a 42-day span from 2026-10-12 through 2026-11-22. This supersedes the earlier 966-event screenshot-era figures for the current local run.
+- The current ML run is `71d6d44d-bb84-4a99-88a2-d59acf7ac169`: 624 training rows from 2026-01-01 through 2026-11-15, 140 chronological holdout rows from 2026-11-16 through 2026-11-22, 20 products, and 140 future rows for 2026-11-23 through 2026-11-29. Seasonal naive is correctly serving at MAE 1.657143/WAPE 0.320442 versus candidate MAE 15.590441/WAPE 3.014726.
+- Fresh full-page captures cover all eight routes at 1440×900 dark, 390×844 dark, and 1440×900 light. The machine-learning capture separates evaluated rows from future forecasts, Data Quality shows observed/expected values, and Streaming shows the representative event and disposition mix. Metadata is in `docs/assets/v020-acceptance/deep-audit-live-evidence.json`; the packaged archive is `docs/assets/v020-acceptance-deep-audit.zip`.
+- The complete requirement-to-evidence matrix, verification methods, runtime IDs, and intentional limitations are recorded in [`docs/audits/v020-deep-audit-requirement-matrix.md`](audits/v020-deep-audit-requirement-matrix.md).
+
+## Final release-candidate closure — 2026-11-26
+
+- ML now presents the model cutoff, chronological evaluation period, generation timestamp and age, target period, target-relative-to-today state, and the serving strategy. The seasonal-naive selection remains unchanged and is still driven by held-out MAE.
+- Streaming recent events are bounded to the API's returned page and paginated at 20 rows per page. Search and event-type filtering apply before pagination; matching/returned counts, page counts, keyboard inspection, click inspection, dispositions, and the stored event payload remain available.
+- The global range control is labeled `Charts` and explicitly states that it scopes observed activity charts only. Snapshot metrics remain current. Light-theme contrast, mobile KPI composition, mobile stage scrolling, and source-card alignment received a targeted refinement.
+- Disposable CSV acceptance verified a real 202 upload, asynchronous completion, published and rejected row outcomes, durable valid-row persistence, resume 200, unauthorized resume 403, and malformed upload 422. Disposable protected browser acceptance verified OIDC login/logout, session enforcement, all eight routes, TLS, API proxy behavior, and all four RBAC roles.
+- Final RC captures are stored in `docs/assets/v020-final-rc` (24 images plus metadata). The live local dashboard remains at `http://localhost:23000` with the representative synthetic dataset.
+- Packaged final RC evidence is also available as `docs/assets/v020-final-rc.zip`.
+
+## Final visual polish — 2026-11-26
+
+- Added an explicit shared empty state for zero-activity charts, preserving truthful live-data semantics without leaving blank visualization frames.
+- Reduced Data Quality visual noise by moving verbose detail and historical samples behind evidence disclosures while retaining observed/expected values, severity, blocking semantics, and raw identifiers.
+- Refined Streaming controls and responsive layout, including bounded/paginated event presentation, readable distribution metrics, and a clear empty state.
+- Refined Data Sources trust-boundary copy, tab spacing, helper-text contrast, and source-card alignment; shortened Monitoring operational labels and duration metadata.
+- Refreshed 24 screenshots in `docs/assets/v020-visual-polish` and packaged them as `docs/assets/v020-visual-polish.zip`.
+- Verification: frontend tests, lint, typecheck, build, Python tests, Ruff, mypy, secret/supply-chain checks, eight-route accessibility audit, and functional interaction smoke all passed.
+- Evidence note: the latest archive was regenerated from the real theme control and includes computed-style metadata for every route. The final disposable protected-runtime rerun stopped at an unhealthy ingress before browser execution; passing same-day OIDC/TLS/RBAC evidence remains retained under `artifacts/protected-browser-titan-staging-accept-26baf6bc*.json`. See `docs/audits/v020-portfolio-quality-closure.md` for the complete matrix and exact validation outcomes.

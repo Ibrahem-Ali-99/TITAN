@@ -38,6 +38,12 @@ services:
     ports: !override []
     volumes: !override
       - web_node_modules:/app/node_modules
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(() => process.exit(0)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     environment:
       TITAN_DASHBOARD_LOCAL_ONLY: "false"
       TITAN_SECURITY_PROFILE: protected

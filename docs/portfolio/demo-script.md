@@ -7,6 +7,6 @@
 5. Open Data Quality. Show a passed gate and, if it is on screen, the injected failure that did not become the active publication.
 6. Open ML & Predictions. Read `seasonal_naive`. Say the gradient-boosting MAE was higher on the same held-out week, and that run is still stored as evaluated.
 7. Open Monitoring. Separate consumer lag from the Spark checkpoint line, and point at a real pipeline row.
-8. If there is time, run `uv run python -m scripts.demo_day7` and refresh the warehouse page when it prints a new publication id.
+8. If the throughput panels are empty, run `uv run python -m scripts.demo_traffic --orders 8 --interval 6` to publish unique order/payment/inventory cycles across current minute buckets. For the separate publication walkthrough, run `uv run python -m scripts.demo_day7` and refresh the warehouse page when it prints a new publication id.
 
 Do not describe the 100-event or 5,000-event samples as sustained pipeline throughput.

@@ -28,6 +28,9 @@ export function ActivityChart({
   points: { label: string; persisted: number }[];
 }) {
   const peak = points.reduce((max, point) => Math.max(max, point.persisted), 0);
+  if (!points.length || peak === 0) {
+    return <div className="chart-empty" role="status"><strong>No persisted events in this window</strong><span>The recent-event table remains available below.</span></div>;
+  }
   return (
     <div>
       <div className="h-52" role="img" aria-label="Persisted events by minute">
@@ -37,7 +40,7 @@ export function ActivityChart({
             <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} />
             <YAxis stroke={axis} fontSize={11} allowDecimals={false} tickLine={false} width={32} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="persisted" name="Persisted events" fill="#2dd4bf" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="persisted" name="Persisted events" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={26} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -121,6 +124,22 @@ export function ProductChart({
   );
 }
 
+export function ProductPerformanceChart({ points }: { points: { product: string; quantity: number; revenue: string }[] }) {
+  return (
+    <div className="h-64" role="img" aria-label="Horizontal product performance by quantity sold">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={points} layout="vertical" margin={{ top: 8, right: 18, left: 18, bottom: 8 }}>
+          <CartesianGrid stroke={grid} horizontal={false} />
+          <XAxis type="number" stroke={axis} fontSize={11} allowDecimals={false} tickLine={false} />
+          <YAxis type="category" dataKey="product" stroke={axis} fontSize={11} tickLine={false} width={86} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value, _name, item) => { const payload = item.payload as { revenue?: string }; return [`${value} units · ${payload.revenue ?? ""}`, "Quantity"]; }} />
+          <Bar dataKey="quantity" name="Quantity" fill="#2dd4bf" radius={[0, 3, 3, 0]} barSize={18} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function MetricCompareChart({
   rows,
   candidateName = "Candidate",
@@ -162,6 +181,22 @@ export function EvaluationChart({
           <Line type="monotone" dataKey="actual" name="Actual" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 2 }} connectNulls={false} />
           <Line type="monotone" dataKey="predicted" name="Predicted" stroke="#60a5fa" strokeWidth={2} dot={{ r: 2 }} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function RunDurationChart({ points }: { points: { label: string; duration_ms: number }[] }) {
+  return (
+    <div className="h-56" role="img" aria-label="Observed pipeline run durations in milliseconds">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke={grid} vertical={false} />
+          <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} interval={0} angle={-18} textAnchor="end" height={42} />
+          <YAxis stroke={axis} fontSize={11} tickLine={false} width={48} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} ms`, "Duration"]} />
+          <Bar dataKey="duration_ms" name="Duration" fill="#60a5fa" radius={[3, 3, 0, 0]} maxBarSize={30} />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

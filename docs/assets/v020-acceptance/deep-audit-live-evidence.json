@@ -1,0 +1,314 @@
+[
+  {
+    "route": "/",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Overview",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Overview",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Overview",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/streaming",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Event streaming",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/streaming",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Event streaming",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/streaming",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Event streaming",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-sources",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Data sources",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-sources",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Data sources",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-sources",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Data sources",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/pipelines",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Pipelines",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/pipelines",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Pipelines",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/pipelines",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Pipelines",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/warehouse",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Warehouse analytics",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/warehouse",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Warehouse analytics",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/warehouse",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Warehouse analytics",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-quality",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Data quality",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-quality",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Data quality",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/data-quality",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Data quality",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/ml",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Machine Learning",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/ml",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Machine Learning",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/ml",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Machine Learning",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/monitoring",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": false,
+    "h1": "Monitoring",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/monitoring",
+    "viewport": [
+      390,
+      844
+    ],
+    "light": false,
+    "h1": "Monitoring",
+    "loading_nodes": 0,
+    "scroll_width": 390,
+    "client_width": 390,
+    "title": "TITAN \u00b7 Data Intelligence"
+  },
+  {
+    "route": "/monitoring",
+    "viewport": [
+      1440,
+      900
+    ],
+    "light": true,
+    "h1": "Monitoring",
+    "loading_nodes": 0,
+    "scroll_width": 1440,
+    "client_width": 1440,
+    "title": "TITAN \u00b7 Data Intelligence"
+  }
+]

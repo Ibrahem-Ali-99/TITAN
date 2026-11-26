@@ -1,0 +1,102 @@
+# TITAN v0.2.0 final release-candidate verification
+
+Verification date: 2026-11-26 (Africa/Cairo). Repository: `D:\TITAN`. Branch: `feature/titan-v0.2.0-final-ui`.
+
+This record closes the targeted release-quality gaps from the final review. The work was local-only: no push, merge, tag, or GitHub release was performed. Disposable CSV and protected-staging resources were isolated from the development volumes and removed after verification.
+
+## Product and data acceptance
+
+- The representative forecasting profile remains active in the local platform: 1,031 accepted orders, 1,347 order items, 737 accepted payments, 679 inventory events, and 19 quarantined records currently visible in the live console. It retains stable product IDs, daily history, weekly/product variation, stochastic noise, three currencies, valid payment/order relationships, duplicate/conflict cases, and quarantine evidence.
+- The profile was processed through Kafka ingestion, Bronze, Silver, warehouse publication, quality, and ML workflows. No analytical or forecast rows were inserted directly into serving tables.
+- The running dashboard is [http://localhost:23000](http://localhost:23000). Operational interfaces are [Dagster](http://localhost:3002), [Grafana](http://localhost:3001), and [Prometheus](http://localhost:9090).
+
+## ML acceptance
+
+Current serving run: `71d6d44d-bb84-4a99-88a2-d59acf7ac169`.
+
+| Evidence | Verified value |
+| --- | --- |
+| Training period / rows | 2026-01-01–2026-11-15 / 624 |
+| Evaluation period / rows | 2026-11-16–2026-11-22 / 140 |
+| Product coverage | 20 technical product IDs |
+| Feature construction | lag 1, lag 7, prior trailing mean, weekday, training-fitted product code |
+| Leakage prevention | chronological holdout; target day excluded; recursive future steps use prior observations/predictions only |
+| Baseline | seasonal naive (`lag_7`) |
+| Candidate | fixed `HistGradientBoostingRegressor` |
+| Baseline metrics | MAE 1.657143; WAPE 0.320442 |
+| Candidate metrics | MAE 15.590441; WAPE 3.014726 |
+| Serving strategy | seasonal naive, selected fairly because candidate MAE was not strictly lower |
+| Forecast horizon | 2026-11-23–2026-11-29; 140 persisted future rows across 20 products |
+| Freshness presentation | model cutoff, holdout, generation timestamp/age, target period, and target-relative-to-today status are visible in the ML screen |
+
+The candidate’s earlier extreme error was reproduced and explained by sparse legacy training data and a one-day spike. The selection rule and evaluation data were not changed to make the candidate lose. The current dashboard visibly distinguishes 60 rows still future relative to 2026-11-26 from 80 target rows whose dates have elapsed.
+
+## Functional acceptance
+
+### Disposable CSV import
+
+Project `titan-csv-accept` used separate ports, database, Kafka, ClickHouse, and object-store resources. The real authenticated API flow verified:
+
+- valid CSV upload: HTTP 202 with import ID;
+- import status: `completed`;
+- row outcomes: one `published`, one `rejected`;
+- valid row persisted in the disposable downstream store;
+- supported resume: HTTP 200;
+- unauthorized resume: HTTP 403;
+- malformed CSV: HTTP 422.
+
+The disposable stack was torn down with its volumes after the run. No development event stream was mutated by this acceptance.
+
+### Protected browser and authorization acceptance
+
+Disposable project `titan-staging-accept-26baf6bc` passed the protected browser harness. The evidence file is retained locally at `artifacts/protected-browser-titan-staging-accept-26baf6bc.json` and contains no raw tokens.
+
+- OIDC login and authenticated session: passed.
+- TLS ingress: passed at `https://staging.local:8443/`.
+- All eight screens: passed at desktop and mobile widths.
+- API proxy boundary: all probes returned HTTP 200.
+- Logout: passed.
+- Fresh navigation after logout: redirected to OIDC.
+- Viewer / Analyst: protected write 403; admin operation 403.
+- Operator: protected write 202; admin operation 403.
+- Admin: protected write 202; admin route reached the handler and returned 404 for the unknown action.
+
+## Visual and regression acceptance
+
+Fresh final RC captures are in [`docs/assets/v020-final-rc`](../assets/v020-final-rc) with metadata in [`capture-metadata.json`](../assets/v020-final-rc/capture-metadata.json): 24 images covering all eight routes at desktop dark, mobile dark, and desktop light themes. Targeted inspection confirmed forecast timing/freshness, streaming pagination and dispositions, mobile pipeline stage scrolling, and aligned light-theme Data Sources cards.
+
+| Gate | Result |
+| --- | --- |
+| Frontend unit tests | 11 passed |
+| ESLint | passed |
+| TypeScript | passed |
+| Production build | passed |
+| Python tests | 116 passed, 6 skipped |
+| Ruff | passed |
+| mypy | passed, 135 files |
+| Focused auth/security/browser evidence tests | 17 passed, 1 skipped |
+| npm production dependency audit | 0 vulnerabilities |
+| pip-audit | no known vulnerabilities |
+| axe/WCAG and responsive audit | 0 violations, 8 routes × 4 viewports |
+| Browser acceptance | protected OIDC/TLS/RBAC run passed |
+
+## Intentional limitations
+
+- GitHub Actions, hosted CI, push, tag, and release publication remain intentionally unrun because the user requested final personal approval before publication.
+- Forecasts and demand metrics are synthetic demonstration evidence, not production demand commitments.
+- The global time-range selector is explicitly scoped to observed activity charts; snapshot metrics and non-windowed API responses remain current.
+- The protected acceptance is disposable local staging evidence, not a claim about an externally hosted deployment.
+
+## Final visual polish pass — 2026-11-26
+
+- Overview and Streaming now render a deliberate, bounded empty state when the selected observed window contains no persisted buckets; the live event table remains the source of truth below.
+- Data Quality is scan-first: humanized rule names, compact rule metadata, result/severity, observed-versus-expected evidence, and blocking state are visible in the primary table. Verbose rule details, IDs, and historical samples remain available through disclosures.
+- Data Sources received a readable trust-boundary note, aligned tabs, stronger helper text, and preserved upload/import interactions. Monitoring activity and duration labels use concise operational names without changing the underlying evidence.
+- Final browser review covered all eight routes at 1440×900 dark, 390×844 dark, and 1440×900 light. The refreshed 24-image archive is [`docs/assets/v020-visual-polish`](../assets/v020-visual-polish) with packaged evidence at [`docs/assets/v020-visual-polish.zip`](../assets/v020-visual-polish.zip).
+- Functional smoke verified eight route headings, Streaming search and pagination, Data Quality evidence disclosure, and Data Sources REST/import-history tabs. The final accessibility audit reported zero violations.
+
+## Evidence-based portfolio closure — 2026-11-26
+
+The latest targeted pass supersedes the earlier screenshot set for visual evidence. The final Data Quality table now uses fixed desktop column proportions and an explicit mobile scroll boundary, so Details remains reachable without overlapping cells. The light-theme active navigation contrast was corrected. The corrected 24-image archive is `docs/assets/v020-visual-polish` with `capture-metadata.json` containing computed dark/light colors for all eight routes; the packaged archive is `docs/assets/v020-visual-polish.zip`.
+
+The live traffic evidence is reproducible with `scripts/demo_traffic.py`; run `4c4df419d2` published 24 unique events and produced current observed buckets of 5, 13, and 6. The final route audit passed with zero violations. The disposable protected-browser rerun reached API/web health but stopped at an unhealthy ingress before browser execution; the retained same-day artifact `artifacts/protected-browser-titan-staging-accept-26baf6bc.json` remains the passing OIDC/TLS/RBAC evidence for the unchanged authentication surface. Full details and the requirement matrix are in `docs/audits/v020-portfolio-quality-closure.md`.

@@ -102,3 +102,28 @@ readiness probe for bounded Next.js startup time. The remaining release block
 is external: GitHub transport/authentication is unavailable in this session,
 and registry advisory queries require explicit outbound-data approval. No
 hosted workflow or release tag has been claimed from local evidence.
+
+## Final release-candidate closure — 26 November 2026
+
+The targeted v0.2.0 release-candidate gaps are now closed locally. The current
+working tree contains the final ML timing/freshness presentation, bounded
+Streaming pagination, scoped chart-range copy, light/mobile/source-card
+refinements, and the corrected browser acceptance headings for the redesigned
+console.
+
+- Disposable CSV acceptance passed upload 202, completed status, published and
+  rejected rows, durable valid-row persistence, resume 200, unauthorized resume
+  403, and malformed upload 422.
+- Disposable protected browser acceptance passed OIDC, TLS ingress, all eight
+  routes at desktop/mobile widths, logout, fresh-navigation session enforcement,
+  API proxy probes, and viewer/analyst/operator/admin authorization behavior.
+- The local regression stack passed 116 Python tests with 6 skips, 11 frontend
+  tests, ESLint, TypeScript, production build, Ruff, mypy, npm audit with zero
+  vulnerabilities, pip-audit with no known vulnerabilities, focused auth/
+  security/browser tests, and axe with zero violations across 8 routes × 4
+  viewports.
+- Final screenshots and metadata are in `docs/assets/v020-final-rc`.
+
+Hosted GitHub Actions and publication remain intentionally pending the user's
+final approval. This record does not claim a push, tag, release, or hosted
+workflow result.

@@ -97,7 +97,7 @@ def main() -> int:
     global BROWSER_OVERRIDE
     BROWSER_OVERRIDE = work / "browser-override.yml"
     BROWSER_OVERRIDE.write_text(
-        'services:\n  api:\n    environment:\n      TITAN_MONITORING_DIAGNOSTICS: "1"\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    command: ["sh", "-c", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]\n    extra_hosts:\n      - host.docker.internal:host-gateway\n',
+        'services:\n  api:\n    environment:\n      TITAN_MONITORING_DIAGNOSTICS: "1"\n    extra_hosts:\n      - host.docker.internal:host-gateway\n  web:\n    command: ["sh", "-c", "npm run build && npm run start -- --hostname 0.0.0.0 --port 3000"]\n    deploy:\n      resources:\n        limits:\n          memory: 1536M\n    extra_hosts:\n      - host.docker.internal:host-gateway\n',
         encoding="utf-8",
     )
     try:
@@ -168,21 +168,29 @@ def main() -> int:
             runner.run("preflight-ingress", preflight)
             runner.run("api-build", compose(project, "build", "api"))
             runner.run("web-build", compose(project, "build", "web"))
-            runner.run(
-                "services",
-                compose(
-                    project,
-                    "up",
-                    "-d",
-                    "--wait",
-                    "postgres",
-                    "kafka",
-                    "migrate",
-                    "api",
-                    "web",
-                    "ingress",
-                ),
-            )
+            try:
+                runner.run(
+                    "services",
+                    compose(
+                        project,
+                        "up",
+                        "-d",
+                        "--wait",
+                        "postgres",
+                        "kafka",
+                        "migrate",
+                        "api",
+                        "ingestion",
+                        "web",
+                        "ingress",
+                    ),
+                )
+            except RuntimeError:
+                runner.run(
+                    "service-diagnostics", compose(project, "logs", "--no-color", "web", "ingress")
+                )
+                runner.run("service-state", compose(project, "ps", "web", "ingress"))
+                raise
             runner.run(
                 "keycloak-network",
                 [
@@ -211,18 +219,23 @@ def main() -> int:
                     "'http://127.0.0.1:8000/health/ready', timeout=5)",
                 ),
             )
-            runner.run(
-                "web-api-ready",
-                compose(
-                    project,
-                    "exec",
-                    "-T",
-                    "web",
-                    "node",
-                    "-e",
-                    "fetch('http://api:8000/health/ready', { headers: { authorization: `Bearer ${process.env.TITAN_READ_TOKEN}` }, signal: AbortSignal.timeout(5000) }).then(r => { console.log(r.status); process.exit(r.status === 200 ? 0 : 1) }).catch(e => { console.error(e.name); process.exit(1) })",
-                ),
-            )
+            try:
+                runner.run(
+                    "web-api-ready",
+                    compose(
+                        project,
+                        "exec",
+                        "-T",
+                        "web",
+                        "node",
+                        "-e",
+                        "fetch('http://api:8000/health/ready', { headers: { authorization: `Bearer ${process.env.TITAN_READ_TOKEN}` }, signal: AbortSignal.timeout(5000) }).then(r => { console.log(r.status); process.exit(r.status === 200 ? 0 : 1) }).catch(e => { console.error(e.name); process.exit(1) })",
+                    ),
+                )
+            except RuntimeError:
+                runner.run("web-diagnostics", compose(project, "logs", "--no-color", "web"))
+                runner.run("web-state", compose(project, "ps", "web"))
+                raise
             direct_probe = runner.run(
                 "direct-api-probe",
                 compose(
@@ -278,6 +291,60 @@ console.log(JSON.stringify({attempts:out.length,elapsed_ms:Date.now()-started,re
                     str(tls_dir / "ca.crt"),
                 ],
             )
+            admin_operation = runner.run(
+                "admin-operation",
+                compose(
+                    project,
+                    "exec",
+                    "-T",
+                    "api",
+                    "python",
+                    "-c",
+                    """import json, os, time, urllib.error, urllib.request
+import psycopg
+from event_generator.generator import generate_orders
+event = generate_orders(1, seed=99101)[0].model_dump(mode='json')
+event['source'] = 'synthetic.protected-admin'
+event_id = event['event_id']
+publish_request = urllib.request.Request(
+    'http://127.0.0.1:8000/api/v1/ingestion/events',
+    data=json.dumps(event).encode(),
+    headers={'Authorization': f"Bearer {os.environ['TITAN_WRITE_TOKEN']}", 'Content-Type': 'application/json'},
+    method='POST',
+)
+with urllib.request.urlopen(publish_request, timeout=10) as response:
+    if response.status != 202:
+        raise RuntimeError(f'protected event publish failed: HTTP {response.status}')
+database_url = os.environ['DATABASE_URL'].replace('postgresql+psycopg://', 'postgresql://', 1)
+deadline = time.monotonic() + 60
+while time.monotonic() < deadline:
+    with psycopg.connect(database_url) as connection:
+        row = connection.execute('select event_id from commerce_events where event_id = %s', (event_id,)).fetchone()
+    if row is not None:
+        break
+    time.sleep(1)
+else:
+    raise RuntimeError('published acceptance event was not persisted')
+request = urllib.request.Request(
+    'http://127.0.0.1:8000/api/v1/ingestion/replays',
+    data=json.dumps({'event_ids': [event_id]}).encode(),
+    headers={'Authorization': f"Bearer {os.environ['TITAN_ADMIN_TOKEN']}", 'Content-Type': 'application/json'},
+    method='POST',
+)
+try:
+    with urllib.request.urlopen(request, timeout=10) as response:
+        status = response.status
+        body = json.load(response)
+except urllib.error.HTTPError as error:
+    status = error.code
+    body = json.loads(error.read().decode())
+item = body.get('items', [{}])[0]
+if status != 200 or item.get('outcome') != 'published':
+    raise RuntimeError(f'admin replay failed: HTTP {status} {body}')
+print(json.dumps({'status': status, 'event_id': event_id, 'outcome': item['outcome'], 'downstream_state': item.get('downstream_state')}))""",
+                ),
+            )
+            (work / "admin-operation.json").write_text(admin_operation, encoding="utf-8")
             if args.browser_smoke:
                 ca_file = tls_dir / "ca.crt"
                 certificate = x509.load_pem_x509_certificate(ca_file.read_bytes())

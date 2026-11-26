@@ -5,8 +5,11 @@ import { Shell } from "@/components/shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TITAN",
-  description: "Local data operations console for synthetic commerce events",
+  title: {
+    default: "TITAN · Data Intelligence",
+    template: "%s · TITAN",
+  },
+  description: "TITAN enterprise data intelligence and operations console",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

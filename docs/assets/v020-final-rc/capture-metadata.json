@@ -1,0 +1,197 @@
+{
+  "base_url": "http://localhost:23000",
+  "captures": [
+    {
+      "route": "/",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "overview-dark-1440x900-full.png",
+      "heading": "Overview",
+      "body_chars": 2889
+    },
+    {
+      "route": "/",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "overview-dark-390x844-full.png",
+      "heading": "Overview",
+      "body_chars": 2817
+    },
+    {
+      "route": "/",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "overview-light-1440x900-full.png",
+      "heading": "Overview",
+      "body_chars": 2889
+    },
+    {
+      "route": "/streaming",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "streaming-dark-1440x900-full.png",
+      "heading": "Event streaming",
+      "body_chars": 4404
+    },
+    {
+      "route": "/streaming",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "streaming-dark-390x844-full.png",
+      "heading": "Event streaming",
+      "body_chars": 4347
+    },
+    {
+      "route": "/streaming",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "streaming-light-1440x900-full.png",
+      "heading": "Event streaming",
+      "body_chars": 4404
+    },
+    {
+      "route": "/data-sources",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "data-sources-dark-1440x900-full.png",
+      "heading": "Data sources",
+      "body_chars": 998
+    },
+    {
+      "route": "/data-sources",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "data-sources-dark-390x844-full.png",
+      "heading": "Data sources",
+      "body_chars": 861
+    },
+    {
+      "route": "/data-sources",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "data-sources-light-1440x900-full.png",
+      "heading": "Data sources",
+      "body_chars": 998
+    },
+    {
+      "route": "/pipelines",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "pipelines-dark-1440x900-full.png",
+      "heading": "Pipelines",
+      "body_chars": 1962
+    },
+    {
+      "route": "/pipelines",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "pipelines-dark-390x844-full.png",
+      "heading": "Pipelines",
+      "body_chars": 1858
+    },
+    {
+      "route": "/pipelines",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "pipelines-light-1440x900-full.png",
+      "heading": "Pipelines",
+      "body_chars": 1962
+    },
+    {
+      "route": "/warehouse",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "warehouse-dark-1440x900-full.png",
+      "heading": "Warehouse analytics",
+      "body_chars": 2038
+    },
+    {
+      "route": "/warehouse",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "warehouse-dark-390x844-full.png",
+      "heading": "Warehouse analytics",
+      "body_chars": 1948
+    },
+    {
+      "route": "/warehouse",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "warehouse-light-1440x900-full.png",
+      "heading": "Warehouse analytics",
+      "body_chars": 2038
+    },
+    {
+      "route": "/data-quality",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "data-quality-dark-1440x900-full.png",
+      "heading": "Data quality",
+      "body_chars": 6638
+    },
+    {
+      "route": "/data-quality",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "data-quality-dark-390x844-full.png",
+      "heading": "Data quality",
+      "body_chars": 6581
+    },
+    {
+      "route": "/data-quality",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "data-quality-light-1440x900-full.png",
+      "heading": "Data quality",
+      "body_chars": 6638
+    },
+    {
+      "route": "/monitoring",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "monitoring-dark-1440x900-full.png",
+      "heading": "Monitoring",
+      "body_chars": 1676
+    },
+    {
+      "route": "/monitoring",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "monitoring-dark-390x844-full.png",
+      "heading": "Monitoring",
+      "body_chars": 1619
+    },
+    {
+      "route": "/monitoring",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "monitoring-light-1440x900-full.png",
+      "heading": "Monitoring",
+      "body_chars": 1676
+    },
+    {
+      "route": "/ml",
+      "theme": "dark",
+      "viewport": "1440x900",
+      "file": "machine-learning-dark-1440x900-full.png",
+      "heading": "Machine Learning",
+      "body_chars": 5279
+    },
+    {
+      "route": "/ml",
+      "theme": "dark",
+      "viewport": "390x844",
+      "file": "machine-learning-dark-390x844-full.png",
+      "heading": "Machine Learning",
+      "body_chars": 5222
+    },
+    {
+      "route": "/ml",
+      "theme": "light",
+      "viewport": "1440x900",
+      "file": "machine-learning-light-1440x900-full.png",
+      "heading": "Machine Learning",
+      "body_chars": 5279
+    }
+  ]
+}

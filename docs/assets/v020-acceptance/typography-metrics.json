@@ -1,0 +1,370 @@
+{
+  "overview": {
+    "h1": {
+      "fontSize": "28px",
+      "lineHeight": "32.2px",
+      "fontWeight": "650",
+      "height": "32.1875px",
+      "padding": "0px"
+    },
+    ".panel-head h3": {
+      "fontSize": "15px",
+      "lineHeight": "20.25px",
+      "fontWeight": "650",
+      "height": "20.25px",
+      "padding": "0px"
+    },
+    ".panel-head p": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "17.3906px",
+      "padding": "0px"
+    },
+    "table th": {
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "fontWeight": "600",
+      "height": "44px",
+      "padding": "0px 16px"
+    },
+    "table td": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "400",
+      "height": "48px",
+      "padding": "0px 16px"
+    },
+    ".status": {
+      "fontSize": "12px",
+      "lineHeight": "15px",
+      "fontWeight": "600",
+      "height": "15px",
+      "padding": "0px"
+    },
+    ".button": null,
+    "select": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "height": "33px",
+      "padding": "0px 27px 0px 10px"
+    },
+    ".nav-group a": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "500",
+      "height": "38px",
+      "padding": "0px 10px"
+    },
+    ".kpi-value": {
+      "fontSize": "30px",
+      "lineHeight": "36px",
+      "fontWeight": "600",
+      "height": "36px",
+      "padding": "0px"
+    },
+    ".copy-id code": {
+      "fontSize": "12px",
+      "lineHeight": "16.2px",
+      "fontWeight": "400",
+      "height": "16.1875px",
+      "padding": "0px"
+    },
+    ".chart-legend span": null,
+    ".axis-text": null,
+    ".empty-state": null
+  },
+  "warehouse": {
+    "h1": {
+      "fontSize": "28px",
+      "lineHeight": "32.2px",
+      "fontWeight": "650",
+      "height": "32.1875px",
+      "padding": "0px"
+    },
+    ".panel-head h3": {
+      "fontSize": "15px",
+      "lineHeight": "20.25px",
+      "fontWeight": "650",
+      "height": "20.25px",
+      "padding": "0px"
+    },
+    ".panel-head p": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "17.3906px",
+      "padding": "0px"
+    },
+    "table th": {
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "fontWeight": "600",
+      "height": "44px",
+      "padding": "0px 16px"
+    },
+    "table td": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "400",
+      "height": "48px",
+      "padding": "0px 16px"
+    },
+    ".status": {
+      "fontSize": "12px",
+      "lineHeight": "15px",
+      "fontWeight": "600",
+      "height": "15px",
+      "padding": "0px"
+    },
+    ".button": null,
+    "select": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "height": "33px",
+      "padding": "0px 27px 0px 10px"
+    },
+    ".nav-group a": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "500",
+      "height": "38px",
+      "padding": "0px 10px"
+    },
+    ".kpi-value": null,
+    ".copy-id code": {
+      "fontSize": "12px",
+      "lineHeight": "16.2px",
+      "fontWeight": "400",
+      "height": "16.1875px",
+      "padding": "0px"
+    },
+    ".chart-legend span": null,
+    ".axis-text": null,
+    ".empty-state": null
+  },
+  "data-quality": {
+    "h1": {
+      "fontSize": "28px",
+      "lineHeight": "32.2px",
+      "fontWeight": "650",
+      "height": "32.1875px",
+      "padding": "0px"
+    },
+    ".panel-head h3": {
+      "fontSize": "15px",
+      "lineHeight": "20.25px",
+      "fontWeight": "650",
+      "height": "20.25px",
+      "padding": "0px"
+    },
+    ".panel-head p": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "17.3906px",
+      "padding": "0px"
+    },
+    "table th": {
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "fontWeight": "600",
+      "height": "44px",
+      "padding": "0px 16px"
+    },
+    "table td": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "400",
+      "height": "48px",
+      "padding": "0px 16px"
+    },
+    ".status": {
+      "fontSize": "12px",
+      "lineHeight": "15px",
+      "fontWeight": "600",
+      "height": "15px",
+      "padding": "0px"
+    },
+    ".button": null,
+    "select": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "height": "33px",
+      "padding": "0px 27px 0px 10px"
+    },
+    ".nav-group a": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "500",
+      "height": "38px",
+      "padding": "0px 10px"
+    },
+    ".kpi-value": null,
+    ".copy-id code": {
+      "fontSize": "12px",
+      "lineHeight": "16.2px",
+      "fontWeight": "400",
+      "height": "16.1875px",
+      "padding": "0px"
+    },
+    ".chart-legend span": null,
+    ".axis-text": null,
+    ".empty-state": null
+  },
+  "machine-learning": {
+    "h1": {
+      "fontSize": "28px",
+      "lineHeight": "32.2px",
+      "fontWeight": "650",
+      "height": "32.1875px",
+      "padding": "0px"
+    },
+    ".panel-head h3": {
+      "fontSize": "15px",
+      "lineHeight": "20.25px",
+      "fontWeight": "650",
+      "height": "20.25px",
+      "padding": "0px"
+    },
+    ".panel-head p": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "17.3906px",
+      "padding": "0px"
+    },
+    "table th": {
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "fontWeight": "600",
+      "height": "44px",
+      "padding": "0px 16px"
+    },
+    "table td": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "400",
+      "height": "48px",
+      "padding": "0px 16px"
+    },
+    ".status": {
+      "fontSize": "12px",
+      "lineHeight": "15px",
+      "fontWeight": "600",
+      "height": "15px",
+      "padding": "0px"
+    },
+    ".button": null,
+    "select": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "height": "33px",
+      "padding": "0px 27px 0px 10px"
+    },
+    ".nav-group a": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "500",
+      "height": "38px",
+      "padding": "0px 10px"
+    },
+    ".kpi-value": {
+      "fontSize": "30px",
+      "lineHeight": "36px",
+      "fontWeight": "600",
+      "height": "36px",
+      "padding": "0px"
+    },
+    ".copy-id code": {
+      "fontSize": "12px",
+      "lineHeight": "16.2px",
+      "fontWeight": "400",
+      "height": "16.1875px",
+      "padding": "0px"
+    },
+    ".chart-legend span": null,
+    ".axis-text": null,
+    ".empty-state": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "47.3906px",
+      "padding": "15px"
+    }
+  },
+  "monitoring": {
+    "h1": {
+      "fontSize": "28px",
+      "lineHeight": "32.2px",
+      "fontWeight": "650",
+      "height": "32.1875px",
+      "padding": "0px"
+    },
+    ".panel-head h3": {
+      "fontSize": "15px",
+      "lineHeight": "20.25px",
+      "fontWeight": "650",
+      "height": "20.25px",
+      "padding": "0px"
+    },
+    ".panel-head p": {
+      "fontSize": "12px",
+      "lineHeight": "17.4px",
+      "fontWeight": "400",
+      "height": "17.3906px",
+      "padding": "0px"
+    },
+    "table th": {
+      "fontSize": "12px",
+      "lineHeight": "15.6px",
+      "fontWeight": "600",
+      "height": "44px",
+      "padding": "0px 16px"
+    },
+    "table td": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "400",
+      "height": "48px",
+      "padding": "0px 16px"
+    },
+    ".status": {
+      "fontSize": "12px",
+      "lineHeight": "15px",
+      "fontWeight": "600",
+      "height": "15px",
+      "padding": "0px"
+    },
+    ".button": null,
+    "select": {
+      "fontSize": "13px",
+      "lineHeight": "normal",
+      "fontWeight": "400",
+      "height": "33px",
+      "padding": "0px 27px 0px 10px"
+    },
+    ".nav-group a": {
+      "fontSize": "13px",
+      "lineHeight": "16.9px",
+      "fontWeight": "500",
+      "height": "38px",
+      "padding": "0px 10px"
+    },
+    ".kpi-value": {
+      "fontSize": "30px",
+      "lineHeight": "36px",
+      "fontWeight": "600",
+      "height": "36px",
+      "padding": "0px"
+    },
+    ".copy-id code": null,
+    ".chart-legend span": null,
+    ".axis-text": null,
+    ".empty-state": null
+  }
+}

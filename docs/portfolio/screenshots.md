@@ -16,3 +16,12 @@ The development volumes were already populated. This capture did not reset them 
 | [data-sources.png](../assets/data-sources.png) | `/data-sources` | Data sources |
 
 The frames show the publication id, separate currency totals, and `seasonal_naive`. They do not show a token or a password. A later `scripts/demo_day7.py` run replaces the publication id; recapture after that run instead of reusing these files.
+
+## v0.2.0 acceptance capture
+
+On 2026-11-26 the redesigned console was reviewed live at `http://localhost:23000`.
+All eight routes rendered real API data from the local publication. The responsive
+audit covered 1440×900, 1024×768, 768×1024, and 390×844 with zero axe violations;
+the narrow view confirmed the mobile header, stacked KPI cards, and collapsible
+navigation. This review is acceptance evidence for the redesign candidate and is
+not a release publication.

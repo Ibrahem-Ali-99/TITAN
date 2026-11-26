@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import urllib.request
+from typing import cast
 
 from playwright.sync_api import sync_playwright
 
@@ -97,6 +98,7 @@ def main() -> None:
                     findings.append(_layout(viewport, path, "console-error", console_errors[:5]))
                 if path == "/":
                     _keyboard(page, findings, notes, viewport)
+                    _theme(page, findings, notes, viewport, base)
                 if path == "/data-sources":
                     _csv_validation(page, findings, notes, viewport)
                 if path == "/warehouse":
@@ -180,6 +182,66 @@ def _csv_validation(
     notes.append({"viewport": viewport, "csv_validation": validity})
     if validity["label"] != "CSV file" or validity["blocked"] is not True:
         findings.append(_layout(viewport, "/data-sources", "csv-validation", validity))
+
+
+def _theme(
+    page: object,
+    findings: list[dict[str, object]],
+    notes: list[dict[str, object]],
+    viewport: str,
+    base: str,
+) -> None:
+    page.evaluate("() => localStorage.setItem('titan-theme', 'dark')")  # type: ignore[attr-defined]
+    page.reload(wait_until="networkidle")  # type: ignore[attr-defined]
+    dark = _theme_snapshot(page)
+    page.get_by_role("button", name="Use light theme").click()  # type: ignore[attr-defined]
+    page.wait_for_timeout(100)  # type: ignore[attr-defined]
+    light = _theme_snapshot(page)
+    page.goto(f"{base}/streaming", wait_until="networkidle")  # type: ignore[attr-defined]
+    persisted = _theme_snapshot(page)
+    page.reload(wait_until="networkidle")  # type: ignore[attr-defined]
+    refreshed = _theme_snapshot(page)
+    page.get_by_role("button", name="Use dark theme").click()  # type: ignore[attr-defined]
+    note = {
+        "viewport": viewport,
+        "dark": dark,
+        "light": light,
+        "persisted": persisted,
+        "refreshed": refreshed,
+    }
+    notes.append({"theme": note})
+    required = ("background", "surface", "text", "border")
+    if (
+        dark["theme"] != "dark"
+        or light["theme"] != "light"
+        or persisted["theme"] != "light"
+        or refreshed["theme"] != "light"
+    ):
+        findings.append(_layout(viewport, "/", "theme-state", note))
+    if any(dark[key] == light[key] for key in required):
+        findings.append(_layout(viewport, "/", "theme-colors", note))
+    page.goto(f"{base}/", wait_until="networkidle")  # type: ignore[attr-defined]
+
+
+def _theme_snapshot(page: object) -> dict[str, str]:
+    return cast(
+        dict[str, str],
+        page.evaluate(  # type: ignore[attr-defined]
+            """() => {
+            const app = document.querySelector('.app');
+            const card = document.querySelector('.card');
+            const text = document.querySelector('h1');
+            const style = (element) => element ? getComputedStyle(element) : null;
+            return {
+                theme: document.documentElement.dataset.theme || '',
+                background: style(app)?.backgroundColor || '',
+                surface: style(card)?.backgroundColor || '',
+                text: style(text)?.color || '',
+                border: style(card)?.borderTopColor || ''
+            };
+        }"""
+        ),
+    )
 
 
 if __name__ == "__main__":

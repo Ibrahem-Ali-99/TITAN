@@ -12,7 +12,7 @@ services:
       - ingress_tls:/etc/nginx/tls:ro
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nginx -t"]
       interval: 10s
