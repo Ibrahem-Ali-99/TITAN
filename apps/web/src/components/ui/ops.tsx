@@ -49,7 +49,7 @@ export function LoadingState({ label }: { label: string }) {
 }
 
 export function ErrorState({ title, detail }: { title: string; detail: string | null }) {
-  return <section className="state-notice error"><span className="state-icon" aria-hidden>!</span><div><b>{title}</b><p>No substitute figures are shown.</p>{detail ? <pre>{detail}</pre> : null}</div><StatusPill tone="bad">Unavailable</StatusPill></section>;
+  return <section className="state-notice error"><span className="state-icon" aria-hidden>!</span><div><b>{title}</b><p>Live values are unavailable.</p>{detail ? <pre>{detail}</pre> : null}</div><StatusPill tone="bad">Unavailable</StatusPill></section>;
 }
 
 export function Notice({ children }: { children: ReactNode }) {
@@ -74,8 +74,8 @@ export function SectionTitle({ title, detail }: { title: string; detail?: string
   return <div className="section-title"><h2>{title}</h2>{detail ? <p>{detail}</p> : null}</div>;
 }
 
-export function DataTable({ children, label }: { children: ReactNode; label: string }) {
-  return <div className="table-wrap" role="region" aria-label={label} tabIndex={0}><table>{children}</table></div>;
+export function DataTable({ children, label, className = "" }: { children: ReactNode; label: string; className?: string }) {
+  return <div className={cn("table-wrap", className)} role="region" aria-label={label} tabIndex={0}><table>{children}</table></div>;
 }
 
 export function Th({ children }: { children: ReactNode }) { return <th>{children}</th>; }

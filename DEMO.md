@@ -22,6 +22,17 @@ Wait until `/api/v1/warehouse/status` returns `"ready": true` and `/api/v1/ml/mo
 
 Replay and CSV resume stay closed until `TITAN_ADMIN_TOKEN` is set and the API container is recreated. The demo publishes through the open REST ingestion route and does not call replay.
 
+## Populate the live throughput charts
+
+For a portfolio walkthrough, publish a short burst of unique orders, matching payments, and inventory updates through the real authenticated REST/Kafka path. It preserves existing rows and spaces arrivals across current UTC minute buckets:
+
+```powershell
+$env:API_BASE_URL = "http://localhost:18000"
+uv run python -m scripts.demo_traffic --orders 8 --interval 6
+```
+
+The command waits for persistence and fails unless current activity buckets are returned. It is intentionally separate from the warehouse publication demo because Overview and Streaming visualize ingestion-time activity, while Warehouse visualizes the last published snapshot.
+
 ## Run
 
 ```powershell

@@ -94,7 +94,7 @@ export function DataSourcesDashboard() {
       {tab === "CSV upload" ? <div className="upload-layout">
         <Panel title="Upload a CSV" detail="The API validates rows before publication">
           <form onSubmit={onSubmit} className="p-4">
-            <label htmlFor="csv-file" className="dropzone"><span className="drop-icon">⇧</span><strong>{fileName ?? "Choose a CSV file"}</strong><small>Drag and drop is supported by the browser label · maximum 500 rows or 1 MiB</small><span className="button">Browse files</span></label>
+            <label htmlFor="csv-file" className="dropzone"><span className="drop-icon">⇧</span><strong>{fileName ?? "Choose a CSV file"}</strong><small>CSV files up to 500 rows or 1 MiB</small><span className="button">Browse files</span></label>
             <input id="csv-file" className="sr-only" name="file" type="file" accept=".csv,text/csv" required aria-label="CSV file" onChange={(event) => setFileName(event.target.files?.[0]?.name ?? null)} />
             <div className="upload-rules"><span>Validation errors are retained per row</span><span>Publication is asynchronous</span></div>
             <Button type="submit" className="primary mt-4">Upload CSV</Button>

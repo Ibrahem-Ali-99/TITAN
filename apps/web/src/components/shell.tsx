@@ -14,6 +14,8 @@ const groups = [
   { label: "INTELLIGENCE", items: ["/monitoring", "/ml"] },
 ] as const;
 
+const THEME_STORAGE_KEY = "titan-theme";
+
 function Mark() {
   return <span className="logo" aria-hidden><i /><i /><i /></span>;
 }
@@ -43,9 +45,25 @@ export function Shell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [light, setLight] = useState(false);
+  const [themeReady, setThemeReady] = useState(false);
   const [query, setQuery] = useState("");
 
-  useEffect(() => { document.documentElement.dataset.theme = light ? "light" : "dark"; }, [light]);
+  useEffect(() => {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const nextLight = stored === "light";
+    document.documentElement.dataset.theme = nextLight ? "light" : "dark";
+    window.queueMicrotask(() => {
+      setLight(nextLight);
+      setThemeReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!themeReady) return;
+    const theme = light ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [light, themeReady]);
 
   const current = NAV_ITEMS.find((item) => item.href === pathname) ?? NAV_ITEMS[0];
   const title = current.label === "ML & Predictions" ? "Machine Learning" : current.label;

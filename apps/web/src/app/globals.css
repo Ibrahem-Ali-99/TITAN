@@ -15,7 +15,9 @@
   --text:#f1f5f9; --secondary:#c4cedd; --muted:#a6b2c4; --indigo:#6366f1; --cyan:#22d3ee;
   --success:#22c55e; --warning:#f59e0b; --critical:#ef4444;
 }
-.app.light { --bg:#f4f6f9; --sidebar:#fff; --card:#fff; --raised:#f8fafc; --border:#dce2ea; --text:#111827; --secondary:#526076; --muted:#7b8799; }
+.app.light, :root[data-theme="light"] .app { --bg:#f4f6f9; --sidebar:#fff; --card:#fff; --raised:#f8fafc; --border:#dce2ea; --text:#111827; --secondary:#526076; --muted:#7b8799; }
+:root[data-theme="light"] { background:#f4f6f9; color:#111827; }
+:root[data-theme="light"] body { background:#f4f6f9; }
 * { box-sizing:border-box; }
 .app { min-height:100vh; color:var(--text); background:var(--bg); transition:background .2s,color .2s; }
 .sidebar { position:fixed; inset:0 auto 0 0; width:236px; background:var(--sidebar); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:30; transition:width .22s ease; }
@@ -157,7 +159,7 @@ html, body { overflow-x: hidden; }
 .mini-bar-row { display:grid; grid-template-columns:minmax(100px, 1fr) minmax(100px, 2fr) 34px; align-items:center; gap:10px; font-size:11px; }
 .mini-bar-row>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--secondary); }
 .mini-bar-row>i { height:8px; border-radius:4px; background:var(--border); overflow:hidden; }
-.mini-bar-row>i>b { display:block; height:100%; border-radius:4px; background:var(--accent); }
+.mini-bar-row>i>b { display:block; height:100%; border-radius:4px; background:var(--indigo); transition:width .2s ease; }
 .mini-bar-row>strong { font:11px "JetBrains Mono"; color:var(--text); text-align:right; }
 .json-preview { max-height:260px; overflow:auto; margin:14px 0; padding:14px; border:1px solid var(--border); border-radius:5px; background:var(--raised); color:var(--secondary); font:11px/1.5 "JetBrains Mono"; white-space:pre-wrap; }
 .quality-score small { color:var(--secondary); font:10px "JetBrains Mono"; }
@@ -293,6 +295,16 @@ table td code { font-size: var(--type-technical); }
 .quality-evidence div { min-width:220px; max-width:360px; padding:8px; border:1px solid var(--border); border-radius:5px; background:var(--raised); }
 .quality-evidence p { margin:5px 0; color:var(--secondary); font-size:var(--type-support); line-height:var(--leading-body); white-space:normal; }
 .quality-evidence code, .table-subtext code { color:var(--secondary); overflow-wrap:anywhere; }
+.quality-checks-table table { table-layout:fixed; }
+.quality-checks-table th, .quality-checks-table td { white-space:normal; vertical-align:top; }
+.quality-checks-table th:nth-child(1), .quality-checks-table td:nth-child(1) { width:23%; }
+.quality-checks-table th:nth-child(2), .quality-checks-table td:nth-child(2) { width:12%; }
+.quality-checks-table th:nth-child(3), .quality-checks-table td:nth-child(3) { width:12%; }
+.quality-checks-table th:nth-child(4), .quality-checks-table td:nth-child(4) { width:10%; }
+.quality-checks-table th:nth-child(5), .quality-checks-table td:nth-child(5) { width:28%; }
+.quality-checks-table th:nth-child(6), .quality-checks-table td:nth-child(6) { width:15%; }
+.quality-checks-table td { min-height:52px; padding-top:13px; padding-bottom:13px; }
+.quality-checks-table .quality-evidence summary { white-space:nowrap; }
 @media (max-width: 560px) { .quality-filters { align-items:stretch; flex-direction:column; } .quality-filters input { min-width:0; width:100%; } }
 .search-results button span, .search-results>span { font-size: var(--type-support); }
 .search-results button small { font-size: var(--type-table-head); }
@@ -307,6 +319,8 @@ table td code { font-size: var(--type-technical); }
   table th { font-size: var(--type-table-head); }
   table td { font-size: var(--type-table-head); }
   .copy-id code { max-width: 18ch; }
+  .quality-checks-table { overflow-x:auto; }
+  .quality-checks-table table { min-width:760px; }
 }
 
 /* v0.2.0 release-candidate closure: explicit scope, timing, and small-screen composition. */
@@ -324,6 +338,8 @@ table td code { font-size: var(--type-technical); }
 .app.light .status.critical { color:#b91c1c; }
 .app.light .status.info { color:#4338ca; }
 .app.light .status.neutral { color:#526076; }
+.app.light .nav-group button { color:#475569; }
+.app.light .nav-group button.active { color:#4338ca; }
 .app.light .prototype-note { color:#b45309; }
 .app.light .evaluation-note { color:#15803d; }
 .source-card { grid-template-columns:38px minmax(0,1fr) auto; }

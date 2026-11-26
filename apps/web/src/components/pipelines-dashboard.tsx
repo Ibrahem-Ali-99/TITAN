@@ -66,7 +66,7 @@ export function PipelinesDashboard() {
       {error ? <p className="prototype-note"><span>⚠ The latest refresh failed. {error}</span></p> : null}
       <div className="kpi-grid">
         <Kpi label="Running executions" value={formatCount(running)} trend="Current page" tone="indigo" footnote="Recorded warehouse runs" />
-        <Kpi label="Successful runs" value={formatCount(succeeded)} trend="Recorded" tone="green" footnote="No substitute figures" />
+        <Kpi label="Successful runs" value={formatCount(succeeded)} trend="Recorded" tone="green" footnote="Recorded executions" />
         <Kpi label="Failed runs" value={formatCount(failed)} trend={failed ? "Review" : "Clear"} tone={failed ? "amber" : "green"} footnote={`${stale} stale · attempt history`} />
         <Kpi label="Median duration" value={formatDuration(median)} trend={`${durations.length} samples`} tone="cyan" footnote="Recorded durations" />
       </div>
@@ -74,7 +74,7 @@ export function PipelinesDashboard() {
         <div className="stage-flow" tabIndex={0} aria-label="Processing stages">{stages.map((stage, index) => { const value = stage.state.toLowerCase(); const cls = value.includes("ready") || value.includes("succeed") ? "done" : value.includes("run") ? "running" : ""; return <div className={`stage ${cls}`} key={stage.name}><div>{String(index + 1).padStart(2, "0")}</div>{index < stages.length - 1 ? <span className="stage-line" /> : null}<b>{stage.name}</b><small>{stage.state}</small></div>; })}</div>
       </Panel>
       <div className="two-col lower">
-        <Panel title="Execution history" detail="The returned Dagster and warehouse run evidence">
+        <Panel title="Execution history" detail="Dagster and warehouse run history">
           {runs.length ? <DataTable label="Pipeline execution history"><thead><tr><Th>Started UTC</Th><Th>Job</Th><Th>State</Th><Th>Duration</Th></tr></thead><tbody>{runs.map((run) => { const view = classifyRun({ ...run, recovered: hasLaterSuccess(run, runs) }); return <tr key={run.id}><Td className="font-mono"><b>{formatUtc(run.started_at)}</b></Td><Td>{run.job_name}</Td><Td><StatusBadge tone={view.tone}>{view.label}</StatusBadge></Td><Td>{formatDuration(run.duration_ms)}</Td></tr>; })}</tbody></DataTable> : <Empty>No warehouse or Dagster attempt is in the returned page.</Empty>}
         </Panel>
         <Panel title="Publication lineage" detail="Identifiers are from the active API response" action={<a className="text-btn" href="http://localhost:3002" target="_blank" rel="noreferrer">Open Dagster</a>}>

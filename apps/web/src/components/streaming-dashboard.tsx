@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityChart } from "@/components/ui/charts";
 import { DataTable, Empty, ErrorState, LoadingState, MetaList, Notice, PageHeader, Panel, ScopeBar, StatusBadge, StatusPill, Td, TechnicalDetails, Th } from "@/components/ui/ops";
 import { ApiError, getJson } from "@/lib/api";
+import { distributionBarWidth } from "@/lib/streaming";
 import type { IngestionStats, QuarantineList, RecentEvent, RecentEventsResponse, ReplayList } from "@/lib/types";
 import { formatCount, formatUtc } from "@/lib/utils";
 
@@ -87,14 +88,14 @@ export function StreamingDashboard() {
         <Panel title="Event throughput" detail="Persisted events in the returned minute buckets" action={<StatusPill tone="info">UTC · observed</StatusPill>}>
           <div className="p-4"><ActivityChart points={stats.recent_activity.map((point) => ({ label: point.minute, persisted: point.persisted_events }))} /></div>
         </Panel>
-        <Panel title="Event distribution" detail="Event types in the API's returned recent page">
+        <Panel title="Event distribution" detail="Event types across the current event page">
           <div className="mini-bars p-4" aria-label="Recent event type distribution">
-            {distribution.length ? distribution.map(([name, count]) => <div key={name} className="mini-bar-row"><span>{formatEventType(name)}</span><i><b style={{ width: `${Math.max(8, (count / distribution[0][1]) * 100)}%` }} /></i><strong>{count}</strong></div>) : <Empty>No recent events returned.</Empty>}
+            {distribution.length ? distribution.map(([name, count]) => <div key={name} className="mini-bar-row"><span>{formatEventType(name)}</span><i aria-hidden><b style={{ width: distributionBarWidth(count, distribution[0][1]) }} /></i><strong>{count}</strong></div>) : <Empty>No recent events returned.</Empty>}
           </div>
         </Panel>
       </div>
 
-      <Panel title="Recent event stream" detail="Persisted events from the API page (up to 100); search, filter, then paginate" action={<StatusPill tone="info">{visibleEvents.length} matching / {events.items.length} returned</StatusPill>}>
+      <Panel title="Recent event stream" detail="Latest persisted events · search, filter, then paginate" action={<StatusPill tone="info">{visibleEvents.length} matching / {events.items.length} loaded</StatusPill>}>
         <div className="table-tools streaming-tools p-4 pb-0"><input className="small-search" aria-label="Search recent events" placeholder="Search event, order or source" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /><select aria-label="Filter event type" value={eventType} onChange={(event) => { setEventType(event.target.value); setPage(1); }}>{eventTypes.map((item) => <option key={item} value={item}>{item === "all" ? "All event types" : formatEventType(item)}</option>)}</select></div>
         {visibleEvents.length ? <><DataTable label="Recent event stream"><thead><tr><Th>Ingested UTC</Th><Th>Type</Th><Th>Order</Th><Th>Source</Th><Th>Disposition</Th><Th>Amount</Th><Th>Topic / offset</Th></tr></thead><tbody>{pagedEvents.map((item) => <tr key={item.event_id} tabIndex={0} aria-label={`Inspect ${formatEventType(item.event_type)} ${item.event_id}`} onClick={() => setSelectedEvent(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedEvent(item); }}><Td className="font-mono text-xs">{formatUtc(item.ingested_at)}</Td><Td>{formatEventType(item.event_type)}</Td><Td className="font-mono text-xs">{item.order_id ?? "—"}</Td><Td>{item.source}</Td><Td><StatusBadge tone={item.disposition === "accepted" || item.disposition === "persisted" ? "ok" : item.disposition.includes("quarantine") ? "warn" : "neutral"}>{formatDisposition(item.disposition)}</StatusBadge></Td><Td>{item.total_amount ? `${item.total_amount} ${item.currency ?? ""}` : "—"}</Td><Td className="font-mono text-xs">{item.kafka_topic}:{item.kafka_offset}</Td></tr>)}</tbody></DataTable><div className="table-footer" aria-label="Recent event pagination"><span>Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, visibleEvents.length)} of {visibleEvents.length} matching returned records</span><div><button type="button" aria-label="Previous event page" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>‹</button><span aria-live="polite">Page {currentPage} of {pageCount}</span><button type="button" aria-label="Next event page" disabled={currentPage === pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>›</button></div></div></> : <Empty>No persisted events match this filter.</Empty>}
       </Panel>
