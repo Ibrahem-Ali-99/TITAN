@@ -36,6 +36,8 @@ HYPERPARAMETERS = {
     "random_state": 51022,
 }
 
+FORECAST_KIND = "forecast"
+
 
 def train_demand_model() -> str:
     database_url = _database_url()
@@ -174,9 +176,9 @@ def _store_forward(
                     insert into ml_predictions (
                         run_id, product_id, target_date, predicted_quantity,
                         actual_quantity, kind, generated_at
-                    ) values (%s, %s, %s, %s, null, 'recursive_forecast', %s)
+                    ) values (%s, %s, %s, %s, null, %s, %s)
                     """,
-                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", now),
+                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", FORECAST_KIND, now),
                 )
         connection.commit()
 
@@ -203,9 +205,9 @@ def _store_forward_naive(
                     insert into ml_predictions (
                         run_id, product_id, target_date, predicted_quantity,
                         actual_quantity, kind, generated_at
-                    ) values (%s, %s, %s, %s, null, 'recursive_forecast', %s)
+                    ) values (%s, %s, %s, %s, null, %s, %s)
                     """,
-                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", now),
+                    (run_id, product_id, cursor.isoformat(), f"{predicted:.3f}", FORECAST_KIND, now),
                 )
         connection.commit()
 
