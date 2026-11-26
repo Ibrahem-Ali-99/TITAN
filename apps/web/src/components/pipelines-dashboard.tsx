@@ -37,9 +37,11 @@ export function PipelinesDashboard() {
   const runs = warehouse?.recent_runs ?? [];
   const durations = runs.map((run) => run.duration_ms).filter((duration): duration is number => duration !== null).sort((a, b) => a - b);
   const median = durations.length ? durations[Math.floor(durations.length / 2)] : null;
-  const failed = runs.filter((run) => run.state === "failed").length;
-  const running = runs.filter((run) => run.state === "running").length;
-  const succeeded = runs.filter((run) => run.state === "succeeded").length;
+  const classifiedRuns = runs.map((run) => ({ run, view: classifyRun({ ...run, recovered: hasLaterSuccess(run, runs) }) }));
+  const failed = classifiedRuns.filter(({ view }) => view.label === "Failed").length;
+  const running = classifiedRuns.filter(({ view }) => view.label === "Running").length;
+  const stale = classifiedRuns.filter(({ view }) => view.label === "Stale").length;
+  const succeeded = classifiedRuns.filter(({ view }) => view.label === "Succeeded" || view.label === "Recovered").length;
   const bronze = status.spark_jobs.find((job) => job.job_name.toLowerCase().includes("bronze"));
   const silver = status.spark_jobs.find((job) => job.job_name.toLowerCase().includes("silver"));
   const feature = status.spark_jobs.find((job) => job.job_name.toLowerCase().includes("feature"));
@@ -65,7 +67,7 @@ export function PipelinesDashboard() {
       <div className="kpi-grid">
         <Kpi label="Running executions" value={formatCount(running)} trend="Current page" tone="indigo" footnote="Recorded warehouse runs" />
         <Kpi label="Successful runs" value={formatCount(succeeded)} trend="Recorded" tone="green" footnote="No substitute figures" />
-        <Kpi label="Failed runs" value={formatCount(failed)} trend={failed ? "Review" : "Clear"} tone={failed ? "amber" : "green"} footnote="Attempt history" />
+        <Kpi label="Failed runs" value={formatCount(failed)} trend={failed ? "Review" : "Clear"} tone={failed ? "amber" : "green"} footnote={`${stale} stale · attempt history`} />
         <Kpi label="Median duration" value={formatDuration(median)} trend={`${durations.length} samples`} tone="cyan" footnote="Recorded durations" />
       </div>
       <Panel title="Processing stages" detail="Current state of the publication path" action={<StatusPill tone={warehouse?.ready ? "ok" : "warn"}>{warehouse?.ready ? "Ready" : "Pending"}</StatusPill>}>
@@ -75,8 +77,8 @@ export function PipelinesDashboard() {
         <Panel title="Execution history" detail="The returned Dagster and warehouse run evidence">
           {runs.length ? <DataTable label="Pipeline execution history"><thead><tr><Th>Started UTC</Th><Th>Job</Th><Th>State</Th><Th>Duration</Th></tr></thead><tbody>{runs.map((run) => { const view = classifyRun({ ...run, recovered: hasLaterSuccess(run, runs) }); return <tr key={run.id}><Td className="font-mono"><b>{formatUtc(run.started_at)}</b></Td><Td>{run.job_name}</Td><Td><StatusBadge tone={view.tone}>{view.label}</StatusBadge></Td><Td>{formatDuration(run.duration_ms)}</Td></tr>; })}</tbody></DataTable> : <Empty>No warehouse or Dagster attempt is in the returned page.</Empty>}
         </Panel>
-        <Panel title="Publication lineage" detail="Identifiers are from the active API response">
-          <div className="lineage"><div><span>01</span><b>Silver publication</b><small>{current ? <CopyId value={current.publication_id} /> : "None"}</small><span>→</span></div><div><span>02</span><b>Warehouse</b><small>{warehouse?.warehouse_publication_id ? <CopyId value={warehouse.warehouse_publication_id} /> : "None"}</small><span>→</span></div><div><span>03</span><b>Serving</b><small>{warehouse?.ready ? "Validated" : "Not ready"}</small></div></div>
+        <Panel title="Publication lineage" detail="Identifiers are from the active API response" action={<a className="text-btn" href="http://localhost:3002" target="_blank" rel="noreferrer">Open Dagster</a>}>
+          <div className="lineage-flow"><div className="lineage-node"><span>01</span><b>Silver publication</b><small>{current ? <CopyId value={current.publication_id} /> : "None"}</small></div><i className="lineage-connector" aria-hidden>→</i><div className="lineage-node"><span>02</span><b>Warehouse</b><small>{warehouse?.warehouse_publication_id ? <CopyId value={warehouse.warehouse_publication_id} /> : "None"}</small></div><i className="lineage-connector" aria-hidden>→</i><div className="lineage-node"><span>03</span><b>Serving</b><small>{warehouse?.ready ? "Validated" : "Not ready"}</small></div></div>
           <div className="freshness"><span>Publication freshness</span><b>{warehouse?.freshness_seconds == null ? "not recorded" : `${warehouse.freshness_seconds}s`}</b><span className="progress" /></div>
         </Panel>
       </div>

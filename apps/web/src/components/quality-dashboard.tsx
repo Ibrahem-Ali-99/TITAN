@@ -138,7 +138,11 @@ export function QualityDashboard() {
         description="Current validation separated from audit history"
         aside={currentPassed ? <StatusPill tone="ok">Current passed</StatusPill> : current ? <StatusPill tone="bad">Current failed</StatusPill> : <StatusPill tone="warn">No evidence</StatusPill>}
       />
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="quality-hero card mb-4" aria-label="Current quality status">
+        <div className="quality-score"><span>Current publication</span><b>{currentPassed ? "PASS" : current ? "FAIL" : "—"}</b><small>{current ? formatUtc(current.finished_at) : "No current evidence"}</small></div>
+        <div className="quality-breakdown"><div><span>Failed checks</span><b>{formatCount(current?.failure_count ?? null)}</b></div><div><span>Historical failures</span><b>{formatCount(historicalFailures)}</b></div><div><span>Failed finding groups</span><b>{formatCount(groups.length)}</b></div><div><span>Blocking active</span><b>{currentPassed ? "No" : current ? "Review" : "—"}</b></div></div>
+      </section>
+      <div className="kpi-grid">
         <Kpi label="Current checks" value={currentPassed ? "Passed" : current ? "Failed" : "No evidence"} footnote="Serving publication" />
         <Kpi label="Active failures" value={formatCount(current?.failure_count ?? null)} footnote="Blocking incidents" />
         <Kpi label="History" value={historicalFailures > 0 ? "Retained" : "None"} footnote="Test injections" />
@@ -184,7 +188,7 @@ export function QualityDashboard() {
       </div>
       <ScopeBar>Failed historical candidates are not active incidents. Individual findings stay in the execution record.</ScopeBar>
       <div className="mt-4">
-        <TechnicalDetails summary="Execution history and individual findings">
+        <Panel title="Execution history and validation findings" detail="Current run state is visible; historical failures remain distinguishable from active state">
         {runs.length === 0 ? (
           <Empty>No quality run has been recorded.</Empty>
         ) : (
@@ -235,7 +239,7 @@ export function QualityDashboard() {
             </TechnicalDetails>
           </div>
         ) : null}
-        </TechnicalDetails>
+        </Panel>
       </div>
     </div>
   );

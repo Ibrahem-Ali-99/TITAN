@@ -7,7 +7,6 @@ import {
   CopyId,
   Empty,
   ErrorState,
-  Kpi,
   LoadingState,
   MetaList,
   Notice,
@@ -124,22 +123,9 @@ export function WarehouseDashboard() {
         </section>
       ) : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Orders" value={formatCount(status.order_count)} footnote="Accepted" />
-            <Kpi label="Items" value={formatCount(status.item_count)} footnote="Order lines" />
-            <Kpi label="Payments" value={formatCount(status.payment_count)} footnote="Accepted" />
-            <Kpi label="Inventory" value={formatCount(status.inventory_count)} footnote="Events" />
-          </div>
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            {CURRENCIES.map((code) => (
-              <Kpi
-                key={code}
-                label={`${code} revenue`}
-                value={formatMoney(status.accepted_revenue[code], code)}
-                hint="Accepted order total for this currency only."
-              />
-            ))}
-          </div>
+          <section className="metric-strip warehouse-strip card" aria-label="Warehouse metrics" tabIndex={0}>
+            <div><span>Orders</span><b>{formatCount(status.order_count)}</b><small>accepted</small></div><div><span>Items</span><b>{formatCount(status.item_count)}</b><small>order lines</small></div><div><span>Payments</span><b>{formatCount(status.payment_count)}</b><small>accepted</small></div><div><span>Inventory</span><b>{formatCount(status.inventory_count)}</b><small>events</small></div>{CURRENCIES.map((code) => <div key={code}><span>{code} revenue</span><b>{formatMoney(status.accepted_revenue[code], code)}</b><small>currency separated</small></div>)}
+          </section>
           <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.7fr)]">
             <Panel
               title="Order activity by event time"

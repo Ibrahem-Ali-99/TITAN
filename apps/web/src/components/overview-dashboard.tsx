@@ -169,8 +169,9 @@ export function OverviewDashboard() {
   const serviceState = (name: string) => snapshot.ready.checks[name] ?? "unavailable";
   const pipelineNode = (label: string, detail: string, state: string) => ({ label, detail, state });
   const nodes = [
-    pipelineNode("Kafka", "Event transport", serviceState("kafka")),
+    pipelineNode("Kafka", "Event transport", snapshot.lag?.available ? "observed" : "not measured"),
     pipelineNode("PostgreSQL", "Persisted evidence", serviceState("postgres")),
+    pipelineNode("MinIO", "Object storage", snapshot.lake ? "configured" : "not measured"),
     pipelineNode("Spark Bronze", "Raw event layer", snapshot.lake?.spark_jobs.find((job) => job.job_name.toLowerCase().includes("bronze"))?.display_state ?? "unavailable"),
     pipelineNode("Spark Silver", "Curated commerce", current ? "ready" : "pending"),
     pipelineNode("ClickHouse", "Published warehouse", warehouse?.ready ? "ready" : "pending"),
@@ -197,10 +198,10 @@ export function OverviewDashboard() {
       />
       {refreshError ? <Notice>The latest refresh failed. Figures below are the previous response. {refreshError}</Notice> : null}
       <div className="kpi-grid">
-        <Kpi label="Accepted orders" value={formatCount(warehouse?.order_count)} trend={warehouse?.ready ? "Published" : "Unavailable"} data={[8, 12, 10, 16, 14, 22, 21]} tone="green" footnote="Published warehouse snapshot" />
-        <Kpi label="Payments processed" value={formatCount(stats.accepted_payments)} trend="Recorded" data={[5, 9, 7, 13, 12, 16, 19]} tone="cyan" footnote="Accepted ingestion events" />
-        <Kpi label="Inventory updates" value={formatCount(stats.inventory_updates)} trend="Recorded" data={[15, 12, 18, 16, 22, 20, 25]} tone="green" footnote="Accepted inventory events" />
-        <Kpi label="Pipeline health" value={warehouse?.ready ? "100%" : "—"} trend={warehouse?.ready ? "All systems operational" : "Awaiting publication"} data={[20, 20, 19, 20, 20, 20, warehouse?.ready ? 20 : 12]} tone={warehouse?.ready ? "green" : "amber"} footnote={`${Object.values(snapshot.ready.checks).filter((state) => state === "ok").length}/${Object.keys(snapshot.ready.checks).length || 0} readiness checks`} />
+        <Kpi label="Accepted orders" value={formatCount(warehouse?.order_count)} trend={warehouse?.ready ? "Published" : "Unavailable"} tone="green" footnote="Published warehouse snapshot" />
+        <Kpi label="Payments processed" value={formatCount(stats.accepted_payments)} trend="Recorded" tone="cyan" footnote="Accepted ingestion events" />
+        <Kpi label="Inventory updates" value={formatCount(stats.inventory_updates)} trend="Recorded" tone="green" footnote="Accepted inventory events" />
+        <Kpi label="Warehouse state" value={warehouse?.ready ? "Ready" : "—"} trend={warehouse?.ready ? "Published snapshot" : "Awaiting publication"} tone={warehouse?.ready ? "green" : "amber"} footnote={`${Object.values(snapshot.ready.checks).filter((state) => state === "ok").length}/${Object.keys(snapshot.ready.checks).length || 0} readiness checks`} />
       </div>
       <div className="overview-grid">
         <Panel className="span-8" title="Event throughput" detail="Persisted events · observed minute buckets" action={<StatusPill tone="info">UTC · recorded</StatusPill>}>
@@ -220,7 +221,7 @@ export function OverviewDashboard() {
         </Panel>
         <Panel className="span-8" title="Data pipeline topology" detail="Evidence path from transport to serving">
           <div className="topology" tabIndex={0} aria-label="Data pipeline topology">
-            {nodes.map((node, index) => <div className="topology-step" key={node.label}><div className="node"><span>{String(index + 1).padStart(2, "0")}</span><b>{node.label}</b><small><i />{node.state}</small></div>{index < nodes.length - 1 ? <div className="connector"><i /></div> : null}</div>)}
+            {nodes.map((node, index) => <div className="topology-step" key={node.label}><div className="node"><span>{String(index + 1).padStart(2, "0")}</span><b>{node.label}</b><small><i className={node.state === "not measured" || node.state === "unavailable" ? "warning" : ""} />{node.state}</small></div>{index < nodes.length - 1 ? <div className="connector"><i /></div> : null}</div>)}
           </div>
           <div className="pipeline-note"><b>Publication</b><span><i className="ok-dot" />{warehouse?.warehouse_publication_id ? warehouse.warehouse_publication_id.slice(0, 18) : "No active warehouse publication"}</span><span>Silver {current?.silver_order_count == null ? "—" : formatCount(current.silver_order_count)} orders</span></div>
         </Panel>

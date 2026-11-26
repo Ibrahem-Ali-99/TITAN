@@ -37,7 +37,7 @@ export function ActivityChart({
             <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} />
             <YAxis stroke={axis} fontSize={11} allowDecimals={false} tickLine={false} width={32} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="persisted" name="Persisted events" fill="#2dd4bf" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="persisted" name="Persisted events" fill="#2dd4bf" radius={[3, 3, 0, 0]} maxBarSize={26} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -162,6 +162,22 @@ export function EvaluationChart({
           <Line type="monotone" dataKey="actual" name="Actual" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 2 }} connectNulls={false} />
           <Line type="monotone" dataKey="predicted" name="Predicted" stroke="#60a5fa" strokeWidth={2} dot={{ r: 2 }} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function RunDurationChart({ points }: { points: { label: string; duration_ms: number }[] }) {
+  return (
+    <div className="h-56" role="img" aria-label="Observed pipeline run durations in milliseconds">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke={grid} vertical={false} />
+          <XAxis dataKey="label" stroke={axis} fontSize={11} tickLine={false} interval={0} angle={-18} textAnchor="end" height={42} />
+          <YAxis stroke={axis} fontSize={11} tickLine={false} width={48} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value} ms`, "Duration"]} />
+          <Bar dataKey="duration_ms" name="Duration" fill="#60a5fa" radius={[3, 3, 0, 0]} maxBarSize={30} />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

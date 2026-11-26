@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { DataTable, Empty, ErrorState, Kpi, LoadingState, PageHeader, Panel, ScopeBar, StatusBadge, StatusPill, Td, TechnicalDetails, Th } from "@/components/ui/ops";
+import { RunDurationChart } from "@/components/ui/charts";
 import { ApiError, getJson } from "@/lib/api";
 import type { WarehouseStatus } from "@/lib/types";
 import { classifyIncident, matchLatest, platformHealth, summarizeIncidents, type Execution } from "@/lib/incidents";
@@ -64,7 +65,7 @@ export function MonitoringDashboard() {
   if (!overview) return <ErrorState title="Monitoring unavailable" detail={error} />;
 
   const health = platformHealth({ warehouseReady: warehouse === null ? null : warehouse.ready, activeFailures: summary.active.length, latestUnresolved: jobs === null || jobs.some((job) => classifyIncident(job, [], job, now).kind !== "succeeded") });
-  const sparkValues = runs.slice(0, 8).reverse().map((run) => run.duration_ms ?? 0);
+  const durationPoints = runs.filter((run) => run.duration_ms !== null).slice(0, 8).reverse().map((run, index) => ({ label: `${run.job_name.slice(0, 12)} ${index + 1}`, duration_ms: run.duration_ms ?? 0 }));
   const services = [
     { name: "Kafka consumer", status: overview.ingestion_lag.available ? "Healthy" : "Unavailable", metric: overview.ingestion_lag.available ? `${overview.ingestion_lag.total_lag ?? 0} lag` : "Unavailable", signal: overview.ingestion_lag.available ? "Observed" : "No current signal", tone: overview.ingestion_lag.available ? "ok" : "warn" },
     { name: "Spark checkpoints", status: overview.spark_progress ? "Healthy" : "Unavailable", metric: overview.spark_progress ? "Report stored" : "Unavailable", signal: overview.spark_progress ? "Observed" : "No current signal", tone: overview.spark_progress ? "ok" : "warn" },
@@ -77,10 +78,10 @@ export function MonitoringDashboard() {
   return <div>
     <PageHeader title="Monitoring" description="Infrastructure telemetry, service health, and operational incidents." aside={<StatusPill tone={health.tone}>{health.label}</StatusPill>} />
     <div className="monitor-grid">
-      <Kpi label="Service availability" value={health.tone === "ok" ? "100%" : "—"} footnote="Current evidence" tone="green" data={sparkValues.length ? sparkValues : [1, 1, 1, 1]} />
-      <Kpi label="Pipeline latency" value={sparkValues.length ? formatDuration(Math.round(sparkValues[sparkValues.length - 1])) : "—"} footnote="Latest stored run" tone="cyan" data={sparkValues.length ? sparkValues : [1, 1, 1, 1]} />
-      <Kpi label="Consumer lag" value={overview.ingestion_lag.available ? String(overview.ingestion_lag.total_lag ?? 0) : "Unavailable"} footnote={overview.ingestion_lag.consumer_group} data={[0, 1, 0, 1]} />
-      <Kpi label="Active incidents" value={String(summary.active.length)} footnote="Latest verified state" tone="amber" data={[summary.active.length, summary.active.length, summary.active.length, summary.active.length]} />
+      <Kpi label="Readiness checks" value={health.tone === "ok" ? "Current" : "Review"} footnote="Platform evidence" tone="green" />
+      <Kpi label="Latest run" value={durationPoints.length ? formatDuration(durationPoints.at(-1)?.duration_ms ?? null) : "—"} footnote="Stored duration" tone="cyan" />
+      <Kpi label="Consumer lag" value={overview.ingestion_lag.available ? String(overview.ingestion_lag.total_lag ?? 0) : "Unavailable"} footnote={overview.ingestion_lag.consumer_group} />
+      <Kpi label="Active incidents" value={String(summary.active.length)} footnote="Latest verified state" tone="amber" />
     </div>
     <Panel title="Service health matrix" detail="Live infrastructure status and telemetry">
       <div className="health-matrix" tabIndex={0} aria-label="Service health matrix">
@@ -89,15 +90,15 @@ export function MonitoringDashboard() {
       </div>
     </Panel>
     <div className="two-col">
-      <Panel title="Infrastructure telemetry" detail="Normalized performance from stored operational signals">
-        <div className="telemetry-lines">{sparkValues.length ? sparkValues.map((value, index) => <div className="telemetry-line" key={`${value}-${index}`}><span>run {index + 1}</span><i style={{ width: `${Math.min(100, Math.max(8, value / Math.max(...sparkValues, 1) * 100))}%` }} /><b>{formatDuration(value)}</b></div>) : <Empty>No run telemetry is stored.</Empty>}</div>
+      <Panel title="Pipeline run duration" detail="Recorded durations; milliseconds are not normalized across jobs">
+        {durationPoints.length ? <RunDurationChart points={durationPoints} /> : <Empty>No run telemetry is stored.</Empty>}
       </Panel>
-      <Panel title="Incident timeline" detail="Operational events from the current run history">
-        <div className="timeline">{runs.slice(0, 5).map((run, index) => { const incident = summary.incidents[index] ?? classifyIncident(run, runs, matchLatest(run, jobs)); return <div key={run.id}><code>{formatUtc(run.started_at).slice(11, 16)}</code><i className={incident.tone} /><span><b>{run.job_name}</b><small>{run.detail ?? incident.label}</small></span><StatusPill tone={incident.tone === "ok" ? "ok" : incident.tone === "bad" ? "bad" : "warn"}>{incident.label}</StatusPill></div>; })}</div>
+      <Panel title="Operational activity" detail="Run activity is separate from active incident state">
+        <div className="timeline">{runs.slice(0, 5).map((run) => { const incident = classifyIncident(run, runs, matchLatest(run, jobs)); const label = incident.tone === "bad" ? "Failed" : incident.tone === "warn" ? "Review" : "Recorded"; return <div key={run.id}><code>{formatUtc(run.started_at).slice(11, 16)}</code><i className={incident.tone} /><span><b>{run.job_name}</b><small>{run.detail ?? run.state}</small></span><StatusPill tone={incident.tone === "bad" ? "bad" : incident.tone === "warn" ? "warn" : "neutral"}>{label}</StatusPill></div>; })}</div>
       </Panel>
     </div>
     <div className="stale-note"><span><b>Missing metrics policy:</b> unavailable or stale telemetry is labeled explicitly and is never represented as zero.</span></div>
-    <ScopeBar>Current status, last activity, and historical incidents stay distinct.</ScopeBar>
+    <ScopeBar>Current status, last activity, and historical incidents stay distinct. <a className="text-btn" href="http://localhost:3001" target="_blank" rel="noreferrer">Open Grafana</a> · <a className="text-btn" href="http://localhost:9090" target="_blank" rel="noreferrer">Open Prometheus</a></ScopeBar>
     <TechnicalDetails summary="Full monitoring history">
       {runs.length === 0 ? <Empty>No pipeline attempts are stored.</Empty> : <DataTable label="Pipeline runs"><thead><tr><Th>Started UTC</Th><Th>Job</Th><Th>Reading</Th><Th>Duration</Th><Th>Open</Th></tr></thead><tbody>{runs.map((run, index) => { const incident = summary.incidents[index] ?? classifyIncident(run, runs, matchLatest(run, jobs)); return <tr key={run.id}><Td className="font-mono text-xs">{formatUtc(run.started_at)}</Td><Td>{run.job_name}</Td><Td><StatusBadge tone={incident.tone === "ok" ? "ok" : incident.tone === "bad" ? "bad" : incident.tone === "warn" ? "warn" : "neutral"}>{incident.label}</StatusBadge><span className="ml-2 text-xs text-zinc-400">stored {run.state}</span></Td><Td>{formatDuration(run.duration_ms)}</Td><Td><button type="button" className="text-xs text-sky-300" onClick={() => setOpenId(openId === run.id ? null : run.id)}>Details</button></Td></tr>; })}</tbody></DataTable>}
     </TechnicalDetails>
