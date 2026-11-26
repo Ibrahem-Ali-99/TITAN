@@ -58,7 +58,7 @@ docker compose --profile processing run --rm --build lake-init
 docker compose --profile processing run --rm spark-bronze
 docker compose --profile processing run --rm spark-silver
 docker compose --profile processing run --rm spark-tests
-uv run python scripts/verify_day3.py
+uv run python -m scripts.verify_day3
 ```
 
 `spark-bronze` uses `availableNow`: it reads to the current Kafka end and exits. A second run uses the checkpoint. Delete the `spark_checkpoints` volume only when a full Bronze rebuild is intended; batch ids would start again.

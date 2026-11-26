@@ -7,9 +7,9 @@ MinIO, ClickHouse, and point-in-time recovery are intentionally out of scope.
 
 ```powershell
 $env:DATABASE_URL = 'postgresql://user:password@host:5432/titan'
-uv run python scripts/postgres_dr.py backup --dsn $env:DATABASE_URL --database titan --output .tmp-backup\2026-11-23
-uv run python scripts/postgres_dr.py verify --backup .tmp-backup\2026-11-23
-uv run python scripts/postgres_dr.py restore --backup .tmp-backup\2026-11-23 --dsn 'postgresql://user:password@127.0.0.1:55432/titan_restore'
+uv run python -m scripts.postgres_dr backup --dsn $env:DATABASE_URL --database titan --output .tmp-backup\2026-11-23
+uv run python -m scripts.postgres_dr verify --backup .tmp-backup\2026-11-23
+uv run python -m scripts.postgres_dr restore --backup .tmp-backup\2026-11-23 --dsn 'postgresql://user:password@127.0.0.1:55432/titan_restore'
 ```
 
 Backups use `pg_dump -Fc --no-owner --no-acl`, include a SHA-256 manifest, and

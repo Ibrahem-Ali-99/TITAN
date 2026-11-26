@@ -17,6 +17,8 @@ coverage.xml
 !.env.example
 !.env.clone.example
 artifacts/
+benchmarks/protected-browser-*.json
+benchmarks/protected-browser-*.png
 
 # Node
 node_modules/

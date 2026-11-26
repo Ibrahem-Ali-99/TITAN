@@ -240,8 +240,9 @@ certificate-verifying client with `https://localhost:8443` (or
 `https://staging.local:8443` with local name resolution). Missing, expired,
 untrusted, or mismatched ingress material causes preflight or nginx startup
 to fail. The Next.js server-side proxy continues to strip browser-supplied
-authorization and inject only its configured scoped token; it does not expose
-that token to browser JavaScript and rejects administrative operations.
+authorization and inject the scoped token allowed by the verified session.
+The proxy keeps the token server-side and requires the admin role for
+administrative calls.
 
 Renewal uses a newly generated CA/certificate and a new disposable volume;
 validate the browser and authenticated API round-trip before replacing the
@@ -250,3 +251,19 @@ shared-staging or public HTTPS, and it does not provide OIDC or an external
 user identity in local mode. Protected staging now requires the OIDC settings
 documented in `docs/security/oidc-rbac-6d.md`; do not start it with anonymous
 or placeholder identity configuration.
+
+## Disposable protected browser acceptance
+
+Run from the repository root with Docker Desktop running Linux containers.
+The harness provisions a fresh Compose project, test identity provider and CA.
+The first command covers navigation and logout. The second checks the four
+role boundaries. Each invocation uses its own disposable project. Let the
+harness generate the project name.
+
+```powershell
+uv run python -m scripts.accept_protected_browser_runtime --browser-smoke --container-browser
+uv run python -m scripts.accept_protected_browser_runtime --browser-smoke --container-browser --rbac-smoke
+```
+
+Keep the generated evidence under the ignored `artifacts/` directory. The
+browser verifies the ingress certificate through the disposable CA.

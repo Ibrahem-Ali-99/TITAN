@@ -29,13 +29,13 @@ docker compose up --build -d
 docker compose run --rm --build migrate
 uv sync --all-packages
 uv sync --group orchestration
-uv run python scripts/verify_infrastructure.py
+uv run python -m scripts.verify_infrastructure
 uv run python -m event_generator --history-days 28 --seed 51022 --rate 0
 docker compose --profile processing run --rm spark-bronze
 docker compose --profile processing run --rm spark-silver
-uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
-uv run --group orchestration python scripts/run_pipeline.py titan_ml
-uv run python scripts/demo_day7.py
+uv run --group orchestration python -m scripts.run_pipeline titan_warehouse
+uv run --group orchestration python -m scripts.run_pipeline titan_ml
+uv run python -m scripts.demo_day7
 ```
 
 `COMPOSE_FILE` is not read from `.env`. It has to be set in the shell. `docker-compose.yml` sets `name: titan`. Without `COMPOSE_PROJECT_NAME`, a second directory attaches the development volumes. `.env.clone.example` uses `127.0.0.1` for `DATABASE_URL` because a `localhost` Postgres URL can spend the connect timeout on IPv6.

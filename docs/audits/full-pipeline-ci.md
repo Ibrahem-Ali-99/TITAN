@@ -30,14 +30,16 @@ docker compose --project-name titan-full-ci-local -f docker-compose.yml -f .gith
 uv run --group orchestration python scripts/full_pipeline_ci.py
 docker compose --project-name titan-full-ci-local -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm spark-bronze
 docker compose --project-name titan-full-ci-local -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml run --rm spark-silver
-uv run --group orchestration python scripts/run_pipeline.py titan_warehouse
+uv run --group orchestration python -m scripts.run_pipeline titan_warehouse
 docker compose --project-name titan-full-ci-local -f docker-compose.yml -f .github/docker-compose.full-pipeline.yml down --volumes --remove-orphans
 ```
 
 The image is published to GHCR as
 `ghcr.io/<owner>/titan-spark:4.0.1-<source-commit>`. The integration workflow
 pulls that tag once, resolves its registry-provided immutable digest, and
-passes only `ghcr.io/<owner>/titan-spark@sha256:<digest>` to Compose. The image
+passes only `ghcr.io/<owner>/titan-spark@sha256:<digest>` to Compose. Chained
+runs accept successful builds from this repository's `master` branch and
+check out the exact source commit that produced the image. The image
 is built from the Apache-maintained Spark 4.0.1 Scala 2.13 Python 3 Java 17 base,
 Spark 4.0.1, Hadoop 3.4.1,
 AWS SDK bundle 2.24.6, Kafka 3.9.1, PostgreSQL JDBC 42.7.7 and Commons Pool 2.12.0.

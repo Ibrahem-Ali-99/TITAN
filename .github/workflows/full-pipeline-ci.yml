@@ -3,6 +3,7 @@ name: full-pipeline-ci
 on:
   workflow_run:
     workflows: [Build TITAN Spark image]
+    branches: [master]
     types: [completed]
 
 permissions:
@@ -18,7 +19,9 @@ jobs:
     name: Spark and warehouse integration
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     env:
       COMPOSE_PROJECT_NAME: titan-full-ci
       COMPOSE_FILE: docker-compose.yml:.github/docker-compose.full-pipeline.yml
@@ -38,6 +41,9 @@ jobs:
       LAKE_BUCKET: titan-lake
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           version: "0.12.1"

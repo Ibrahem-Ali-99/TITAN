@@ -7,9 +7,9 @@ lake prefixes. The reusable commands are:
 $env:MINIO_ENDPOINT = '127.0.0.1:9000'
 $env:MINIO_ACCESS_KEY = 'titan'
 $env:MINIO_SECRET_KEY = 'local-only-secret'
-uv run python scripts/minio_dr.py backup --bucket titan-lake --output .tmp-minio-backup\run-1
-uv run python scripts/minio_dr.py verify --backup .tmp-minio-backup\run-1
-uv run python scripts/minio_dr.py restore --backup .tmp-minio-backup\run-1 --destination-bucket titan-lake-restore
+uv run python -m scripts.minio_dr backup --bucket titan-lake --output .tmp-minio-backup\run-1
+uv run python -m scripts.minio_dr verify --backup .tmp-minio-backup\run-1
+uv run python -m scripts.minio_dr restore --backup .tmp-minio-backup\run-1 --destination-bucket titan-lake-restore
 ```
 
 The backup stores exact object bytes under `objects/` and a manifest containing
