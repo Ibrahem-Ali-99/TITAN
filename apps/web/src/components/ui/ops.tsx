@@ -63,7 +63,7 @@ export function Empty({ children }: { children: ReactNode }) {
 export function CopyId({ value }: { value: string | null }) {
   const [copied, setCopied] = useState(false);
   if (!value) return <span className="unavailable-text">—</span>;
-  return <span className="copy-id"><code>{value}</code><button type="button" onClick={() => { void navigator.clipboard.writeText(value).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); }); }}>{copied ? "Copied" : "Copy"}</button></span>;
+  return <span className="copy-id"><code title={value}>{value}</code><button type="button" onClick={() => { void navigator.clipboard.writeText(value).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); }); }}>{copied ? "Copied" : "Copy"}</button></span>;
 }
 
 export function TechnicalDetails({ summary, children }: { summary: string; children: ReactNode }) {

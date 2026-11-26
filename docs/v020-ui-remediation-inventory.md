@@ -71,6 +71,8 @@ This inventory records the acceptance work completed against the authoritative F
 
 - Refreshed archive: [docs/assets/v020-acceptance.zip](/D:/TITAN/docs/assets/v020-acceptance.zip)
 - Per route, the evidence directory contains the supplied 1440x900 reference, a full-page reference capture, 1440x900 dark actual, full-page dark actual, 390x844 mobile actual, and 1440x900 light actual. The actual captures were inspected after the final data refresh.
+- The typography pass also includes 1920x1080 and 1280x800 dark captures, computed-style evidence in `typography-metrics.json`, and zero-overflow/loading checks in `visual-layout-checks.json`.
+- Canonical rendered values: 28px page heading, 30px KPI value, 15px section heading, 12px supporting/status text, 12px table header, 13px table content, 13px controls/navigation, and 12px technical identifiers.
 - Reference captures and current route captures: [docs/assets/v020-acceptance](/D:/TITAN/docs/assets/v020-acceptance)
 - Live browser route: [http://localhost:23000](http://localhost:23000)
 - Dagster: [http://localhost:3002](http://localhost:3002)
