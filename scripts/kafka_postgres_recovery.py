@@ -90,15 +90,19 @@ def _prepare(args: argparse.Namespace) -> None:
         shutil.rmtree(backup)
     command = [
         sys.executable,
-        os.fspath(ROOT / "scripts" / "kafka_dr.py"),
+        "-m",
+        "scripts.kafka_dr",
         "--bootstrap",
         _bootstrap(),
     ]
     subprocess.run(
-        [*command, "backup", "--topic", SOURCE_TOPIC, "--output", os.fspath(backup)], check=True
+        [*command, "backup", "--topic", SOURCE_TOPIC, "--output", os.fspath(backup)],
+        cwd=ROOT,
+        check=True,
     )
     subprocess.run(
         [*command, "restore", "--backup", os.fspath(backup), "--topic-prefix", "recovery."],
+        cwd=ROOT,
         check=True,
     )
     evidence = {

@@ -59,7 +59,7 @@ orchestration = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
-    "scripts",
+    ".",
     "pipelines/spark/src",
     "pipelines/warehouse/src",
     "pipelines/dagster/src",

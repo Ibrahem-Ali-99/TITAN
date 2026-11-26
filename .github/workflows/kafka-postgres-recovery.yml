@@ -53,7 +53,7 @@ jobs:
           -f .github/docker-compose.kafka-recovery.yml
           up --build --detach --wait kafka postgres migrate
       - name: Prepare and restore Kafka event log
-        run: uv run python scripts/kafka_postgres_recovery.py prepare --evidence benchmarks/kafka-postgres-recovery.json
+        run: uv run python -m scripts.kafka_postgres_recovery prepare --evidence benchmarks/kafka-postgres-recovery.json
       - name: Start real ingestion consumer
         run: >-
           docker compose --project-name "$COMPOSE_PROJECT_NAME"
@@ -61,7 +61,7 @@ jobs:
           -f .github/docker-compose.kafka-recovery.yml
           up --build --detach --wait ingestion
       - name: Verify durable recovery and restart idempotency
-        run: uv run python scripts/kafka_postgres_recovery.py verify --evidence benchmarks/kafka-postgres-recovery.json
+        run: uv run python -m scripts.kafka_postgres_recovery verify --evidence benchmarks/kafka-postgres-recovery.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:

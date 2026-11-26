@@ -67,7 +67,12 @@ jobs:
           keys = sorted(o.object_name for o in client.list_objects('titan-lake-restore', recursive=True))
           assert keys == ['_titan_restore_complete.json', 'bronze/commerce_events/batch_id=7/_SUCCESS', 'bronze/commerce_events/batch_id=7/part-00000.parquet', 'silver/current/README', 'silver/versions/dr-publication/_SUCCESS', 'silver/versions/dr-publication/orders/part-00000.parquet']
           for key, expected_rows in [('bronze/commerce_events/batch_id=7/part-00000.parquet', 2), ('silver/versions/dr-publication/orders/part-00000.parquet', 2)]:
-              data = client.get_object('titan-lake-restore', key).read()
+              response = client.get_object('titan-lake-restore', key)
+              try:
+                  data = response.read()
+              finally:
+                  response.close()
+                  response.release_conn()
               assert pq.read_table(io.BytesIO(data)).num_rows == expected_rows
           print(json.dumps(result, indent=2))
           PY
